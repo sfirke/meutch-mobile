@@ -1,0 +1,34 @@
+# Node / Expo
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+coverage/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Keep planning docs tracked in dev_docs/.
+
+# Mobile signing and native secrets
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

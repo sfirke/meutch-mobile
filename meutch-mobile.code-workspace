@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"name": "meutch-mobile",
+			"path": "."
+		},
+		{
+			"name": "meutch",
+			"path": "../meutch"
+		}
+	]
+}

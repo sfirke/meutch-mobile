@@ -60,6 +60,8 @@ Use three backend targets and keep their purposes separate.
 
 The most important decision in this plan is that the mobile team should not use the current staging replica environment as its everyday testing target. That environment mirrors production data and is the wrong place for write-side mobile testing once the mutation routes land.
 
+The preferred shared setup is a dedicated mobile integration deployment backed by a new, fully isolated database on the managed cloud staging Postgres server. That database should use separate credentials and must not be touched by the production-sync workflow.
+
 ## Recommended Stack
 
 - Expo managed workflow
@@ -89,7 +91,8 @@ Set up the repository so the next app bootstrap PR has a clean base.
 Decide the shared testing model before writing app code.
 
 - provision a dedicated mobile integration deployment for the backend
-- give it its own Postgres database
+- give it its own Postgres database on the managed cloud staging Postgres server
+- use separate database credentials from the staging replica workflow
 - keep production-data sync disabled there
 - set a safe email allowlist
 - assign a stable HTTPS base URL for the mobile app

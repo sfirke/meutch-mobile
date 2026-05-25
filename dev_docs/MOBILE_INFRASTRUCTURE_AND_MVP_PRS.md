@@ -13,10 +13,10 @@ Do not use the current staging replica database as the everyday mobile testing t
 Use this model instead:
 
 1. Keep using the existing local Docker Postgres databases in the main `meutch` repo for backend development and tests.
-2. Create a dedicated mobile integration backend deployment with its own Postgres database for shared app testing.
+2. Create a dedicated mobile integration backend deployment that uses a new, fully isolated Postgres database on the managed cloud staging Postgres server for shared app testing.
 3. Reserve the current staging replica environment for late validation only.
 
-If your current staging Postgres server can host a second, fully isolated database that is not touched by the production-sync workflow, then placing the mobile integration database on that server is acceptable. If the staging server is tightly coupled to the replica sync process, create a separate database or instance instead.
+Because you control the managed cloud staging Postgres server, the recommended setup is to create the mobile integration database there as a separate database with its own credentials. Keep that database completely outside the production-sync workflow and treat it as a distinct environment even though it lives on the same Postgres server.
 
 ## Backend Targets
 
@@ -88,7 +88,7 @@ This is the backend target the mobile app should use most of the time.
 
 ### Required Characteristics
 
-1. Its own Postgres database.
+1. Its own Postgres database on the managed cloud staging Postgres server.
 2. Its own app deployment.
 3. A stable HTTPS URL.
 4. Production sync disabled.
@@ -101,6 +101,8 @@ This is the backend target the mobile app should use most of the time.
 - Database name: `meutch_mobile_integration`
 
 The exact names are flexible. The important part is isolation and stability.
+
+Use a dedicated database user for this environment rather than sharing credentials with the staging replica workflow.
 
 ### Backend Environment Variables For Integration
 

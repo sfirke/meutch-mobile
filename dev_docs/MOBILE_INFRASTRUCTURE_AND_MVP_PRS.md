@@ -231,7 +231,10 @@ Checklist:
 - initialize the Expo TypeScript project
 - add the base folder structure
 - set up environment configuration
-- add basic lint and format commands if needed
+- add lint, format, and typecheck commands
+- add Jest plus React Native Testing Library for baseline unit and component tests
+- add pre-commit hooks for staged-file linting, formatting, and related tests
+- add pull-request CI to run the full verification suite
 - verify the empty shell opens on Android with Expo Go
 
 ### PR 3: Auth And Session

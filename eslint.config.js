@@ -6,4 +6,17 @@ module.exports = defineConfig([
   globalIgnores(['.expo/*', 'dist/*', 'web-build/*']),
   expoConfig,
   eslintPluginPrettierRecommended,
+  {
+    files: ['**/__tests__/**/*.{ts,tsx}', '**/*-test.{ts,tsx}'],
+    languageOptions: {
+      globals: {
+        afterAll: 'readonly',
+        beforeEach: 'readonly',
+        describe: 'readonly',
+        expect: 'readonly',
+        jest: 'readonly',
+        test: 'readonly',
+      },
+    },
+  },
 ]);

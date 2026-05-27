@@ -9,7 +9,9 @@ PR 2 establishes the Expo-managed TypeScript baseline for the app:
 - Expo SDK scaffold committed in this repo
 - environment-aware API target configuration for local, integration, and production backends
 - a minimal shared API utility for the versioned `/api/v1` surface
-- lint, format, and typecheck commands for day-to-day development
+- lint, format, typecheck, and Jest-based test commands for day-to-day development
+- staged-file pre-commit checks through Husky and lint-staged
+- GitHub Actions CI that runs the full verification suite on pull requests
 
 The next implementation PR builds the auth and session layer on top of this base.
 
@@ -57,8 +59,28 @@ Useful commands:
 npm run android
 npm run lint
 npm run typecheck
+npm run test
 npm run format:check
+npm run verify
 ```
+
+## Quality Gates
+
+Running `npm install` also installs the repo's Git hook setup.
+
+On each commit, the pre-commit hook runs fast staged-file checks:
+
+- `eslint --fix`
+- `prettier --write`
+- Jest with `--findRelatedTests`
+
+GitHub Actions runs the full verification suite on pull requests and pushes to `main`:
+
+```bash
+npm run verify
+```
+
+That command runs format checking, linting, TypeScript typechecking, and the full Jest test suite.
 
 ## Environment Targets
 

@@ -30,7 +30,7 @@ Because you control the managed cloud staging Postgres server, the recommended s
 
 ### Required On Linux
 
-1. Install Node 22 LTS and use the repo-pinned version from `.nvmrc`.
+1. Install Node 24 LTS and use the repo-pinned version from `.nvmrc`.
 2. Install npm.
 3. Install Expo Go on at least one Android device.
 4. Create an Expo account for the team, or choose the shared Expo organization account.

@@ -1,0 +1,8 @@
+assets/
+.expo/
+dev_docs/
+dist/
+meutch-mobile.code-workspace
+node_modules/
+package-lock.json
+web-build/

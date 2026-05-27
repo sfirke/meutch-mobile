@@ -1,6 +1,18 @@
-import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { environmentOptions, runtimeConfig } from '../config/env';
+
+const brandColors = {
+  primary: '#4fd1c7',
+  primaryDark: '#319795',
+  secondary: '#718096',
+  warning: '#f6ad55',
+  background: '#fffffe',
+  surface: '#f7fafc',
+  border: '#e2e8f0',
+  text: '#2d3748',
+};
 
 export function AppShell() {
   return (
@@ -53,74 +65,93 @@ export function AppShell() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f5f2e8',
+    backgroundColor: brandColors.background,
   },
   content: {
     paddingHorizontal: 20,
     paddingVertical: 24,
-    gap: 16,
+    gap: 18,
   },
   hero: {
     gap: 12,
+    backgroundColor: '#edfdfb',
+    borderColor: brandColors.primary,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 24,
   },
   eyebrow: {
-    color: '#9b4d1f',
+    color: brandColors.primaryDark,
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   title: {
-    color: '#1f2d2f',
+    color: brandColors.text,
     fontSize: 32,
     fontWeight: '700',
     lineHeight: 38,
   },
   copy: {
-    color: '#4e5c5e',
+    color: brandColors.secondary,
     fontSize: 16,
     lineHeight: 24,
   },
   card: {
-    backgroundColor: '#fffdf8',
-    borderColor: '#e0d9c6',
+    backgroundColor: brandColors.background,
+    borderColor: brandColors.border,
     borderRadius: 20,
     borderWidth: 1,
     gap: 12,
     padding: 18,
+    shadowColor: brandColors.text,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   cardLabel: {
-    color: '#4e5c5e',
+    color: brandColors.primaryDark,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   cardValue: {
-    color: '#1f2d2f',
+    color: brandColors.text,
     fontSize: 24,
     fontWeight: '700',
   },
   cardMeta: {
-    color: '#4e5c5e',
+    color: brandColors.secondary,
     fontSize: 15,
     lineHeight: 22,
   },
   optionRow: {
+    backgroundColor: brandColors.surface,
+    borderColor: brandColors.border,
+    borderRadius: 14,
+    borderWidth: 1,
     gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   optionName: {
-    color: '#1f2d2f',
+    color: brandColors.text,
     fontSize: 16,
     fontWeight: '600',
   },
   optionUrl: {
-    color: '#4e5c5e',
+    color: brandColors.secondary,
     fontSize: 14,
     lineHeight: 20,
   },
   listItem: {
-    color: '#1f2d2f',
+    color: brandColors.text,
     fontSize: 15,
     lineHeight: 22,
   },

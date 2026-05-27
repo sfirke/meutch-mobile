@@ -5,13 +5,13 @@
     "scheme": "meutch",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo_m.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo_m.png",
       "resizeMode": "contain",
-      "backgroundColor": "#f5f2e8"
+      "backgroundColor": "#f6ad55"
     },
     "ios": {
       "supportsTablet": true,
@@ -20,15 +20,13 @@
     "android": {
       "package": "com.meutch.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#f6ad55",
+        "foregroundImage": "./assets/logo_m.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/logo_m.png"
     }
   }
 }

@@ -32,7 +32,7 @@ function resolveEnvironmentName(): EnvironmentName {
     return candidate;
   }
 
-  return 'integration';
+  return 'local';
 }
 
 function trimTrailingSlash(value: string): string {

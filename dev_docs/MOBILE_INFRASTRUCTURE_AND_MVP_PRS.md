@@ -243,6 +243,8 @@ Checklist:
 - implement refresh-token rotation
 - implement logout
 - implement session restore on app launch
+- add a token-injecting wrapper around `apiFetch` that reads the stored access token and merges the `Authorization: Bearer` header automatically — all authenticated calls go through this wrapper; callers never read the token directly
+- run `eas build:configure` and commit `eas.json` with `development`, `preview`, and `production` build profiles (the first actual build artifact is produced in PR 6, but locking in the config here prevents retrofitting it later)
 
 Verification target: existing Meutch accounts can log in and stay signed in.
 
@@ -268,9 +270,7 @@ Checklist:
 
 Checklist:
 
-- configure app identifiers
-- configure EAS build profiles
-- produce one internal Android build
+- produce one internal Android build using the EAS profiles committed in PR 3
 - verify testers can install it and hit the integration API
 
 ### PR 7 And Later: Write-Side Parity

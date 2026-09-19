@@ -1,8 +1,127 @@
 import { buildApiUrl } from '../config/env';
 
+export type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
+
+type ApiErrorEnvelope = {
+  error?: {
+    code?: string;
+    message?: string;
+  };
+};
+
+export class ApiError extends Error {
+  code: string;
+  status: number;
+
+  constructor({
+    code,
+    message,
+    status,
+  }: {
+    code: string;
+    message: string;
+    status: number;
+  }) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+export function createApiFetch(fetchImpl: typeof fetch = fetch): ApiFetch {
+  return async (path, init) => fetchImpl(buildApiUrl(path), init);
+}
+
 export async function apiFetch(
   path: string,
   init?: RequestInit,
 ): Promise<Response> {
-  return fetch(buildApiUrl(path), init);
+  return createApiFetch()(path, init);
+}
+
+export function mergeHeaders(
+  headers?: HeadersInit,
+  extraHeaders?: Record<string, string>,
+): Record<string, string> {
+  const mergedHeaders: Record<string, string> = {};
+
+  if (headers) {
+    if (Array.isArray(headers)) {
+      for (const [name, value] of headers) {
+        mergedHeaders[name] = value;
+      }
+    } else if (typeof Headers !== 'undefined' && headers instanceof Headers) {
+      headers.forEach((value, name) => {
+        mergedHeaders[name] = value;
+      });
+    } else {
+      Object.assign(mergedHeaders, headers);
+    }
+  }
+
+  if (extraHeaders) {
+    Object.assign(mergedHeaders, extraHeaders);
+  }
+
+  return mergedHeaders;
+}
+
+export function buildJsonRequestInit(
+  body: unknown,
+  init?: RequestInit,
+): RequestInit {
+  return {
+    ...init,
+    body: JSON.stringify(body),
+    headers: mergeHeaders(init?.headers, {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    }),
+  };
+}
+
+export function withBearerToken(
+  token: string,
+  init?: RequestInit,
+): RequestInit {
+  return {
+    ...init,
+    headers: mergeHeaders(init?.headers, {
+      Authorization: `Bearer ${token}`,
+    }),
+  };
+}
+
+export async function readJsonOrThrow<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    throw await readApiError(response);
+  }
+
+  return (await response.json()) as T;
+}
+
+export async function readApiError(response: Response): Promise<ApiError> {
+  const clonedResponse =
+    typeof response.clone === 'function' ? response.clone() : response;
+
+  try {
+    const payload = (await clonedResponse.json()) as ApiErrorEnvelope;
+    const code = payload.error?.code || 'API_ERROR';
+    const message =
+      payload.error?.message ||
+      `Request failed with status ${response.status}.`;
+
+    return new ApiError({ code, message, status: response.status });
+  } catch {
+    return new ApiError({
+      code: 'API_ERROR',
+      message: `Request failed with status ${response.status}.`,
+      status: response.status,
+    });
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
 }

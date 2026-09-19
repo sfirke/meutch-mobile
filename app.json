@@ -2,17 +2,12 @@
   "expo": {
     "name": "Meutch",
     "slug": "meutch-mobile",
+    "owner": "meutch",
     "scheme": "meutch",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo_m.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/logo_m.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#f6ad55"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.meutch.app"
@@ -27,6 +22,22 @@
     },
     "web": {
       "favicon": "./assets/logo_m.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logo_m.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#f6ad55"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "014462f0-af16-48ed-8e83-4d9f383fffd8"
+      }
     }
   }
 }

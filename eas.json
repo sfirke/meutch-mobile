@@ -1,0 +1,29 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ENV_NAME": "local",
+        "EXPO_PUBLIC_API_BASE_URL": "http://10.0.2.2:5000/api/v1"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ENV_NAME": "integration",
+        "EXPO_PUBLIC_API_BASE_URL": "https://staging.meutch.com/api/v1"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_ENV_NAME": "production",
+        "EXPO_PUBLIC_API_BASE_URL": "https://meutch.com/api/v1"
+      }
+    }
+  }
+}

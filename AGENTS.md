@@ -32,24 +32,16 @@ docs, commits, and PRs:
   credentials for non-public infrastructure, real user data, real emails, or
   exploitable vulnerability write-ups. Staging/production URLs that are already
   public are fine.
-- **Report vulnerabilities privately** (GitHub private security advisory or
-  direct contact), not in public issues, PRs, or commit messages. If you find
-  one while working, tell the maintainer and keep details out of the repo until
-  it is fixed.
 - Logs, screenshots, test fixtures, and CI output are public too. Scrub tokens,
   emails, and personal data from them.
 
 ## Documentation tone and subject matter
 
-- Write for a public audience: contributors, curious readers, and future
-  maintainers who have no private context.
-- Keep docs professional and neutral. No internal gripes, private chat
-  references, or references to people or accounts beyond public maintainers.
+- Write for a public audience.
+- Keep docs professional and neutral.
 - Documenting the backend API contract here is fine since the backend is
   public, but link to the backend source of truth rather than duplicating it
   where it may drift.
-- Don't document security-sensitive shortcuts, debug backdoors, or "temporary"
-  bypasses. Don't add them to the code either.
 - Planning docs in `dev_docs/` are public. Keep them free of private
   business details, credentials, and unannounced third-party information.
 

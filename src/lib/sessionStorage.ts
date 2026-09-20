@@ -4,6 +4,14 @@ import type { TokenBundle } from './session';
 
 const SESSION_STORAGE_KEY = 'meutch.mobile.session';
 
+// Refresh tokens live for 30 days, so the bundle must not ride an encrypted
+// device backup onto different hardware. The SecureStore default of
+// WHEN_UNLOCKED migrates keychain entries on a backup restore;
+// WHEN_UNLOCKED_THIS_DEVICE_ONLY keeps them on the device that issued them.
+const SESSION_STORAGE_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+};
+
 export type SessionStorage = {
   load: () => Promise<TokenBundle | null>;
   save: (session: TokenBundle) => Promise<void>;
@@ -95,7 +103,10 @@ function parseSession(value: unknown): TokenBundle | null {
 
 export const secureSessionStorage: SessionStorage = {
   async load() {
-    const storedValue = await SecureStore.getItemAsync(SESSION_STORAGE_KEY);
+    const storedValue = await SecureStore.getItemAsync(
+      SESSION_STORAGE_KEY,
+      SESSION_STORAGE_OPTIONS,
+    );
 
     if (!storedValue) {
       return null;
@@ -112,10 +123,14 @@ export const secureSessionStorage: SessionStorage = {
     await SecureStore.setItemAsync(
       SESSION_STORAGE_KEY,
       JSON.stringify(session),
+      SESSION_STORAGE_OPTIONS,
     );
   },
 
   async clear() {
-    await SecureStore.deleteItemAsync(SESSION_STORAGE_KEY);
+    await SecureStore.deleteItemAsync(
+      SESSION_STORAGE_KEY,
+      SESSION_STORAGE_OPTIONS,
+    );
   },
 };

@@ -106,7 +106,21 @@ The current foundation assumes the existing Meutch JWT contract from the sibling
 - `POST /auth/logout` revokes the whole token family for the current mobile session
 - `GET /auth/me` restores or refreshes the last valid signed-in state on app launch
 
-Tokens are stored through Expo Secure Store and are only read inside the shared session client.
+Tokens are stored through Expo Secure Store and are only read inside the shared session client. Entries are written with `WHEN_UNLOCKED_THIS_DEVICE_ONLY`, so a 30-day refresh token cannot ride an encrypted device backup onto different hardware.
+
+## Security Guardrails
+
+Refresh tokens are long-lived bearer credentials, so a few rules are enforced by tooling rather than left to review:
+
+- `no-restricted-imports` and `no-restricted-syntax` reject AsyncStorage outright. Session data belongs in `src/lib/sessionStorage.ts`, which is also the only file allowed to import `expo-secure-store`.
+- `no-console` keeps logging out of the source, and `babel-plugin-transform-remove-console` strips `console.*` from production bundles so a logged response object cannot leak tokens or member PII into device logs or a crash reporter.
+- The `dependency-review` CI job lists every dependency addition and version change against the base branch and fails until the pull request body carries an acknowledgement line:
+
+  ```
+  Approved-dependency-change: adds expo-image-picker for camera uploads
+  ```
+
+  Run the same check locally with `node scripts/check-dependency-changes.mjs main`.
 
 ## Docs
 

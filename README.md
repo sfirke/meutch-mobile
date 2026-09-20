@@ -120,7 +120,7 @@ Refresh tokens are long-lived bearer credentials, so a few rules are enforced by
   Approved-dependency-change: adds expo-image-picker for camera uploads
   ```
 
-  Run the same check locally with `node scripts/check-dependency-changes.mjs main`.
+  Editing the body re-runs the check, so the acknowledgement takes effect without another push. Run the same check locally with `node scripts/check-dependency-changes.mjs main`.
 
 ## Docs
 

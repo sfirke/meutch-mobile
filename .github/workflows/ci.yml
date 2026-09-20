@@ -2,6 +2,9 @@ name: Mobile CI
 
 on:
   pull_request:
+    # `edited` is included so adding the Approved-dependency-change line to a
+    # pull request body re-runs the dependency check against the new body.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches:
       - main
@@ -11,6 +14,9 @@ permissions:
 
 jobs:
   verify:
+    # Editing a pull request description cannot change the code, so skip the
+    # full suite for that event.
+    if: github.event_name != 'pull_request' || github.event.action != 'edited'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:

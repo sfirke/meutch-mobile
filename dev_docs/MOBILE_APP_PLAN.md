@@ -55,12 +55,14 @@ Use three backend targets and keep their purposes separate.
 | Target | Purpose | Data Safety | Default Mobile Use |
 | --- | --- | --- | --- |
 | Local backend + local Docker Postgres | Backend development, endpoint debugging, and local contract testing | Safe | Occasional, mainly when changing backend code |
-| Dedicated mobile integration environment | Shared QA, Android device testing, and routine app development | Safe if isolated | Yes |
-| Existing staging replica environment | Final pre-release validation against production-like data | Unsafe for routine mutations | No |
+| Staging (`https://staging.meutch.com`) | Shared QA, Android device testing, and routine app development | Safe | Yes |
+| Production (`https://meutch.com`) | Real user traffic | Not a test target | No |
 
-The most important decision in this plan is that the mobile team should not use the current staging replica environment as its everyday testing target. That environment mirrors production data and is the wrong place for write-side mobile testing once the mutation routes land.
+The shared mobile testing target is the existing staging environment at `https://staging.meutch.com`, reached by the app through `https://staging.meutch.com/api/v1`.
 
-The preferred shared setup is a dedicated mobile integration deployment backed by a new, fully isolated database on the managed cloud staging Postgres server. That database should use separate credentials and must not be touched by the production-sync workflow.
+Staging carries a copy of the production database, but it is isolated from production and does not send email. That makes it safe for routine mobile QA, including write-side testing once the mutation routes land, and it means the mobile project does not need to stand up or maintain a separate integration deployment.
+
+The app still exposes three named targets — `local`, `integration`, and `production` — and the `integration` target resolves to the staging URL.
 
 ## Recommended Stack
 
@@ -90,12 +92,10 @@ Set up the repository so the next app bootstrap PR has a clean base.
 
 Decide the shared testing model before writing app code.
 
-- provision a dedicated mobile integration deployment for the backend
-- give it its own Postgres database on the managed cloud staging Postgres server
-- use separate database credentials from the staging replica workflow
-- keep production-data sync disabled there
-- set a safe email allowlist
-- assign a stable HTTPS base URL for the mobile app
+- adopt the existing staging deployment as the shared mobile testing target
+- confirm staging keeps email sending disabled
+- keep a small set of known test accounts usable on staging
+- point the app's `integration` target at `https://staging.meutch.com/api/v1`
 - document local-device networking for Linux developers
 
 ### Phase 2: App Bootstrap
@@ -129,7 +129,7 @@ Once the MVP shell is stable:
 
 ### Phase 5: Post-MVP Parity
 
-After the backend write endpoints are merged and stable in the integration environment:
+After the backend write endpoints are merged and stable on staging:
 
 - add sign up
 - add item posting and editing
@@ -201,9 +201,9 @@ Mitigation: keep MVP 1 scoped to the already-supported auth and read-heavy surfa
 
 Mitigation: use Expo Go first for speed, but configure EAS early so moving to development builds is procedural rather than architectural.
 
-### The current staging environment mirrors production data
+### Staging holds a copy of production data
 
-Mitigation: create a separate mobile integration environment and treat staging as a final validation target only.
+Mitigation: staging is isolated from production and sends no email, so mobile QA can use it freely. Keep it that way — if staging ever gains outbound email or a write path back to production, the mobile team needs a different shared target.
 
 ### Mobile UX can drift from backend constraints
 

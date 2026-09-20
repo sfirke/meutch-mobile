@@ -13,7 +13,7 @@ const defaultApiBaseUrls: Record<EnvironmentName, string> = {
     'http://10.0.2.2:5000/api/v1',
   integration:
     process.env.EXPO_PUBLIC_INTEGRATION_API_BASE_URL?.trim() ||
-    'https://mobile-int-api.meutch.com/api/v1',
+    'https://staging.meutch.com/api/v1',
   production:
     process.env.EXPO_PUBLIC_PRODUCTION_API_BASE_URL?.trim() ||
     'https://meutch.com/api/v1',

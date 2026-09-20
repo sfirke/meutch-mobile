@@ -8,23 +8,25 @@ It also defines the first PR sequence so the team can move from planning into im
 
 ## Short Answer To The Database Question
 
-Do not use the current staging replica database as the everyday mobile testing target.
+Use the existing staging environment at `https://staging.meutch.com` as the everyday mobile testing target.
 
-Use this model instead:
+The model is:
 
 1. Keep using the existing local Docker Postgres databases in the main `meutch` repo for backend development and tests.
-2. Create a dedicated mobile integration backend deployment that uses a new, fully isolated Postgres database on the managed cloud staging Postgres server for shared app testing.
-3. Reserve the current staging replica environment for late validation only.
+2. Use staging for shared app testing, Android device testing, and routine mobile QA.
+3. Never point the app at production except as a production build for real users.
 
-Because you control the managed cloud staging Postgres server, the recommended setup is to create the mobile integration database there as a separate database with its own credentials. Keep that database completely outside the production-sync workflow and treat it as a distinct environment even though it lives on the same Postgres server.
+Staging holds a copy of the production database, but it is isolated from production and does not send email, so mobile testing cannot leak writes or mail to real users. That removes the need for a separate mobile integration deployment and its own database — a piece of infrastructure this project would otherwise have to provision, seed, and maintain for no added safety.
 
 ## Backend Targets
 
 | Target | What It Is For | Who Uses It Most | Notes |
 | --- | --- | --- | --- |
 | Local backend | Flask API running from the sibling `meutch` repo against local Docker Postgres | Anyone changing backend code | Best for debugging and contract testing |
-| Mobile integration backend | Shared HTTPS deployment for Android device testing | Mobile team and QA | Must use safe, non-production data |
-| Existing staging replica | Final validation against production-like data | Release testing | Not for routine mutation testing |
+| Staging (`https://staging.meutch.com`) | Shared HTTPS deployment for Android device testing and QA | Mobile team and QA | Production data copy, isolated, no outbound email |
+| Production (`https://meutch.com`) | Real user traffic | Nobody, for testing | Only ever hit by a production build |
+
+In the mobile app's configuration these map to the `local`, `integration`, and `production` environment names. The `integration` name is kept because it describes the role; the URL behind it is staging.
 
 ## Development Box Setup
 
@@ -82,79 +84,51 @@ Example API base URLs for local testing:
 
 If your network blocks LAN access, use Expo tunnel mode for the app and a secure tunnel for the backend API.
 
-## Shared Mobile Integration Environment
+## Shared Staging Environment
 
 This is the backend target the mobile app should use most of the time.
 
-### Required Characteristics
+### What Makes It Safe For Mobile QA
 
-1. Its own Postgres database on the managed cloud staging Postgres server.
-2. Its own app deployment.
-3. A stable HTTPS URL.
-4. Production sync disabled.
-5. A safe storage target for uploaded assets.
-6. Email allowlisting turned on.
+1. It is a separate deployment from production with its own database.
+2. That database is a copy of production, so the data is realistic without being live.
+3. Outbound email is off, so no test action can mail a real member.
+4. Writes there never reach production.
 
-### Recommended Naming
+Because the data is a production copy, treat it as confidential: it holds real member names, addresses, and messages. Do not paste staging data into issues, screenshots, or external tools.
 
-- App URL: `https://mobile-int-api.meutch.com`
-- Database name: `meutch_mobile_integration`
+### Keeping It Safe
 
-The exact names are flexible. The important part is isolation and stability.
+The properties above are what make this plan work. Re-check them before any wave of write-side mobile testing:
 
-Use a dedicated database user for this environment rather than sharing credentials with the staging replica workflow.
+1. Email sending stays disabled.
+2. There is no write path from staging back to production.
+3. Uploaded assets go to a non-production storage bucket or prefix.
+4. The JWT signing secret is distinct from production's, so tokens are not portable between environments.
 
-### Backend Environment Variables For Integration
+### Test Accounts
 
-At minimum, the integration deployment should define:
-
-```bash
-FLASK_ENV=staging
-DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/meutch_mobile_integration
-SECRET_KEY=<unique-secret>
-JWT_SECRET_KEY=<unique-jwt-secret>
-SERVER_NAME=https://mobile-int-api.meutch.com
-STORAGE_BACKEND=digitalocean
-DO_SPACES_REGION=<region>
-DO_SPACES_KEY=<key>
-DO_SPACES_SECRET=<secret>
-DO_SPACES_BUCKET=<non-production-bucket-or-prefix>
-MAILGUN_API_KEY=<key>
-MAILGUN_DOMAIN=<domain>
-EMAIL_ALLOWLIST=<comma-separated-safe-test-addresses>
-```
-
-Notes:
-
-1. `JWT_SECRET_KEY` should be dedicated to the integration environment.
-2. The storage target should not mix mobile test assets with production assets unless you have a strict prefixing policy.
-3. If Mailgun is configured, `EMAIL_ALLOWLIST` should stay on so only tester addresses receive mail.
-
-### Seed Data Strategy
-
-Use one of these approaches for the integration environment:
-
-1. Seed a controlled set of test users and circles from a script.
-2. Load a sanitized fixture snapshot.
-
-Do not continuously replicate production data into the mobile integration environment.
+Keep one small set of known test accounts that testers share. Because the database is a production copy, prefer accounts created specifically for testing over signing in as a real member's mirrored account.
 
 ## Mobile App Environment Configuration
 
-The mobile app should support at least three API targets:
+The mobile app supports three API targets:
 
-- local
-- integration
-- production
+| Name | API base URL |
+| --- | --- |
+| `local` | `http://10.0.2.2:5000/api/v1` (emulator) or `http://<your-linux-lan-ip>:5000/api/v1` (device) |
+| `integration` | `https://staging.meutch.com/api/v1` |
+| `production` | `https://meutch.com/api/v1` |
 
-Recommended public Expo environment values:
+These defaults live in `src/config/env.ts` and are echoed in `.env.example`. Pick one by setting the environment name in `.env.local`:
 
 ```bash
 EXPO_PUBLIC_ENV_NAME=integration
-EXPO_PUBLIC_API_BASE_URL=https://mobile-int-api.meutch.com
 ```
 
-For local testing, switch only the API base URL and environment name. Do not hardcode URLs throughout the app.
+Each target's URL can be overridden with `EXPO_PUBLIC_LOCAL_API_BASE_URL`, `EXPO_PUBLIC_INTEGRATION_API_BASE_URL`, or `EXPO_PUBLIC_PRODUCTION_API_BASE_URL`. `EXPO_PUBLIC_API_BASE_URL` overrides whichever target is selected, for one-off cases like pointing at a tunnel.
+
+Do not hardcode URLs throughout the app; everything goes through `buildApiUrl` from `src/config/env.ts`.
 
 ## Expo And EAS Setup
 
@@ -274,7 +248,7 @@ Checklist:
 Checklist:
 
 - produce one internal Android build using the EAS profiles committed in PR 3
-- verify testers can install it and hit the integration API
+- verify testers can install it and hit the staging API
 
 ### PR 7 And Later: Write-Side Parity
 
@@ -289,11 +263,12 @@ Likely order:
 
 ## Testing Rules
 
-1. Use the dedicated integration backend for routine mobile QA.
+1. Use staging for routine mobile QA.
 2. Use the local backend only when validating local backend changes or reproducing an API issue.
 3. Test auth and session behavior on a physical Android device before calling the foundation done.
 4. Do not rely on the web app UI as proof that a mobile API path works.
-5. Keep one small set of known test accounts for the integration environment.
+5. Keep one small set of known test accounts for staging.
+6. Never point a development or preview build at production.
 
 ## What This Plan Deliberately Avoids
 
@@ -301,7 +276,7 @@ Likely order:
 2. Separate Android and iOS apps.
 3. Store submission setup in the first implementation wave.
 4. Push notifications before the core request-response flows are stable.
-5. Routine testing against production-like staging data.
+5. A separate mobile integration deployment and database, since staging already provides an isolated target.
 
 ## Exit Criteria For The MVP Foundation
 
@@ -309,6 +284,6 @@ The mobile project is ready to move beyond setup once the team can do all of the
 
 1. open both repos together through the workspace,
 2. run the app on Android from Linux,
-3. switch between local and integration API targets cleanly,
+3. switch between the local and staging API targets cleanly,
 4. complete login, refresh, logout, and session restore,
 5. and share one installable Android build through EAS.

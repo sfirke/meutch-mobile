@@ -511,17 +511,24 @@ describe('<ItemDetailScreen /> affordances', () => {
     expect(screen.queryByText(/expressed interest/)).toBeNull();
   });
 
-  test('explains that requests need a shared circle on a public giveaway', async () => {
+  test('offers interest on a public giveaway without a shared circle', async () => {
     renderScreen({
       viewer: { shares_circle_with_owner: false },
       item: { is_giveaway: true, giveaway_visibility: 'public' },
     });
 
+    expect(await screen.findByTestId('item-primary-action')).toBeTruthy();
+    expect(screen.queryByText(/share a circle/)).toBeNull();
+  });
+
+  test('explains that borrowing needs a shared circle', async () => {
+    renderScreen({
+      viewer: { shares_circle_with_owner: false },
+      item: { is_giveaway: false },
+    });
+
     expect(
       await screen.findByText("You don't share a circle with this owner."),
-    ).toBeTruthy();
-    expect(
-      screen.getByText('Requests go through people who share a circle.'),
     ).toBeTruthy();
     expect(screen.queryByTestId('item-primary-action')).toBeNull();
   });

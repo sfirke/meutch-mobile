@@ -177,7 +177,7 @@ function describeAffordance(
     };
   }
 
-  if (!viewer.shares_circle_with_owner) {
+  if (!item.is_giveaway && !viewer.shares_circle_with_owner) {
     return {
       actionLabel: null,
       notes: [

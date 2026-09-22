@@ -41,6 +41,20 @@ function giveawayEvent(overrides?: Record<string, unknown>) {
   };
 }
 
+function circleJoinEvent(overrides?: Record<string, unknown>) {
+  return {
+    event_type: 'circle_join',
+    created_at: '2026-05-01T14:00:00+00:00',
+    title: 'Oak Street',
+    action: 'joined',
+    actor_name: 'Mo Example',
+    actor_profile_viewable: true,
+    item_id: null,
+    circle_id: 'cccccccc-1111-4111-8111-111111111111',
+    ...overrides,
+  };
+}
+
 function requestEvent(overrides?: Record<string, unknown>) {
   return {
     event_type: 'request',
@@ -320,6 +334,23 @@ describe('FeedScreen', () => {
     fireEvent.press(card);
 
     expect(push).toHaveBeenCalledWith(`/item/${event.item_id}`);
+  });
+
+  test('tapping a circle_join event pushes to the circle screen', async () => {
+    const event = circleJoinEvent();
+    const authenticatedApiFetch = jest.fn(async (_path: string) =>
+      jsonResponse({ events: [event], pagination: pagination() }),
+    ) as jest.MockedFunction<ApiFetch>;
+
+    renderFeedScreen(authenticatedApiFetch);
+
+    const card = await screen.findByRole('button', {
+      name: headlineFor(event),
+    });
+
+    fireEvent.press(card);
+
+    expect(push).toHaveBeenCalledWith(`/circle/${event.circle_id}`);
   });
 
   test('a request event with no item is not pressable', async () => {

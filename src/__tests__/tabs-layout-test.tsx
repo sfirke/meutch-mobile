@@ -95,7 +95,9 @@ describe('tabs layout', () => {
 
     fireEvent.press(screen.getByRole('button', { name: 'Profile' }));
 
-    expect(await screen.findByText('Morgan Member')).toBeTruthy();
+    // The name comes from GET /me/profile, which emptyApiFetch answers with
+    // defaultProfileFixture.
+    expect(await screen.findByText('Fake Member')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeTruthy();
     expect(getPathname()).toBe('/profile');
   });

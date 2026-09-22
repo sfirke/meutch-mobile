@@ -3,9 +3,13 @@ import { StyleSheet } from 'react-native';
 
 import { Icon } from '../../src/components/Icon';
 import { RequireSession } from '../../src/components/RequireSession';
+import { useInboxUnreadCount } from '../../src/query/useInboxUnreadCount';
 import { colors } from '../../src/theme';
 
 export default function TabsLayout() {
+  // Derived from the cached inbox page 1; there is no unread-count endpoint.
+  const unreadCount = useInboxUnreadCount();
+
   return (
     <RequireSession>
       <Tabs
@@ -38,6 +42,7 @@ export default function TabsLayout() {
           name="inbox"
           options={{
             title: 'Inbox',
+            tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
             tabBarIcon: ({ color, size }) => (
               <Icon color={color} name="inbox" size={size} />
             ),

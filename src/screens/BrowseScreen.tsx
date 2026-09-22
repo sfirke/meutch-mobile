@@ -164,7 +164,9 @@ export function BrowseScreen({
     if (hasCircles === false) {
       return (
         <EmptyState
+          actionLabel="Find circles"
           message="Items on Meutch are shared inside circles. Once you belong to one, everything its members are sharing shows up here."
+          onAction={() => router.navigate('/circles')}
           title="Join a circle to see items"
         />
       );
@@ -187,7 +189,7 @@ export function BrowseScreen({
         title="Nothing to borrow yet"
       />
     );
-  }, [handleClearSearch, hasCircles, searchQuery]);
+  }, [handleClearSearch, hasCircles, router, searchQuery]);
 
   // A placeholder page that is itself empty is the *previous* search's answer,
   // so it must never be shown as this one's result.

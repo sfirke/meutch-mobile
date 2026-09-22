@@ -53,38 +53,41 @@ describe('detail stacks', () => {
     jest.clearAllMocks();
   });
 
-  test('mounts the thread placeholder for a message deep link', async () => {
+  test('mounts the thread screen for a message deep link', async () => {
     mockSession({ status: 'signed-in', user: member });
 
     const { getPathname } = renderRouter('app', {
       initialUrl: `/message/${THREAD_ID}`,
     });
 
-    expect(await screen.findByText('Coming soon')).toBeTruthy();
+    // The shared empty fetch answers every path with a collection page, which
+    // is not a thread payload, so the screen never leaves its loading state.
+    expect(await screen.findByLabelText('Loading conversation')).toBeTruthy();
     expect(getPathname()).toBe(`/message/${THREAD_ID}`);
-    expect(screen.getByTestId('route-id')).toHaveTextContent(THREAD_ID);
   });
 
-  test('mounts the circle detail placeholder for a circle deep link', async () => {
+  test('mounts the circle detail screen for a circle deep link', async () => {
     mockSession({ status: 'signed-in', user: member });
 
     const { getPathname } = renderRouter('app', {
       initialUrl: `/circle/${CIRCLE_ID}`,
     });
 
-    expect(await screen.findByText('Coming soon')).toBeTruthy();
+    // The shared empty fetch answers every path with a collection page, which
+    // is not a circle detail payload, so the screen never leaves its loading
+    // state.
+    expect(await screen.findByLabelText('Loading circle')).toBeTruthy();
     expect(getPathname()).toBe(`/circle/${CIRCLE_ID}`);
-    expect(screen.getByTestId('route-id')).toHaveTextContent(CIRCLE_ID);
   });
 
-  test('mounts the settings placeholder at /profile/settings', async () => {
+  test('mounts the settings screen at /profile/settings', async () => {
     mockSession({ status: 'signed-in', user: member });
 
     const { getPathname } = renderRouter('app', {
       initialUrl: '/profile/settings',
     });
 
-    expect(await screen.findByText('Coming soon')).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Save' })).toBeTruthy();
     expect(getPathname()).toBe('/profile/settings');
   });
 

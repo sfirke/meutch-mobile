@@ -27,6 +27,8 @@ export function createTestQueryClient(): QueryClient {
       },
       mutations: {
         retry: false,
+        // Without this the 5-minute mutation GC timer keeps jest alive.
+        gcTime: 0,
       },
     },
   });

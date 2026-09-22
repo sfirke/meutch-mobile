@@ -49,16 +49,24 @@ export function FeedScreen() {
     [router],
   );
 
+  const handlePressCircle = useCallback(
+    (circleId: string) => {
+      router.push(`/circle/${circleId}`);
+    },
+    [router],
+  );
+
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<FeedEvent>) => (
       <FeedEventCard
         event={item}
         now={now}
         onPressItem={handlePressItem}
+        onPressCircle={handlePressCircle}
         style={styles.card}
       />
     ),
-    [handlePressItem, now],
+    [handlePressCircle, handlePressItem, now],
   );
 
   const keyExtractor = useCallback(

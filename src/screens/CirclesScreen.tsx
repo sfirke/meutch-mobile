@@ -26,6 +26,7 @@ import type {
   CircleSummary,
 } from '../lib/circles';
 import { circleKeys } from '../lib/queryKeys';
+import { webOnlyNote } from '../lib/webOnly';
 import { useCirclesQuery } from '../query/useCirclesQuery';
 import { colors, radii, spacing, typography } from '../theme';
 
@@ -159,7 +160,7 @@ export function CirclesScreen({
 
     return (
       <EmptyState
-        message="Ask a friend for an invitation, or create one on meutch.com."
+        message={webOnlyNote('Ask a friend for an invitation, or create one')}
         title="No circles to show"
       />
     );

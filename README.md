@@ -4,15 +4,15 @@ React Native mobile client for the Meutch sharing platform.
 
 ## Status
 
-PR 4 adds the first read-only app flows on top of the auth and session foundation:
+PR 5 adds messaging, circles, and profile on top of the read-only foundation from PR 4:
 
-- an Expo Router app shell with a signed-out/signed-in gate (`src/components/RequireSession.tsx`) that holds the splash screen until the saved session restores
-- bottom tabs for Feed and Browse, with an item detail screen pushed from either one and deep-linkable as `meutch://item/<uuid>`
-- TanStack Query v5 for server state: pagination, pull-to-refresh, a shared retry policy, and cache cleared on sign-out
-- `expo-image` for disk-cached photos, plus shared loading, empty, and error states
-- a `src/theme/` token module for colors, spacing, radii, typography, and shadows
+- two more bottom tabs, Inbox and Circles, and a rebuilt Profile tab (five tabs total: Feed, Browse, Inbox, Circles, Profile)
+- Inbox: inbox/archived segments, paging, pull-to-refresh, and an unread badge on the tab
+- Thread detail (`/message/<uuid>`): full history, reply, mark-read on open, and a context card for the item, circle, or request the conversation is about
+- Circles: My circles / Discover segments with name search; circle detail (`/circle/<uuid>`) with a member list, joining an open circle, and requesting to join (or cancelling a request for) a closed one
+- Profile: view and edit "about me", web links that open in the browser, a Settings screen (`/profile/settings`) for vacation mode, digest frequency, and radius, and sign out (moved here from the tab header)
 
-Everything is read-only: item detail renders its primary action (request to borrow, express interest) disabled, with a note that writes are still on meutch.com.
+The app now performs writes for reply, mark-read, circle join, cancel join request, about-me update, and settings update. Everything else — starting a new conversation, archive/bulk actions, loan actions, circle admin and leave, profile photo, link and location editing, and account deletion — still links out to meutch.com.
 
 The session layer from PR 3 is unchanged: secure JWT persistence via Expo Secure Store, login/refresh/logout/restore against `/api/v1/auth`, and a token-injecting fetch wrapper so components never read tokens directly. See [Auth Flow](#auth-flow).
 
@@ -24,10 +24,16 @@ app/                      routes only — every file here becomes a route, so no
   (auth)/sign-in.tsx      /sign-in
   (tabs)/index.tsx        /        Feed
   (tabs)/browse.tsx       /browse  Browse
+  (tabs)/inbox.tsx        /inbox   Inbox
+  (tabs)/circles.tsx      /circles Circles
+  (tabs)/profile.tsx      /profile Profile
   item/[id].tsx           /item/<uuid>
+  message/[id].tsx        /message/<uuid>
+  circle/[id].tsx         /circle/<uuid>
+  profile/settings.tsx    /profile/settings
 src/screens/              screen implementations (most route files re-export these) + __tests__/
 src/components/           shared presentational components
-src/query/                QueryProvider and use*Query hooks
+src/query/                QueryProvider, use*Query hooks, and use*Mutation hooks
 src/lib/                  API request functions, parsers, query keys (session layer lives here too)
 src/theme/                colors, spacing, radii, typography, shadows
 src/test-utils/           renderWithProviders and fakes
@@ -154,6 +160,5 @@ The backend, data model, and API contract stay in the sibling `meutch` repo. The
 
 ## Upcoming PRs
 
-1. PR 5: messaging (inbox, thread detail, replies), circles list and detail, profile and settings.
-2. PR 6: an internal Android build through the committed EAS profiles.
-3. PR 7 and later: write-side parity (item posting/editing, request create/fulfill, loan and giveaway actions, sign-up and deep-link confirmation) once the backend write endpoints are stable.
+1. PR 6: an internal Android build through the committed EAS profiles.
+2. PR 7 and later: write-side parity — item posting/editing, request create/fulfill, loan and giveaway actions, new conversation, archive/bulk actions, circle admin and leave, profile photo upload, web link and location editing, account deletion, and sign-up/deep-link confirmation improvements — once the backend write endpoints are stable.

@@ -68,7 +68,8 @@ export function ThreadContextCard({
       {context.kind === 'item' ? (
         <Pressable
           accessibilityLabel={context.item.name}
-          accessibilityRole={onPressItem ? 'button' : undefined}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !onPressItem }}
           onPress={onPressItem ? () => onPressItem(context.item.id) : undefined}
           style={styles.card}
         >
@@ -97,7 +98,8 @@ export function ThreadContextCard({
       {context.kind === 'circle' ? (
         <Pressable
           accessibilityLabel={context.circle.name}
-          accessibilityRole={onPressCircle ? 'button' : undefined}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !onPressCircle }}
           onPress={
             onPressCircle ? () => onPressCircle(context.circle.id) : undefined
           }

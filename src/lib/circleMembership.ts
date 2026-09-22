@@ -1,4 +1,5 @@
 import type { CircleDetail } from './circles';
+import { webOnlyNote } from './webOnly';
 
 export type MembershipStatus =
   'admin' | 'member' | 'pending' | 'can_join' | 'can_request' | 'none';
@@ -13,8 +14,8 @@ export type Membership = {
   actionLabel: string | null;
 };
 
-const ADMIN_NOTE = 'Manage members and requests on meutch.com.';
-const MEMBER_NOTE = 'Leave this circle on meutch.com.';
+const ADMIN_NOTE = webOnlyNote('Manage members and requests');
+const MEMBER_NOTE = webOnlyNote('Leave this circle');
 
 /**
  * Which membership state the detail screen shows, and which write it offers.

@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { formatCalendarDate } from '../lib/dates';
 import type { LoanSummary } from '../lib/parse';
+import { webOnlyNote } from '../lib/webOnly';
 import { colors, radii, spacing, typography } from '../theme';
 import { Icon } from './Icon';
 
@@ -9,7 +10,7 @@ export type LoanBannerProps = {
   loan: LoanSummary;
 };
 
-const NOTE = 'Approve, deny, or extend this loan on meutch.com.';
+const NOTE = webOnlyNote('Approve, deny, or extend this loan');
 
 function capitalize(value: string): string {
   return value.length === 0

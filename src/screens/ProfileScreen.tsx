@@ -20,6 +20,7 @@ import { isApiError } from '../lib/api';
 import { formatMonthYear } from '../lib/dates';
 import { describeError } from '../lib/errorCopy';
 import type { UserProfile } from '../lib/profile';
+import { webOnlyNote } from '../lib/webOnly';
 import { useProfileQuery } from '../query/useProfileQuery';
 import { useUpdateAboutMeMutation } from '../query/useUpdateAboutMeMutation';
 import { useSession } from '../session/SessionProvider';
@@ -29,8 +30,8 @@ const ABOUT_ME_LIMIT = 500;
 /** The counter only appears once the limit is close enough to matter. */
 const COUNTER_THRESHOLD = 450;
 const ABOUT_ME_PROMPT = 'Add a few words about yourself';
-const LINKS_NOTE = 'Edit links and photo on meutch.com.';
-const LOCATION_NOTE = 'Update your location on meutch.com.';
+const LINKS_NOTE = webOnlyNote('Edit links and photo');
+const LOCATION_NOTE = webOnlyNote('Update your location');
 
 /** Photo upload and link editing stay on the web, so only `about_me` writes. */
 function describeAboutMeError(error: unknown): string {
@@ -126,6 +127,9 @@ function AboutMeSection({ aboutMe }: AboutMeSectionProps) {
       <View style={styles.buttonRow}>
         <Pressable
           accessibilityRole="button"
+          accessibilityState={{
+            disabled: isUnchanged || updateAboutMe.isPending,
+          }}
           disabled={isUnchanged || updateAboutMe.isPending}
           onPress={() => {
             updateAboutMe.mutate(draft.trim(), {
@@ -271,6 +275,7 @@ export function ProfileScreen() {
         <Pressable
           accessibilityLabel="Sign out"
           accessibilityRole="button"
+          accessibilityState={{ disabled: isSigningOut }}
           disabled={isSigningOut}
           onPress={() => {
             void signOut();

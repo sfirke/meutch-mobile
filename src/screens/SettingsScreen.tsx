@@ -326,6 +326,7 @@ function SettingsForm({ settings }: SettingsFormProps) {
       <View style={styles.section}>
         <Pressable
           accessibilityRole="button"
+          accessibilityState={{ disabled: saveDisabled }}
           disabled={saveDisabled}
           onPress={handleSave}
           style={({ pressed }) => [

@@ -20,6 +20,7 @@ import type {
   InboxStatus,
 } from '../lib/messages';
 import { messageKeys } from '../lib/queryKeys';
+import { webOnlyNote } from '../lib/webOnly';
 import { useInboxQuery } from '../query/useInboxQuery';
 import { useSession } from '../session/SessionProvider';
 import { colors, radii, spacing, typography } from '../theme';
@@ -38,8 +39,7 @@ const EMPTY_COPY: Record<InboxStatus, { title: string; message: string }> = {
   },
   archived: {
     title: 'Nothing archived',
-    message:
-      'Archived conversations will show up here. Archive conversations on meutch.com.',
+    message: `Archived conversations will show up here. ${webOnlyNote('Archive conversations')}`,
   },
 };
 

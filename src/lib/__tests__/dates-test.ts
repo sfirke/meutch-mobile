@@ -1,10 +1,16 @@
 import { formatCalendarDate, parseCalendarDate } from '../dates';
 
-const originalTimeZone = process.env.TZ;
-
-afterAll(() => {
-  process.env.TZ = originalTimeZone;
-});
+/**
+ * Reads a date's day-of-month in an explicit zone. Assigning `process.env.TZ`
+ * mid-run does not reach V8's timezone cache under Jest, so a test that did
+ * that silently asserted against whatever zone the machine happened to be in
+ * and only failed on a UTC runner.
+ */
+function dayOfMonthIn(timeZone: string, date: Date): string {
+  return new Intl.DateTimeFormat('en-US', { day: 'numeric', timeZone }).format(
+    date,
+  );
+}
 
 describe('parseCalendarDate', () => {
   test('reads the parts as written', () => {
@@ -47,16 +53,20 @@ describe('formatCalendarDate', () => {
   });
 
   test('keeps the calendar day in a negative-offset timezone', () => {
-    process.env.TZ = 'America/Los_Angeles';
-
     // The hazard this helper exists to avoid: the string parses as UTC
-    // midnight, which is the previous day locally.
-    expect(new Date('2026-06-03').getDate()).toBe(2);
+    // midnight, which is the previous day everywhere west of Greenwich.
+    const parsedAsUtcMidnight = new Date('2026-06-03');
+
+    expect(parsedAsUtcMidnight.toISOString()).toBe('2026-06-03T00:00:00.000Z');
+    expect(dayOfMonthIn('America/Los_Angeles', parsedAsUtcMidnight)).toBe('2');
+
     expect(formatCalendarDate('2026-06-03')).toBe('Jun 3, 2026');
   });
 
   test('keeps the calendar day in a positive-offset timezone', () => {
-    process.env.TZ = 'Pacific/Kiritimati';
+    const parsedAsUtcMidnight = new Date('2026-06-03');
+
+    expect(dayOfMonthIn('Pacific/Kiritimati', parsedAsUtcMidnight)).toBe('3');
 
     expect(formatCalendarDate('2026-06-03')).toBe('Jun 3, 2026');
   });

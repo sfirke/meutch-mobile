@@ -1,4 +1,8 @@
-import { formatCalendarDate, parseCalendarDate } from '../dates';
+import {
+  formatCalendarDate,
+  formatMonthYear,
+  parseCalendarDate,
+} from '../dates';
 
 /**
  * Reads a date's day-of-month in an explicit zone. Assigning `process.env.TZ`
@@ -69,5 +73,29 @@ describe('formatCalendarDate', () => {
     expect(dayOfMonthIn('Pacific/Kiritimati', parsedAsUtcMidnight)).toBe('3');
 
     expect(formatCalendarDate('2026-06-03')).toBe('Jun 3, 2026');
+  });
+});
+
+describe('formatMonthYear', () => {
+  test('formats a datetime input', () => {
+    expect(formatMonthYear('2026-01-15T09:00:00+00:00')).toBe('Jan 2026');
+  });
+
+  test('formats a date-only input', () => {
+    expect(formatMonthYear('2026-01-15')).toBe('Jan 2026');
+  });
+
+  test('keeps the written month at a late-in-month timestamp', () => {
+    // The regex reads the digits as written; it never builds a `Date`, so a
+    // timestamp near midnight cannot roll into the next month here.
+    expect(formatMonthYear('2026-01-31T23:30:00+00:00')).toBe('Jan 2026');
+  });
+
+  test('returns null for junk', () => {
+    expect(formatMonthYear('not a date')).toBeNull();
+  });
+
+  test('returns null for an out-of-range month', () => {
+    expect(formatMonthYear('2026-13-01')).toBeNull();
   });
 });

@@ -10,6 +10,7 @@ import { render, type RenderOptions } from '@testing-library/react-native';
 import { type ReactElement } from 'react';
 import { SafeAreaProvider, type Metrics } from 'react-native-safe-area-context';
 
+import type { ApiFetch } from '../lib/api';
 import { useSession } from '../session/SessionProvider';
 
 const safeAreaMetrics: Metrics = {
@@ -90,15 +91,55 @@ export function jsonResponse(body: unknown, status = 200): Response {
   } as unknown as Response;
 }
 
+// Profile/settings fixtures for the /me endpoints; spread overrides in
+// screen tests.
+export const defaultProfileFixture = {
+  ...defaultSessionUser,
+  about_me: null,
+  created_at: '2026-01-15T12:00:00+00:00',
+  has_location: false,
+  geocoding_failed: false,
+  web_links: [] as {
+    id: string;
+    platform_type: string;
+    platform_name: string;
+    display_name: string;
+    url: string;
+    display_order: number;
+  }[],
+};
+
+export const defaultSettingsFixture = {
+  vacation_mode: false,
+  digest_frequency: 'weekly' as 'none' | 'daily' | 'weekly',
+  digest_radius_miles: 10,
+  digest_include_giveaways: true,
+  digest_include_requests: true,
+  digest_include_circle_joins: true,
+  digest_include_loans: true,
+  digest_giveaways_include_public: false,
+  digest_requests_include_public: false,
+};
+
 // A fake authenticatedApiFetch answering every collection read with an empty
 // page, so router-level tests settle on the screens' empty states.
 export function emptyApiFetch() {
   return jest.fn(async (path: string) => {
+    if (path.startsWith('/me/profile')) {
+      return jsonResponse({ user: defaultProfileFixture });
+    }
+
+    if (path.startsWith('/me/settings')) {
+      return jsonResponse({ settings: defaultSettingsFixture });
+    }
+
     const name = path.startsWith('/feed')
       ? 'events'
       : path.startsWith('/circles')
         ? 'circles'
-        : 'items';
+        : path.startsWith('/messages')
+          ? 'conversations'
+          : 'items';
 
     return jsonResponse({
       [name]: [],
@@ -112,4 +153,78 @@ export function emptyApiFetch() {
       },
     });
   });
+}
+
+// A route value: a plain body (200), a Response (from jsonResponse), or a
+// function of the request init returning either.
+export type MockRoute =
+  ((init?: RequestInit) => Response | unknown) | Response | unknown;
+
+function isResponseLike(value: unknown): value is Response {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Response).json === 'function' &&
+    typeof (value as Response).status === 'number' &&
+    typeof (value as Response).ok === 'boolean'
+  );
+}
+
+function lookupRoute(
+  routes: Record<string, MockRoute>,
+  method: string,
+  path: string,
+): { key: string; route: MockRoute } | undefined {
+  const strippedPath = path.split('?')[0];
+  const candidates =
+    method === 'GET'
+      ? [`GET ${path}`, path, `GET ${strippedPath}`, strippedPath]
+      : [`${method} ${path}`, `${method} ${strippedPath}`];
+
+  for (const candidate of candidates) {
+    if (candidate in routes) {
+      return { key: candidate, route: routes[candidate] };
+    }
+  }
+
+  return undefined;
+}
+
+// A fake authenticatedApiFetch driven by a map of 'METHOD path' -> response
+// (method omitted means GET). Matches the exact path first, then the path
+// with its query string stripped. Unmatched requests 404 so tests fail
+// loudly instead of hanging.
+export function mockApiFetch(
+  routes: Record<string, MockRoute>,
+): jest.Mock<ReturnType<ApiFetch>, Parameters<ApiFetch>> {
+  return jest.fn(async (path: string, init?: RequestInit) => {
+    const method = (init?.method ?? 'GET').toUpperCase();
+    const match = lookupRoute(routes, method, path);
+
+    if (!match) {
+      return jsonResponse(
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: `No mock route for ${method} ${path}`,
+          },
+        },
+        404,
+      );
+    }
+
+    const resolved =
+      typeof match.route === 'function'
+        ? (match.route as (init?: RequestInit) => Response | unknown)(init)
+        : match.route;
+
+    return isResponseLike(resolved) ? resolved : jsonResponse(resolved);
+  });
+}
+
+// Parses a request's JSON body, for asserting exact write payloads.
+export function getRequestBody(init?: RequestInit): unknown {
+  return typeof init?.body === 'string'
+    ? (JSON.parse(init.body) as unknown)
+    : undefined;
 }

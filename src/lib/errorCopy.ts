@@ -7,6 +7,9 @@ export type ErrorCopyKey =
   | 'NOT_FOUND'
   | 'API_READ_ONLY'
   | 'API_DISABLED'
+  | 'INVALID_ACTION'
+  | 'CONFLICT'
+  | 'VALIDATION_ERROR'
   | 'OFFLINE'
   | 'SESSION_EXPIRED'
   | 'UNKNOWN';
@@ -38,6 +41,13 @@ const NOT_FOUND_COPY: ErrorCopy = {
   message: "This isn't available anymore.",
   canRetry: false,
 };
+
+// Titles for write failures whose message comes from the backend verbatim.
+const WRITE_FAILURE_TITLES = {
+  INVALID_ACTION: "That didn't work",
+  CONFLICT: 'Already done',
+  VALIDATION_ERROR: 'Check your input',
+} as const;
 
 const MAINTENANCE_COPY: ErrorCopy = {
   title: 'Meutch is temporarily unavailable',
@@ -83,6 +93,17 @@ function classify(error: unknown): { key: ErrorCopyKey; copy: ErrorCopy } {
         return { key: 'API_READ_ONLY', copy: MAINTENANCE_COPY };
       case 'API_DISABLED':
         return { key: 'API_DISABLED', copy: MAINTENANCE_COPY };
+      case 'INVALID_ACTION':
+      case 'CONFLICT':
+      case 'VALIDATION_ERROR':
+        return {
+          key: error.code,
+          copy: {
+            title: WRITE_FAILURE_TITLES[error.code],
+            message: error.message || GENERIC_COPY.message,
+            canRetry: false,
+          },
+        };
       default:
         // An unrecognised ApiError's message comes from our own backend, so
         // (unlike an arbitrary thrown error) it is safe to show verbatim.

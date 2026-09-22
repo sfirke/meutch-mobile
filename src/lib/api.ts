@@ -6,26 +6,32 @@ type ApiErrorEnvelope = {
   error?: {
     code?: string;
     message?: string;
+    details?: unknown;
   };
 };
 
 export class ApiError extends Error {
   code: string;
   status: number;
+  /** Field-level messages from a 422 validation error, e.g. `{ field: [messages] }`. */
+  details: Record<string, unknown> | null;
 
   constructor({
     code,
     message,
     status,
+    details = null,
   }: {
     code: string;
     message: string;
     status: number;
+    details?: Record<string, unknown> | null;
   }) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -111,8 +117,15 @@ export async function readApiError(response: Response): Promise<ApiError> {
     const message =
       payload.error?.message ||
       `Request failed with status ${response.status}.`;
+    const rawDetails = payload.error?.details;
+    const details =
+      rawDetails !== null &&
+      typeof rawDetails === 'object' &&
+      !Array.isArray(rawDetails)
+        ? (rawDetails as Record<string, unknown>)
+        : null;
 
-    return new ApiError({ code, message, status: response.status });
+    return new ApiError({ code, message, status: response.status, details });
   } catch {
     return new ApiError({
       code: 'API_ERROR',

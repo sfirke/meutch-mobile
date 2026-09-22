@@ -4,17 +4,36 @@ React Native mobile client for the Meutch sharing platform.
 
 ## Status
 
-PR 3 adds the mobile auth and session foundation on top of the Expo baseline:
+PR 4 adds the first read-only app flows on top of the auth and session foundation:
 
-- secure JWT token persistence with Expo Secure Store
-- login, refresh-token rotation, logout, and startup restore against `/api/v1/auth`
-- a token-injecting authenticated fetch wrapper so components never read tokens directly
-- Expo EAS build profiles for development, preview, and production
-- lint, format, typecheck, and Jest-based test commands for day-to-day development
-- staged-file pre-commit checks through Husky and lint-staged
-- GitHub Actions CI that runs the full verification suite on pull requests
+- an Expo Router app shell with a signed-out/signed-in gate (`src/components/RequireSession.tsx`) that holds the splash screen until the saved session restores
+- bottom tabs for Feed and Browse, with an item detail screen pushed from either one and deep-linkable as `meutch://item/<uuid>`
+- TanStack Query v5 for server state: pagination, pull-to-refresh, a shared retry policy, and cache cleared on sign-out
+- `expo-image` for disk-cached photos, plus shared loading, empty, and error states
+- a `src/theme/` token module for colors, spacing, radii, typography, and shadows
 
-The next implementation PR can build read-side app flows on top of this session layer.
+Everything is read-only: item detail renders its primary action (request to borrow, express interest) disabled, with a note that writes are still on meutch.com.
+
+The session layer from PR 3 is unchanged: secure JWT persistence via Expo Secure Store, login/refresh/logout/restore against `/api/v1/auth`, and a token-injecting fetch wrapper so components never read tokens directly. See [Auth Flow](#auth-flow).
+
+## Project Layout
+
+```text
+app/                      routes only — every file here becomes a route, so no tests or helpers
+  _layout.tsx             providers + splash hold
+  (auth)/sign-in.tsx      /sign-in
+  (tabs)/index.tsx        /        Feed
+  (tabs)/browse.tsx       /browse  Browse
+  item/[id].tsx           /item/<uuid>
+src/screens/              screen implementations (most route files re-export these) + __tests__/
+src/components/           shared presentational components
+src/query/                QueryProvider and use*Query hooks
+src/lib/                  API request functions, parsers, query keys (session layer lives here too)
+src/theme/                colors, spacing, radii, typography, shadows
+src/test-utils/           renderWithProviders and fakes
+```
+
+Route groups `(auth)` and `(tabs)` don't appear in the URL. The signed-out/signed-in gate is `src/components/RequireSession.tsx`, applied by the `(tabs)` and `item` group layouts.
 
 ## Expected Local Repo Layout
 
@@ -135,5 +154,6 @@ The backend, data model, and API contract stay in the sibling `meutch` repo. The
 
 ## Upcoming PRs
 
-1. Build the first MVP read flows: feed, items, messages, circles, and profile.
-2. Produce an internal Android build through the committed EAS profiles.
+1. PR 5: messaging (inbox, thread detail, replies), circles list and detail, profile and settings.
+2. PR 6: an internal Android build through the committed EAS profiles.
+3. PR 7 and later: write-side parity (item posting/editing, request create/fulfill, loan and giveaway actions, sign-up and deep-link confirmation) once the backend write endpoints are stable.

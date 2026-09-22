@@ -32,7 +32,9 @@
           "resizeMode": "contain",
           "backgroundColor": "#f6ad55"
         }
-      ]
+      ],
+      "expo-router",
+      "expo-image"
     ],
     "extra": {
       "eas": {

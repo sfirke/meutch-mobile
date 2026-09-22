@@ -67,6 +67,9 @@ type Affordance = {
 
 const WEB_ONLY_NOTE = 'For now, use meutch.com.';
 
+/** Matches the backend's `Item.owner_name` fallback for a deleted account. */
+const DELETED_OWNER_NAME = 'Deleted User';
+
 function getInitials(user: UserSummary): string {
   const initials = `${user.first_name.charAt(0)}${user.last_name.charAt(0)}`;
 
@@ -306,7 +309,7 @@ function ItemDetailBody({
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Shared by</Text>
         <View style={styles.ownerRow}>
-          {item.owner.profile_image_url ? (
+          {item.owner?.profile_image_url ? (
             <Image
               accessibilityLabel={item.owner.full_name}
               contentFit="cover"
@@ -317,11 +320,13 @@ function ItemDetailBody({
           ) : (
             <View style={styles.avatarFallback} testID="item-owner-initials">
               <Text style={styles.avatarInitials}>
-                {getInitials(item.owner)}
+                {item.owner ? getInitials(item.owner) : '?'}
               </Text>
             </View>
           )}
-          <Text style={styles.ownerName}>{item.owner.full_name}</Text>
+          <Text style={styles.ownerName}>
+            {item.owner ? item.owner.full_name : DELETED_OWNER_NAME}
+          </Text>
         </View>
       </View>
 

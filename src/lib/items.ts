@@ -67,7 +67,8 @@ export type ItemSummary = {
   claim_status: ItemClaimStatus | null;
   created_at: string;
   image_url: string | null;
-  owner: UserSummary;
+  /** `null` when the owner's account has been deleted. */
+  owner: UserSummary | null;
   category: ItemCategory;
   tags: ItemTag[];
 };
@@ -84,7 +85,8 @@ export type ItemLoanSummary = {
   /** `YYYY-MM-DD`, not a datetime. */
   start_date: string;
   end_date: string;
-  status: LoanStatus;
+  /** `null` when the server reports a status this client does not know. */
+  status: LoanStatus | null;
   borrower: UserSummary | null;
 };
 
@@ -236,7 +238,10 @@ export function parseItemSummary(value: unknown): ItemSummary {
     claim_status: matchEnum(claimStatus, ITEM_CLAIM_STATUSES),
     created_at: createdAt,
     image_url: normalizeImageUrl(imageUrl),
-    owner: parseUserSummary(owner, INVALID_ITEM),
+    owner:
+      owner === null || owner === undefined
+        ? null
+        : parseUserSummary(owner, INVALID_ITEM),
     category: parseNamedReference(category, INVALID_ITEM),
     tags: parseArray(tags, INVALID_ITEM).map((tag) =>
       parseNamedReference(tag, INVALID_ITEM),
@@ -285,8 +290,7 @@ function parseItemLoanSummary(value: unknown): ItemLoanSummary {
     !isString(id) ||
     !isString(startDate) ||
     !isString(endDate) ||
-    !isString(status) ||
-    !LOAN_STATUSES.includes(status as LoanStatus)
+    !isNullableString(status)
   ) {
     throw new Error(INVALID_ITEM_DETAIL);
   }
@@ -295,7 +299,7 @@ function parseItemLoanSummary(value: unknown): ItemLoanSummary {
     id,
     start_date: startDate,
     end_date: endDate,
-    status: status as LoanStatus,
+    status: matchEnum(status, LOAN_STATUSES),
     borrower:
       borrower === null || borrower === undefined
         ? null

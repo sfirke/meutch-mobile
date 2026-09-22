@@ -246,6 +246,14 @@ describe('<ItemDetailScreen />', () => {
     });
     expectOnlyReads(authenticatedApiFetch);
   });
+
+  test('labels a deleted owner instead of failing to render', async () => {
+    renderScreen({ item: { owner: null } });
+
+    expect(await screen.findByText('Deleted User')).toBeTruthy();
+    expect(screen.getByTestId('item-owner-initials')).toBeTruthy();
+    expect(screen.queryByTestId('item-owner-avatar')).toBeNull();
+  });
 });
 
 describe('<ItemDetailScreen /> status banner', () => {

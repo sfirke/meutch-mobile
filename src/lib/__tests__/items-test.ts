@@ -154,6 +154,23 @@ describe('fetchItems', () => {
     );
   });
 
+  test('keeps an item whose owner account was deleted', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({
+        items: [createItemSummary({ owner: null }), createItemSummary()],
+        pagination,
+      }),
+    );
+
+    const { items } = await fetchItems(fetchImpl, { page: 1 });
+
+    expect(items).toHaveLength(2);
+    expect(items[0].owner).toBeNull();
+    expect(items[1].owner?.full_name).toBe('Ada Example');
+  });
+
   test('propagates a 403 as an ApiError', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 
@@ -245,6 +262,38 @@ describe('fetchItemDetail', () => {
       shares_circle_with_owner: true,
       is_active_borrower: false,
     });
+  });
+
+  test('keeps a loan whose status this client does not know', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({
+        item: createItemSummary({
+          images: [],
+          claimed_by: null,
+          current_loan: {
+            id: 'a9999999-9999-4999-8999-999999999999',
+            start_date: '2026-06-01',
+            end_date: '2026-06-08',
+            status: 'renegotiating',
+            borrower: null,
+          },
+          viewer_interest_status: null,
+          interested_count: null,
+        }),
+        viewer: {
+          is_owner: false,
+          shares_circle_with_owner: true,
+          is_active_borrower: false,
+        },
+      }),
+    );
+
+    const { item } = await fetchItemDetail(fetchImpl, ITEM_ID);
+
+    expect(item.current_loan?.status).toBeNull();
+    expect(item.current_loan?.end_date).toBe('2026-06-08');
   });
 
   test('parses a giveaway with viewer interest state', async () => {

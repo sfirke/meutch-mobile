@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import {
   Pressable,
@@ -9,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import { Avatar } from '../components/Avatar';
 import { ErrorState } from '../components/ErrorState';
 import { Icon, type IconName } from '../components/Icon';
 import { ImageCarousel } from '../components/ImageCarousel';
@@ -19,7 +19,7 @@ import {
 import { QueryStateView } from '../components/QueryStateView';
 import { formatCalendarDate } from '../lib/dates';
 import type { ErrorCopyOverrides } from '../lib/errorCopy';
-import type { ItemDetail, ItemViewerState, UserSummary } from '../lib/items';
+import type { ItemDetail, ItemViewerState } from '../lib/items';
 import { isItemId, useItemDetailQuery } from '../query/useItemDetailQuery';
 import { useSession } from '../session/SessionProvider';
 import { colors, radii, spacing, typography } from '../theme';
@@ -69,12 +69,6 @@ const WEB_ONLY_NOTE = 'For now, use meutch.com.';
 
 /** Matches the backend's `Item.owner_name` fallback for a deleted account. */
 const DELETED_OWNER_NAME = 'Deleted User';
-
-function getInitials(user: UserSummary): string {
-  const initials = `${user.first_name.charAt(0)}${user.last_name.charAt(0)}`;
-
-  return initials.trim().toUpperCase() || '?';
-}
 
 /**
  * The web page shows the recipient's name to the owner only, and the borrower's
@@ -309,21 +303,7 @@ function ItemDetailBody({
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Shared by</Text>
         <View style={styles.ownerRow}>
-          {item.owner?.profile_image_url ? (
-            <Image
-              accessibilityLabel={item.owner.full_name}
-              contentFit="cover"
-              source={{ uri: item.owner.profile_image_url }}
-              style={styles.avatar}
-              testID="item-owner-avatar"
-            />
-          ) : (
-            <View style={styles.avatarFallback} testID="item-owner-initials">
-              <Text style={styles.avatarInitials}>
-                {item.owner ? getInitials(item.owner) : '?'}
-              </Text>
-            </View>
-          )}
+          <Avatar testID="item-owner-avatar" user={item.owner} />
           <Text style={styles.ownerName}>
             {item.owner ? item.owner.full_name : DELETED_OWNER_NAME}
           </Text>
@@ -459,23 +439,6 @@ const styles = StyleSheet.create({
   actionNote: {
     color: colors.secondary,
     ...typography.itemMeta,
-  },
-  avatar: {
-    borderRadius: radii.lg,
-    height: 40,
-    width: 40,
-  },
-  avatarFallback: {
-    alignItems: 'center',
-    backgroundColor: colors.secondaryBackground,
-    borderRadius: radii.lg,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  avatarInitials: {
-    color: colors.primaryDark,
-    ...typography.label,
   },
   banner: {
     alignItems: 'center',

@@ -83,6 +83,16 @@ describe('describeError', () => {
     expect(result.title).toBeTruthy();
   });
 
+  test('maps BAD_REQUEST to non-retryable copy with the backend message', () => {
+    const result = describeError(
+      apiError('BAD_REQUEST', 'You already belong to this circle.', 400),
+    );
+
+    expect(result.canRetry).toBe(false);
+    expect(result.message).toBe('You already belong to this circle.');
+    expect(result.title).toBeTruthy();
+  });
+
   test('falls back to generic copy when INVALID_ACTION has no backend message', () => {
     const result = describeError(apiError('INVALID_ACTION', '', 400));
 

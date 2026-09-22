@@ -1,5 +1,7 @@
+import type { CircleMembership } from './circles';
 import type { FeedTypeFilter } from './feed';
 import { normalizeSearchQuery } from './items';
+import type { InboxStatus } from './messages';
 
 export type FeedListFilters = {
   types?: FeedTypeFilter[];
@@ -8,11 +10,6 @@ export type FeedListFilters = {
 export type ItemListFilters = {
   q?: string;
 };
-
-// These filter types will move to src/lib/messages.ts and src/lib/circles.ts
-// once those modules exist.
-export type InboxStatus = 'inbox' | 'archived';
-export type CircleMembership = 'mine' | 'discoverable';
 
 export type InboxListFilters = {
   status: InboxStatus;

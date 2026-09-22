@@ -7,6 +7,7 @@ export type ErrorCopyKey =
   | 'NOT_FOUND'
   | 'API_READ_ONLY'
   | 'API_DISABLED'
+  | 'BAD_REQUEST'
   | 'INVALID_ACTION'
   | 'CONFLICT'
   | 'VALIDATION_ERROR'
@@ -43,7 +44,9 @@ const NOT_FOUND_COPY: ErrorCopy = {
 };
 
 // Titles for write failures whose message comes from the backend verbatim.
+// BAD_REQUEST is what "already a member / already requested" returns.
 const WRITE_FAILURE_TITLES = {
+  BAD_REQUEST: "That didn't work",
   INVALID_ACTION: "That didn't work",
   CONFLICT: 'Already done',
   VALIDATION_ERROR: 'Check your input',
@@ -93,6 +96,7 @@ function classify(error: unknown): { key: ErrorCopyKey; copy: ErrorCopy } {
         return { key: 'API_READ_ONLY', copy: MAINTENANCE_COPY };
       case 'API_DISABLED':
         return { key: 'API_DISABLED', copy: MAINTENANCE_COPY };
+      case 'BAD_REQUEST':
       case 'INVALID_ACTION':
       case 'CONFLICT':
       case 'VALIDATION_ERROR':

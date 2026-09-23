@@ -149,16 +149,15 @@ Refresh tokens are long-lived bearer credentials, so a few rules are enforced by
 
 ## Docs
 
-- [dev_docs/MOBILE_APP_PLAN.md](dev_docs/MOBILE_APP_PLAN.md)
-- [dev_docs/MOBILE_INFRASTRUCTURE_AND_MVP_PRS.md](dev_docs/MOBILE_INFRASTRUCTURE_AND_MVP_PRS.md)
+- [dev_docs/MOBILE_APP_PLAN.md](dev_docs/MOBILE_APP_PLAN.md): goals, scope, backend status, and the PR roadmap
+- [dev_docs/DEVELOPMENT.md](dev_docs/DEVELOPMENT.md): machine setup, backend targets, EAS builds, and testing rules
 
 ## Backend Relationship
 
 The mobile client stays in this separate repo.
 
-The backend, data model, and API contract stay in the sibling `meutch` repo. The current mobile plan assumes the app will consume the JWT-backed `/api/v1` API surface there and that the backend team will finish the remaining write endpoints in follow-on PRs.
+The backend, data model, and API contract stay in the sibling `meutch` repo. The app consumes its JWT-backed `/api/v1` API, which already supports nearly every web feature, writes included. The few backend additions the app still needs are listed in the plan.
 
 ## Upcoming PRs
 
-1. PR 6: an internal Android build through the committed EAS profiles.
-2. PR 7 and later: write-side parity — item posting/editing, request create/fulfill, loan and giveaway actions, new conversation, archive/bulk actions, circle admin and leave, profile photo upload, web link and location editing, account deletion, and sign-up/deep-link confirmation improvements — once the backend write endpoints are stable.
+Category and tag browse (PR 5.5), member profiles (PR 5.6), and an internal Android build (PR 6) come next, followed by the web-parity PRs. See the [PR sequence](dev_docs/MOBILE_APP_PLAN.md#pr-sequence).

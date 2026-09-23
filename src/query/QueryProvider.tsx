@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type PropsWithChildren } from 'react';
 
-import { isApiError } from '../lib/api';
+import { isApiError, RequestTimeoutError } from '../lib/api';
 import { SessionExpiredError, SessionRequiredError } from '../lib/session';
 import { useSession } from '../session/SessionProvider';
 
@@ -17,6 +17,11 @@ export function shouldRetryQuery(
     error instanceof SessionExpiredError ||
     error instanceof SessionRequiredError
   ) {
+    return false;
+  }
+
+  // The member has already waited the full timeout; let them choose to retry.
+  if (error instanceof RequestTimeoutError) {
     return false;
   }
 

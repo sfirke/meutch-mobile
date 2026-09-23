@@ -29,8 +29,53 @@ export class ApiError extends Error {
   }
 }
 
-export function createApiFetch(fetchImpl: typeof fetch = fetch): ApiFetch {
-  return async (path, init) => fetchImpl(buildApiUrl(path), init);
+// React Native's fetch never gives up on its own, so a dropped connection
+// would otherwise leave the request pending forever.
+export const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
+
+export class RequestTimeoutError extends Error {
+  constructor() {
+    super('The request timed out.');
+    this.name = 'RequestTimeoutError';
+  }
+}
+
+export function createApiFetch(
+  fetchImpl: typeof fetch = fetch,
+  timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+): ApiFetch {
+  return async (path, init) => {
+    const controller = new AbortController();
+    const callerSignal = init?.signal;
+    const abortFromCaller = () => controller.abort();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+
+    if (callerSignal?.aborted) {
+      controller.abort();
+    } else {
+      callerSignal?.addEventListener('abort', abortFromCaller);
+    }
+
+    try {
+      return await fetchImpl(buildApiUrl(path), {
+        ...init,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (timedOut) {
+        throw new RequestTimeoutError();
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      callerSignal?.removeEventListener('abort', abortFromCaller);
+    }
+  };
 }
 
 export async function apiFetch(

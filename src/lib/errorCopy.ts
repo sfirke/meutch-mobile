@@ -1,4 +1,4 @@
-import { isApiError } from './api';
+import { isApiError, RequestTimeoutError } from './api';
 import { SessionExpiredError, SessionRequiredError } from './session';
 
 export type ErrorCopyKey =
@@ -8,6 +8,7 @@ export type ErrorCopyKey =
   | 'API_READ_ONLY'
   | 'API_DISABLED'
   | 'OFFLINE'
+  | 'TIMEOUT'
   | 'SESSION_EXPIRED'
   | 'UNKNOWN';
 
@@ -47,6 +48,12 @@ const MAINTENANCE_COPY: ErrorCopy = {
 
 const OFFLINE_COPY: ErrorCopy = {
   title: 'You appear to be offline',
+  message: 'Check your connection and try again.',
+  canRetry: true,
+};
+
+const TIMEOUT_COPY: ErrorCopy = {
+  title: "Couldn't reach Meutch",
   message: 'Check your connection and try again.',
   canRetry: true,
 };
@@ -94,6 +101,10 @@ function classify(error: unknown): { key: ErrorCopyKey; copy: ErrorCopy } {
           },
         };
     }
+  }
+
+  if (error instanceof RequestTimeoutError) {
+    return { key: 'TIMEOUT', copy: TIMEOUT_COPY };
   }
 
   // React Native's fetch rejects with a TypeError when the device is offline.

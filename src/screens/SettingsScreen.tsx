@@ -201,6 +201,7 @@ type SettingsFormProps = {
 
 function SettingsForm({ settings }: SettingsFormProps) {
   const updateSettings = useUpdateSettingsMutation();
+  const [prevSettings, setPrevSettings] = useState(settings);
   const [loaded, setLoaded] = useState(settings);
   const [form, setForm] = useState(settings);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -209,9 +210,15 @@ function SettingsForm({ settings }: SettingsFormProps) {
 
   // A refetch that lands while nothing is edited adopts the fresh values;
   // an in-progress edit is left alone (React's adjust-state-in-render pattern).
-  if (settings !== loaded && !isDirty) {
-    setLoaded(settings);
-    setForm(settings);
+  // Keyed on the prop changing, not on `loaded`: after a save, `loaded` holds
+  // the response while `settings` can still be the stale cache for a render.
+  if (settings !== prevSettings) {
+    setPrevSettings(settings);
+
+    if (!isDirty) {
+      setLoaded(settings);
+      setForm(settings);
+    }
   }
 
   const update = <K extends keyof UserSettings>(

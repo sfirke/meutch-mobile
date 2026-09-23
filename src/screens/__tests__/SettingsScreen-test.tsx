@@ -23,6 +23,24 @@ jest.mock('expo-router', () => ({ Stack: { Screen: jest.fn(() => null) } }));
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
 
+// Records every value each segmented control renders, to catch flicker.
+const mockSegmentValues: Record<string, string[]> = {};
+
+jest.mock('../../components/SegmentedControl', () => {
+  const actual = jest.requireActual('../../components/SegmentedControl');
+
+  return {
+    SegmentedControl: (props: {
+      accessibilityLabel: string;
+      value: string;
+    }) => {
+      (mockSegmentValues[props.accessibilityLabel] ??= []).push(props.value);
+
+      return actual.SegmentedControl(props);
+    },
+  };
+});
+
 type SettingsFixture = typeof defaultSettingsFixture;
 
 function buildSettings(overrides?: Partial<SettingsFixture>): SettingsFixture {
@@ -45,6 +63,9 @@ function saveButton() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  for (const key of Object.keys(mockSegmentValues)) {
+    delete mockSegmentValues[key];
+  }
 });
 
 describe('settings screen', () => {
@@ -214,6 +235,33 @@ describe('settings screen', () => {
       digest_requests_include_public: true,
     });
     expect(saveButton()).toBeDisabled();
+  });
+
+  test('keeps the saved source choice selected through the save', async () => {
+    const authenticatedApiFetch = mockApiFetch({
+      'GET /me/settings': settingsRoute(),
+      'PATCH /me/settings': settingsRoute({
+        digest_giveaways_include_public: true,
+      }),
+    });
+
+    renderSettingsScreen(authenticatedApiFetch);
+
+    fireEvent.press(
+      within(await screen.findByTestId('digest-giveaway-sources')).getByRole(
+        'tab',
+        { name: 'Include public nearby' },
+      ),
+    );
+    fireEvent.press(saveButton());
+
+    expect(await screen.findByTestId('settings-feedback')).toHaveTextContent(
+      'Saved',
+    );
+
+    const values = mockSegmentValues['Giveaway sources'];
+
+    expect(values.slice(values.indexOf('public'))).not.toContain('circles');
   });
 
   test('relabels Save while the settings write is in flight', async () => {

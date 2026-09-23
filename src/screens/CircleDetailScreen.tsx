@@ -16,6 +16,7 @@ import { ErrorState } from '../components/ErrorState';
 import { Icon, type IconName } from '../components/Icon';
 import { ImagePlaceholder } from '../components/ImagePlaceholder';
 import { MemberRow } from '../components/MemberRow';
+import { PagingFooter } from '../components/PagingFooter';
 import { QueryStateView } from '../components/QueryStateView';
 import { describeMembership } from '../lib/circleMembership';
 import type { CircleDetail, CircleType } from '../lib/circles';
@@ -198,12 +199,21 @@ function MembershipBlock({ circle }: MembershipBlockProps) {
   );
 }
 
-type MembersSectionProps = {
-  circle: CircleDetail;
+export type MembersPaging = {
+  hasNextPage: boolean;
+  hasError: boolean;
+  isFetchingNextPage: boolean;
+  onShowMore: () => void;
 };
 
-function MembersSection({ circle }: MembersSectionProps) {
-  // Member paging is deferred, so the footer says how much is on screen.
+type MembersSectionProps = {
+  circle: CircleDetail;
+  paging: MembersPaging;
+};
+
+function MembersSection({ circle, paging }: MembersSectionProps) {
+  const showFooter = paging.isFetchingNextPage || paging.hasError;
+
   if (!circle.can_view_members) {
     if (circle.circle_type !== 'closed') {
       return null;
@@ -228,6 +238,26 @@ function MembersSection({ circle }: MembersSectionProps) {
           {`Showing ${circle.members.length} of ${circle.members_total} members`}
         </Text>
       ) : null}
+      {showFooter ? (
+        <PagingFooter
+          hasError={paging.hasError}
+          isFetchingNextPage={paging.isFetchingNextPage}
+          loadingLabel="Loading more members"
+          onRetry={paging.onShowMore}
+        />
+      ) : paging.hasNextPage ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={paging.onShowMore}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            pressed && styles.pressed,
+          ]}
+          testID="show-more-members"
+        >
+          <Text style={styles.secondaryButtonLabel}>Show more members</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -235,12 +265,14 @@ function MembersSection({ circle }: MembersSectionProps) {
 type CircleDetailBodyProps = {
   circle: CircleDetail;
   isRefreshing: boolean;
+  membersPaging: MembersPaging;
   onRefresh: () => void;
 };
 
 function CircleDetailBody({
   circle,
   isRefreshing,
+  membersPaging,
   onRefresh,
 }: CircleDetailBodyProps) {
   const typeChip = circle.circle_type
@@ -315,7 +347,7 @@ function CircleDetailBody({
       </View>
 
       <MembershipBlock circle={circle} />
-      <MembersSection circle={circle} />
+      <MembersSection circle={circle} paging={membersPaging} />
     </ScrollView>
   );
 }
@@ -323,8 +355,18 @@ function CircleDetailBody({
 export function CircleDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { data, error, isPending, isFetching, isRefetching, refetch } =
-    useCircleDetailQuery(rawId);
+  const {
+    circle,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchNextPageError,
+    isFetching,
+    isFetchingNextPage,
+    isPending,
+    isRefetching,
+    refetch,
+  } = useCircleDetailQuery(rawId);
 
   if (!isUuid(rawId)) {
     return (
@@ -337,12 +379,12 @@ export function CircleDetailScreen() {
 
   return (
     <View style={styles.screen}>
-      <Stack.Screen options={{ title: data?.name ?? DEFAULT_TITLE }} />
+      <Stack.Screen options={{ title: circle?.name ?? DEFAULT_TITLE }} />
 
       <QueryStateView
         error={error}
         errorOverrides={ERROR_OVERRIDES}
-        isEmpty={data === undefined}
+        isEmpty={circle === undefined}
         isPending={isPending}
         isRetrying={isFetching}
         loadingLabel="Loading circle"
@@ -350,10 +392,18 @@ export function CircleDetailScreen() {
           void refetch();
         }}
       >
-        {data ? (
+        {circle ? (
           <CircleDetailBody
-            circle={data}
+            circle={circle}
             isRefreshing={isRefetching}
+            membersPaging={{
+              hasNextPage,
+              hasError: isFetchNextPageError,
+              isFetchingNextPage,
+              onShowMore: () => {
+                void fetchNextPage();
+              },
+            }}
             onRefresh={() => {
               void refetch();
             }}

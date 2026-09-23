@@ -119,6 +119,7 @@ export type FetchCirclesOptions = {
 };
 
 export type FetchCircleDetailOptions = {
+  membersPage?: number;
   signal?: AbortSignal;
 };
 
@@ -356,9 +357,15 @@ export async function fetchCircleDetail(
   id: string,
   options?: FetchCircleDetailOptions,
 ): Promise<CircleDetailResponse> {
-  const response = await fetchImpl(`/circles/${encodeURIComponent(id)}`, {
-    signal: options?.signal,
-  });
+  // Page 1 is the backend default, so the first request keeps a bare path.
+  const params: QueryParam[] =
+    options?.membersPage !== undefined && options.membersPage > 1
+      ? [['members_page', String(options.membersPage)]]
+      : [];
+  const response = await fetchImpl(
+    `/circles/${encodeURIComponent(id)}${buildQueryString(params)}`,
+    { signal: options?.signal },
+  );
 
   return parseCircleDetailResponse(await readJsonOrThrow<unknown>(response));
 }

@@ -222,6 +222,74 @@ describe('<CircleDetailScreen />', () => {
     expect(screen.getByText('Showing 20 of 45 members')).toBeTruthy();
   });
 
+  test('shows more members on tap until the last page', async () => {
+    const firstPage = [
+      adaMember,
+      ...Array.from({ length: 19 }, (_, index) => buildMember(index + 1)),
+    ];
+    const secondPage = [buildMember(20), buildMember(21)];
+    const apiFetch = buildApi(
+      buildCircle({ members: firstPage, members_total: 22, members_pages: 2 }),
+      {
+        [`${DETAIL_PATH}?members_page=2`]: () =>
+          jsonResponse({
+            circle: buildCircle({
+              members: secondPage,
+              members_total: 22,
+              members_page: 2,
+              members_pages: 2,
+            }),
+          }),
+      },
+    );
+
+    renderScreen(apiFetch);
+
+    expect(await screen.findByText('Showing 20 of 22 members')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('show-more-members'));
+
+    expect(await screen.findByText('Fake Member21')).toBeTruthy();
+    expect(screen.getByText('Ada Example')).toBeTruthy();
+    expect(screen.queryByText(/Showing/)).toBeNull();
+    expect(screen.queryByTestId('show-more-members')).toBeNull();
+  });
+
+  test('offers a retry when the next members page fails', async () => {
+    let failures = 1;
+    const apiFetch = buildApi(
+      buildCircle({
+        members: [adaMember],
+        members_total: 2,
+        members_pages: 2,
+      }),
+      {
+        [`${DETAIL_PATH}?members_page=2`]: () => {
+          if (failures > 0) {
+            failures -= 1;
+            return apiError('INTERNAL_ERROR', 'Something broke.', 500);
+          }
+
+          return jsonResponse({
+            circle: buildCircle({
+              members: [buildMember(1)],
+              members_total: 2,
+              members_page: 2,
+              members_pages: 2,
+            }),
+          });
+        },
+      },
+    );
+
+    renderScreen(apiFetch);
+
+    fireEvent.press(await screen.findByTestId('show-more-members'));
+    fireEvent.press(await screen.findByLabelText('Try again'));
+
+    expect(await screen.findByText('Fake Member1')).toBeTruthy();
+    expect(screen.getByText('Ada Example')).toBeTruthy();
+  });
+
   test('omits the footer when every member is on screen', async () => {
     renderCircle({ members: [adaMember], members_total: 1 });
 

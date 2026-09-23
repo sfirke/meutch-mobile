@@ -371,6 +371,30 @@ describe('fetchCircles', () => {
 });
 
 describe('fetchCircleDetail', () => {
+  test('requests a later members page by query string', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({
+        circle: createCircleSummary({
+          can_view_members: true,
+          is_last_member: false,
+          pending_join_request: null,
+          members: [],
+          members_total: 25,
+          members_page: 2,
+          members_pages: 2,
+        }),
+      }),
+    );
+
+    await fetchCircleDetail(fetchImpl, CIRCLE_ID, { membersPage: 2 });
+
+    expect(getRequestPath(fetchImpl)).toBe(
+      `/circles/${CIRCLE_ID}?members_page=2`,
+    );
+  });
+
   test('parses a detail payload with members', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 

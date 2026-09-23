@@ -286,6 +286,24 @@ describe('fetchConversations', () => {
     expect(conversations[0].other_user).toBeNull();
   });
 
+  test('reads a null archived flag as not archived', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({
+        conversations: [createConversation({ is_archived: null })],
+        pagination,
+      }),
+    );
+
+    const { conversations } = await fetchConversations(fetchImpl, {
+      status: 'inbox',
+      page: 1,
+    });
+
+    expect(conversations[0].is_archived).toBe(false);
+  });
+
   test('drops a relative context image url', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 

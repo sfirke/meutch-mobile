@@ -252,10 +252,12 @@ export function parseConversationSummary(value: unknown): ConversationSummary {
     unread_count: unreadCount,
   } = value;
 
+  // `is_archived` is a nullable column with no server default, so older
+  // participant rows send null; the backend treats those as not archived.
   if (
     !isString(conversationId) ||
     !isNumber(unreadCount) ||
-    typeof isArchived !== 'boolean'
+    !(typeof isArchived === 'boolean' || isArchived === null)
   ) {
     throw new Error(INVALID_CONVERSATION);
   }
@@ -267,7 +269,7 @@ export function parseConversationSummary(value: unknown): ConversationSummary {
       : null,
     latest_message: parseMessageSummary(latestMessage),
     unread_count: unreadCount,
-    is_archived: isArchived,
+    is_archived: isArchived ?? false,
     context: parseConversationContext(value, INVALID_CONVERSATION),
   };
 }

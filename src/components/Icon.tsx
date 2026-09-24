@@ -16,7 +16,17 @@ export type IconName =
   | 'rehomed'
   | 'pending'
   | 'search'
-  | 'clear';
+  | 'clear'
+  | 'inbox'
+  | 'profile'
+  | 'send'
+  | 'settings'
+  | 'members'
+  | 'lock'
+  | 'admin'
+  | 'link'
+  | 'check'
+  | 'chevron';
 
 /**
  * FontAwesome 6 Free solid glyph names. Covered by Icon-test.tsx, which
@@ -37,6 +47,16 @@ export const ICON_GLYPHS: Record<IconName, string> = {
   pending: 'clock',
   search: 'magnifying-glass',
   clear: 'xmark',
+  inbox: 'inbox',
+  profile: 'user',
+  send: 'paper-plane',
+  settings: 'gear',
+  members: 'users',
+  lock: 'lock',
+  admin: 'crown',
+  link: 'link',
+  check: 'check',
+  chevron: 'chevron-right',
 };
 
 export type IconProps = {

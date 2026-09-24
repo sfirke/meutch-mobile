@@ -73,12 +73,73 @@ describe('describeError', () => {
     expect(result.message).toBe('A backend-provided explanation.');
   });
 
-  test('treats VALIDATION_ERROR as generic retryable copy', () => {
+  test('maps INVALID_ACTION to non-retryable copy with the backend message', () => {
+    const result = describeError(
+      apiError('INVALID_ACTION', 'You already belong to this circle.', 400),
+    );
+
+    expect(result.canRetry).toBe(false);
+    expect(result.message).toBe('You already belong to this circle.');
+    expect(result.title).toBeTruthy();
+  });
+
+  test('maps BAD_REQUEST to non-retryable copy with the backend message', () => {
+    const result = describeError(
+      apiError('BAD_REQUEST', 'You already belong to this circle.', 400),
+    );
+
+    expect(result.canRetry).toBe(false);
+    expect(result.message).toBe('You already belong to this circle.');
+    expect(result.title).toBeTruthy();
+  });
+
+  test('falls back to generic copy when INVALID_ACTION has no backend message', () => {
+    const result = describeError(apiError('INVALID_ACTION', '', 400));
+
+    expect(result.canRetry).toBe(false);
+    expect(result.message).toBeTruthy();
+  });
+
+  test('maps CONFLICT to non-retryable copy with the backend message', () => {
+    const result = describeError(
+      apiError('CONFLICT', 'You already requested to join.', 409),
+    );
+
+    expect(result.canRetry).toBe(false);
+    expect(result.message).toBe('You already requested to join.');
+  });
+
+  test('falls back to generic copy when CONFLICT has no backend message', () => {
+    const result = describeError(apiError('CONFLICT', '', 409));
+
+    expect(result.canRetry).toBe(false);
+    expect(result.message).toBeTruthy();
+  });
+
+  test('maps VALIDATION_ERROR to non-retryable copy with the backend message', () => {
     const result = describeError(
       apiError('VALIDATION_ERROR', 'Invalid input.', 422),
     );
 
-    expect(result.canRetry).toBe(true);
+    expect(result.canRetry).toBe(false);
+    expect(result.message).toBe('Invalid input.');
+    expect(result.title).toMatch(/input/i);
+  });
+
+  test('falls back to generic copy when VALIDATION_ERROR has no backend message', () => {
+    const result = describeError(apiError('VALIDATION_ERROR', '', 422));
+
+    expect(result.canRetry).toBe(false);
+    expect(result.message).toBeTruthy();
+  });
+
+  test('applies an override to INVALID_ACTION', () => {
+    const result = describeError(
+      apiError('INVALID_ACTION', 'You already belong to this circle.', 400),
+      { INVALID_ACTION: { title: 'Already a member' } },
+    );
+
+    expect(result.title).toBe('Already a member');
   });
 
   test('never surfaces a raw non-ApiError message', () => {

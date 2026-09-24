@@ -1,45 +1,19 @@
 import { Tabs } from 'expo-router/js-tabs';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { Icon } from '../../src/components/Icon';
 import { RequireSession } from '../../src/components/RequireSession';
-import { useSession } from '../../src/session/SessionProvider';
+import { useInboxUnreadCount } from '../../src/query/useInboxUnreadCount';
 import { colors } from '../../src/theme';
 
-function SignOutButton() {
-  const { signOut, status } = useSession();
-  const isSigningOut = status === 'signing-out';
-
-  return (
-    <Pressable
-      accessibilityLabel="Sign out"
-      accessibilityRole="button"
-      disabled={isSigningOut}
-      onPress={() => {
-        void signOut();
-      }}
-      style={({ pressed }) => [
-        styles.signOutButton,
-        (isSigningOut || pressed) && styles.signOutButtonPressed,
-      ]}
-    >
-      <Text style={styles.signOutLabel}>
-        {isSigningOut ? 'Signing out...' : 'Sign out'}
-      </Text>
-    </Pressable>
-  );
-}
-
-function renderSignOutButton() {
-  return <SignOutButton />;
-}
-
 export default function TabsLayout() {
+  // Derived from the cached inbox page 1; there is no unread-count endpoint.
+  const unreadCount = useInboxUnreadCount();
+
   return (
     <RequireSession>
       <Tabs
         screenOptions={{
-          headerRight: renderSignOutButton,
           headerStyle: styles.header,
           headerTintColor: colors.text,
           tabBarActiveTintColor: colors.primaryDark,
@@ -64,6 +38,34 @@ export default function TabsLayout() {
             ),
           }}
         />
+        <Tabs.Screen
+          name="inbox"
+          options={{
+            title: 'Inbox',
+            tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+            tabBarIcon: ({ color, size }) => (
+              <Icon color={color} name="inbox" size={size} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="circles"
+          options={{
+            title: 'Circles',
+            tabBarIcon: ({ color, size }) => (
+              <Icon color={color} name="circle" size={size} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Profile',
+            tabBarIcon: ({ color, size }) => (
+              <Icon color={color} name="profile" size={size} />
+            ),
+          }}
+        />
       </Tabs>
     </RequireSession>
   );
@@ -72,21 +74,5 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   header: {
     backgroundColor: colors.background,
-  },
-  signOutButton: {
-    borderColor: colors.border,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginRight: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  signOutButtonPressed: {
-    opacity: 0.75,
-  },
-  signOutLabel: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '700',
   },
 });

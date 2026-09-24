@@ -14,9 +14,10 @@ jest.mock('../../session/SessionProvider', () => ({
 }));
 
 const mockPush = jest.fn();
+const mockNavigate = jest.fn();
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, navigate: mockNavigate }),
 }));
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
@@ -277,6 +278,10 @@ describe('<BrowseScreen />', () => {
     expect(await screen.findByText('Join a circle to see items')).toBeTruthy();
     expect(screen.queryByText('Nothing to borrow yet')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Find circles' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/circles');
   });
 
   test('shows the nothing-shared state when the member has circles', async () => {

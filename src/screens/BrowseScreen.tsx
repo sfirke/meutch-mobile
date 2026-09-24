@@ -20,7 +20,7 @@ import { PagingFooter } from '../components/PagingFooter';
 import { QueryStateView } from '../components/QueryStateView';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import type { ItemListPage, ItemSummary } from '../lib/items';
-import { itemKeys } from '../lib/queryKeys';
+import { circleKeys, itemKeys } from '../lib/queryKeys';
 import { useHasCirclesQuery } from '../query/useHasCirclesQuery';
 import { useItemsQuery } from '../query/useItemsQuery';
 import { colors, radii, spacing, typography } from '../theme';
@@ -137,6 +137,9 @@ export function BrowseScreen({
           pageParams: current.pageParams.slice(0, 1),
         },
     );
+    // The circle probe stays fresh for minutes; a pull should re-ask it too,
+    // in case the member joined a circle elsewhere.
+    void queryClient.invalidateQueries({ queryKey: circleKeys.hasAny() });
 
     void refetch().finally(() => {
       setIsRefreshing(false);
@@ -164,7 +167,9 @@ export function BrowseScreen({
     if (hasCircles === false) {
       return (
         <EmptyState
+          actionLabel="Find circles"
           message="Items on Meutch are shared inside circles. Once you belong to one, everything its members are sharing shows up here."
+          onAction={() => router.navigate('/circles')}
           title="Join a circle to see items"
         />
       );
@@ -187,7 +192,7 @@ export function BrowseScreen({
         title="Nothing to borrow yet"
       />
     );
-  }, [handleClearSearch, hasCircles, searchQuery]);
+  }, [handleClearSearch, hasCircles, router, searchQuery]);
 
   // A placeholder page that is itself empty is the *previous* search's answer,
   // so it must never be shown as this one's result.
@@ -242,8 +247,10 @@ export function BrowseScreen({
           error={error}
           isEmpty={items.length === 0}
           isPending={isPending}
+          isRefreshing={isRefreshing}
           isRetrying={isRefetching}
           loadingLabel="Loading items"
+          onRefresh={handleRefresh}
           onRetry={() => {
             void refetch();
           }}

@@ -17,6 +17,7 @@ import { ImagePlaceholder } from './ImagePlaceholder';
 export type FeedEventCardProps = {
   event: FeedEvent;
   onPressItem?: (itemId: string) => void;
+  onPressCircle?: (circleId: string) => void;
   style?: StyleProp<ViewStyle>;
   now?: Date;
 };
@@ -85,6 +86,7 @@ function getInitials(name: string): string {
 export function FeedEventCard({
   event,
   onPressItem,
+  onPressCircle,
   style,
   now,
 }: FeedEventCardProps) {
@@ -93,6 +95,9 @@ export function FeedEventCard({
   const headline = `${event.actor_name} ${event.action} · ${event.title}`;
   const itemId = event.item_id;
   const canTapItem = itemId !== null && onPressItem !== undefined;
+  const circleId =
+    !canTapItem && event.event_type === 'circle_join' ? event.circle_id : null;
+  const canTapCircle = circleId !== null && onPressCircle !== undefined;
 
   const body = (
     <>
@@ -171,6 +176,23 @@ export function FeedEventCard({
         accessibilityRole="button"
         accessibilityLabel={headline}
         onPress={() => onPressItem(itemId)}
+        style={({ pressed }) => [
+          styles.card,
+          pressed && styles.cardPressed,
+          style,
+        ]}
+      >
+        {body}
+      </Pressable>
+    );
+  }
+
+  if (canTapCircle && circleId !== null && onPressCircle) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={headline}
+        onPress={() => onPressCircle(circleId)}
         style={({ pressed }) => [
           styles.card,
           pressed && styles.cardPressed,

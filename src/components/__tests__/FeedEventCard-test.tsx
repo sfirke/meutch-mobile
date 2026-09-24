@@ -154,6 +154,78 @@ describe('<FeedEventCard />', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  test('calls onPressCircle with the circle id for a circle_join event', () => {
+    const onPressCircle = jest.fn();
+
+    render(
+      <FeedEventCard
+        event={createEvent({
+          event_type: 'circle_join',
+          item_id: null,
+          circle_id: 'circle-123',
+        })}
+        onPressCircle={onPressCircle}
+        now={NOW}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button'));
+
+    expect(onPressCircle).toHaveBeenCalledWith('circle-123');
+  });
+
+  test('a circle_join event with a circle id is not tappable without onPressCircle', () => {
+    render(
+      <FeedEventCard
+        event={createEvent({
+          event_type: 'circle_join',
+          item_id: null,
+          circle_id: 'circle-123',
+        })}
+        now={NOW}
+      />,
+    );
+
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  test('a circle_join event with a null circle id is not tappable', () => {
+    const onPressCircle = jest.fn();
+
+    render(
+      <FeedEventCard
+        event={createEvent({
+          event_type: 'circle_join',
+          item_id: null,
+          circle_id: null,
+        })}
+        onPressCircle={onPressCircle}
+        now={NOW}
+      />,
+    );
+
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  test('an item event calls onPressItem, not onPressCircle', () => {
+    const onPressItem = jest.fn();
+    const onPressCircle = jest.fn();
+
+    render(
+      <FeedEventCard
+        event={createEvent({ item_id: 'item-123' })}
+        onPressItem={onPressItem}
+        onPressCircle={onPressCircle}
+        now={NOW}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button'));
+
+    expect(onPressItem).toHaveBeenCalledWith('item-123');
+    expect(onPressCircle).not.toHaveBeenCalled();
+  });
+
   test('an item-backed event is not tappable without onPressItem', () => {
     render(
       <FeedEventCard event={createEvent({ item_id: 'item-1' })} now={NOW} />,

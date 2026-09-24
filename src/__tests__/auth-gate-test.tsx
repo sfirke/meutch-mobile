@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import { screen } from '@testing-library/react-native';
+import { fireEvent, screen } from '@testing-library/react-native';
 import { act, renderRouter } from 'expo-router/testing-library';
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -131,6 +131,9 @@ describe('auth gate', () => {
 
     expect(await screen.findByText('Nothing here yet')).toBeTruthy();
     expect(getPathname()).toBe('/');
-    expect(screen.getByText('Signing out...')).toBeTruthy();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Profile' }));
+
+    expect(await screen.findByText('Signing out...')).toBeTruthy();
   });
 });

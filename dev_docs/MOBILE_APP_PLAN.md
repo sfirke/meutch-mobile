@@ -1,224 +1,227 @@
 # Meutch Mobile App Plan
 
+This is the single roadmap for the mobile app: goals, scope, backend status, and the PR sequence with checklists. Setup, environments, and testing rules live in [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ## Goal
 
-Build a single React Native app for Android and iOS that gives Meutch members a mobile-first way to do the core things they already do on the web app. The mobile app should reuse the existing Meutch backend, data model, and business logic through the new `/api/v1` API surface, while keeping the mobile codebase separate from the Python repo.
-
-This repo should stay focused on the client application. The backend remains in the sibling `meutch` repo, linked for day-to-day work through the shared VS Code workspace.
+Build a single React Native app for Android and iOS that lets Meutch members do on their phone what they already do on the web app. The app uses the existing Meutch backend through its `/api/v1` API and stays in a repo separate from the Python backend (`sfirke/meutch`, expected at `../meutch`).
 
 ## Product Principles
 
-1. Keep the architecture simple. Use one Expo-managed React Native app, not separate Android and iOS codebases.
-2. Keep the rollout narrow. Start with the flows already supported cleanly by the current API and delay write-heavy workflows until the backend PR sequence lands.
-3. Prefer mobile-native UX over web parity. Reuse the same product rules, but redesign navigation and interaction patterns for phone use.
-4. Optimize for Android-first development. Preserve iOS compatibility in the code and dependency choices, but do not let iOS release requirements slow the first usable build.
-5. Keep the repos separate. Share context through documentation and the workspace file, not by coupling the Git history.
+1. Keep the architecture simple: one Expo-managed React Native app, not separate Android and iOS codebases.
+2. Ship in narrow slices. Read flows first, then the write flows the API already supports, one area at a time.
+3. Prefer mobile-native UX over web parity. Keep the same product rules, but redesign navigation and interaction for phones.
+4. Develop Android-first. Keep iOS compatibility in code and dependency choices, but don't let iOS release requirements slow the first usable build.
+5. Keep the repos separate. Share context through docs and the workspace file, not by coupling Git history.
+6. The backend is the source of truth for behavior and data shapes. Link to its API schemas rather than restating them here.
 
-## Known Backend Reality
+## Stack
 
-The main Meutch repo already has:
-
-- JWT auth endpoints for mobile under `/api/v1/auth`
-- read endpoints for feed, items, circles, messages, requests, and profile
-- a service-layer direction intended to keep business logic shared between web routes and API routes
-
-The main Meutch repo does not yet have the full set of mobile mutation endpoints merged. The backend team is still landing the write-side API PRs for item creation and editing, request creation and fulfillment, and loan and giveaway actions.
-
-That means the mobile plan should treat read-heavy flows as the first release target and make room for write-side parity in a later wave.
-
-## MVP 1 Scope
-
-The first mobile MVP should include:
-
-- existing-account sign in
-- JWT refresh and logout
-- feed and browse
-- item detail
-- circles read flows and join-related visibility
-- inbox, thread detail, and reply
-- profile and settings
-
-The first mobile MVP should explicitly defer:
-
-- in-app sign up
-- item creation and editing
-- loan and giveaway mutations
-- request creation and fulfillment
-- push notifications
-- deep-link handling for email confirmation
-- store submission and growth tooling
-
-## Environment Strategy
-
-Use three backend targets and keep their purposes separate.
-
-| Target | Purpose | Data Safety | Default Mobile Use |
-| --- | --- | --- | --- |
-| Local backend + local Docker Postgres | Backend development, endpoint debugging, and local contract testing | Safe | Occasional, mainly when changing backend code |
-| Staging (`https://staging.meutch.com`) | Shared QA, Android device testing, and routine app development | Safe | Yes |
-| Production (`https://meutch.com`) | Real user traffic | Not a test target | No |
-
-The shared mobile testing target is the existing staging environment at `https://staging.meutch.com`, reached by the app through `https://staging.meutch.com/api/v1`.
-
-Staging carries a copy of the production database, but it is isolated from production and does not send email. That makes it safe for routine mobile QA, including write-side testing once the mutation routes land, and it means the mobile project does not need to stand up or maintain a separate integration deployment.
-
-The app still exposes three named targets — `local`, `integration`, and `production` — and the `integration` target resolves to the staging URL.
-
-## Recommended Stack
-
-- Expo managed workflow
-- React Native with TypeScript
+- Expo managed workflow, React Native, TypeScript
 - Expo Router for navigation
 - TanStack Query for server state
-- Expo Secure Store for token persistence
-- a small auth/session store for boot-time restore and logout handling
-- EAS configured early, even if Expo Go remains the first development loop
+- Expo Secure Store for tokens, behind a small session layer
+- EAS for builds, with Expo Go as the first development loop
 
-This keeps the mobile stack approachable for a team that is newer to mobile development while still supporting a clean path from Expo Go to development builds and internal distribution.
+## Backend Status
 
-## Delivery Phases
+The `/api/v1` API already covers nearly the whole web app, including writes (`API_V1_WRITE_ENABLED` defaults to on):
 
-### Phase 0: Repo Foundation
+- **Auth:** login, refresh, logout, `me`, register, forgot and reset password, resend confirmation
+- **Reads:** feed, items, my items, requests, circles, conversations and threads, loans, profile, settings, categories, tags
+- **Items:** create, edit, delete, image upload, reorder, and delete
+- **Messaging:** start a conversation about an item or request, reply, mark read, archive and unarchive, bulk archive, bulk mark read, mark all read
+- **Requests:** create, edit, delete, respond with an item, fulfill
+- **Loans:** request, approve, deny, cancel, owner cancel, complete, extend
+- **Giveaways:** interest list, select or change recipient, release to all, confirm handoff, mark given away
+- **Circles:** create, edit, join, cancel join request, leave, approve or reject join requests, remove member, add or remove admin
+- **Profile:** edit profile (about me, photo, links), settings, location, delete account
 
-Set up the repository so the next app bootstrap PR has a clean base.
+Backend additions the mobile roadmap still needs, each noted on the PR that depends on it:
 
-- add a real `.gitignore`
-- pin the Node version used for the project
-- replace the placeholder README with actual contributor guidance
-- keep planning docs in `dev_docs/`
-- update the workspace file so the mobile and backend repos open side by side
+| Addition | Needed by |
+| --- | --- |
+| `GET /categories/<id>/items`, `GET /tags/<id>/items` | PR 5.5 |
+| `GET /users/<id>` and per-user `profile_viewable` flags | PR 5.6 |
+| a "mine" filter on `GET /requests` | PR 7 |
+| mark a conversation unread | PR 9 |
+| list a circle's pending join requests | PR 12 |
+| loan extension requests (borrower asks, owner approves or denies) | PR 14 |
+| circle recommendations and secret-circle lookup by ID | PR 17 |
+| an email confirmation endpoint, or a decision to open the web page | PR 17 |
+| share-token generation and `share_token` on item detail and loan requests | Later |
 
-### Phase 1: Infrastructure And Environment Lock-In
+## Release Milestones
 
-Decide the shared testing model before writing app code.
+- **MVP 1 (internal testers):** PRs 1 through 6. Sign in, stay signed in, browse the feed, items, categories, and tags, read and reply to messages, see circles and member profiles, edit about me and settings, all from an installable Android build.
+- **Web parity:** PRs 7 through 17. Everything a member does on the web, except the web-only features listed below.
+- **Store release:** needs sign up, in-app account deletion, and a linked privacy policy before submission.
 
-- adopt the existing staging deployment as the shared mobile testing target
-- confirm staging keeps email sending disabled
-- keep a small set of known test accounts usable on staging
-- point the app's `integration` target at `https://staging.meutch.com/api/v1`
-- document local-device networking for Linux developers
+## PR Sequence
 
-### Phase 2: App Bootstrap
+Status: PRs 1 through 4 are merged. PR 5 is open as a draft (#4). Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
 
-Generate the Expo app and wire up the core development workflow.
+### PR 1: Repo Foundation (merged)
 
-- create the Expo-managed TypeScript project
-- set up environment-specific API base URLs
-- create the shared API client
-- add the auth/session foundation
-- verify Android device testing through Expo Go
+- planning docs in `dev_docs/`, `.gitignore`, `.nvmrc`, workspace file linking the backend repo, README
 
-### Phase 3: MVP Feature Delivery
+### PR 2: Expo Scaffold And Tooling (merged)
 
-Build the first feature slices in the order that proves the architecture fastest.
+- Expo TypeScript project, folder structure, environment configuration
+- lint, format, typecheck, Jest with React Native Testing Library
+- pre-commit hooks and pull-request CI running `npm run verify`
 
-1. app shell and auth gate
-2. feed and browse
-3. item detail
-4. inbox and message thread
-5. circles read flows
-6. profile and settings
+### PR 3: Auth And Session (merged)
 
-### Phase 4: Android Internal Distribution
+- login, secure token storage, refresh-token rotation, logout, session restore on launch
+- a token-injecting wrapper around `apiFetch`; callers never read tokens directly
+- `eas.json` with `development`, `preview`, and `production` profiles
 
-Once the MVP shell is stable:
+### PR 4: Feed, Browse, And Item Detail (merged)
 
-- configure EAS build profiles
-- create an Android internal distribution build
-- move team QA from Metro-only sessions to installable builds
+- app shell navigation, feed, browse, item detail, loading, empty, and error states
 
-### Phase 5: Post-MVP Parity
+### PR 5: Messaging, Circles, And Profile (draft)
 
-After the backend write endpoints are merged and stable on staging:
+- inbox and thread detail, with reply and mark read
+- circles list, discovery, and detail, with join and cancel join request
+- profile (about me, web links) and settings (vacation mode, digest frequency, radius)
 
-- add sign up
-- add item posting and editing
-- add requests create and fulfill flows
-- add loan and giveaway actions
-- evaluate push notifications, deep links, and release automation
+### PR 5.5: Category And Tag Browse
 
-## Initial PR Sequence
+- backend: `GET /api/v1/categories/<category_id>/items` and `GET /api/v1/tags/<tag_id>/items`, reusing the `build_category_items_pagination` and `build_tag_items_pagination` helpers in `app/utils/item_queries.py` that back the web app's `/category/<id>` and `/tag/<id>` pages. Today `/categories` and `/tags` only return flat lists, and `/items` filters by category but not by tag.
+- make the category chip on item cards and item detail, and each tag chip on item detail, tappable
+- add `category/[id]` and `tag/[id]` routes with a paginated item list, reusing the item-card and pagination patterns from browse
+- support the loans / giveaways / both filter the web pages offer (`item_type`)
+- loading, empty, and error states
 
-### PR 1: Repo Foundation
+Verification: tapping a category or tag chip anywhere opens a paginated list of its items.
 
-Scope:
+### PR 5.6: Member Profiles
 
-- planning docs
-- `.gitignore`
-- `.nvmrc`
-- workspace linkage to the backend repo
-- README rewrite
+- backend: `GET /api/v1/users/<user_id>`, gated by `profile_access_reason` in `app/utils/profile_visibility.py` (shared circle, shared conversation, or a pending join request to a circle the viewer administers). Return not-found on denial so the route does not confirm which IDs exist.
+- return avatar, name, about me, web links, shared circles, and the access reason; like the web page, do not list the member's items
+- backend: add a `profile_viewable` flag to nested user payloads (item owner, conversation partner, message sender, circle member, join requester), computed with `viewable_profile_user_ids`, following the feed's existing `actor_profile_viewable`
+- add a `user/[id]` route, reusing `Avatar` and `WebLinkRow`
+- make names and avatars tappable only when the payload marks them viewable
+- loading, not-found, and error states
 
-This PR intentionally does not add app code.
+Verification: tapping a member's name or avatar on item detail, the feed, a thread, or circle detail opens their profile, and members the viewer cannot see are not tappable.
 
-### PR 2: Expo Scaffold And Base Tooling
+### PR 6: Android Internal Distribution
 
-Scope:
+- produce an internal Android build from the `preview` EAS profile
+- verify testers can install it and reach the staging API
 
-- initialize the Expo TypeScript app
-- commit only the managed-workflow baseline and agreed lint and format tooling
-- add environment configuration for local, integration, and production API targets
+### PR 7: Requests
 
-### PR 3: Auth And Session Foundation
+- request list (`GET /requests`, with scope, circle, and distance filters) and request detail (`GET /requests/<id>`)
+- make request cards in the feed open request detail
+- "my requests" list; backend: add a "mine" filter to `GET /requests`
 
-Scope:
+### PR 8: Filters And Sorting
 
-- login
-- token persistence
-- refresh-token rotation
-- logout
-- app boot-time session restore
+All supported by the API today; the app currently sends only a search term.
 
-### PR 4: Read-Only MVP Screens
+- browse: item type, categories, circles, sort by date or distance (`ItemListQuerySchema`)
+- feed: all or my circles, event types, distance, show my own activity, show claimed giveaways (`FeedQuerySchema`)
+- circle discovery: radius (`CircleListQuerySchema`)
 
-Scope:
+### PR 9: Starting Conversations And Inbox Management
 
-- feed and browse
-- item detail
-- circles read flows
-- messaging read and reply
-- profile and settings
+- "Message owner" on item detail and "Respond" on request detail (`POST /messages` with `item_id` or `request_id`). On a giveaway, this is also how a member records interest.
+- archive and unarchive, bulk archive, bulk mark read, mark all read, inbox sort
+- backend: mark a conversation unread (the web app supports it; the API does not)
+- make URLs in messages, item descriptions, request text, and bios tappable, matching the web app
 
-### PR 5: Android Internal Distribution
+### PR 10: My Items And My Activity
 
-Scope:
+- my listings, with search (`GET /me/items?q=`), split into items for lending and active and past giveaways
+- items I'm borrowing and items I'm lending (`GET /me/loans?role=borrowing|lending`), with loan detail (`GET /loans/<id>`)
+- my requests, from PR 7
 
-- EAS build configuration
-- Android app identifiers and signing workflow
-- internal distribution for testers
+### PR 11: Account And Profile Editing
 
-### PR 6 And Later: Write-Side Parity
+- "Forgot password" on sign in, reset password, resend confirmation email (`/auth/forgot-password`, `/auth/reset-password`, `/auth/resend-confirmation`)
+- profile photo upload and removal, web link editing (`PATCH /me/profile`)
+- location by address (`PATCH /me/location`)
+- account deletion (`DELETE /me`), showing outstanding loans first like the web page
 
-Scope follows the backend API merge order.
+### PR 12: Circle Membership And Admin
+
+- leave a circle
+- create and edit a circle, with image and location
+- admin: approve or reject join requests, remove a member, add or remove an admin
+- backend: an endpoint that lists a circle's pending join requests; circle detail returns only a count today
+
+### PR 13: Item Posting And Editing
+
+- create, edit, and delete items
+- image upload, reorder, and delete
+
+### PR 14: Loans
+
+- request to borrow, approve, deny, cancel, owner cancel, mark returned, extend the due date
+- loan extension requests: the borrower asks for more time and the owner approves or denies (web #493). Backend: no API endpoints or loan-schema fields exist for this yet.
+
+### PR 15: Giveaways
+
+- interest list, select or change recipient, release to all, confirm handoff, mark given away
+
+### PR 16: Request Writes
+
+- create, edit, and delete requests
+- respond with one of my items (`/requests/<id>/respond/<item_id>`), fulfill
+
+### PR 17: Sign Up And Onboarding
+
+- sign up (`POST /auth/register`)
+- email confirmation: the web confirms through a page with a button and there is no API endpoint, so either open that page or add a backend route
+- new members with no circles land on circle discovery with recommendations and pinned regional circles, as on the web. Backend: no recommendations endpoint.
+- find a secret circle by its ID. Backend: `GET /circles/<id>` returns not-found for secret circles to non-members.
+
+### Later
+
+- **Share links:** native share sheet for public giveaway, request, and circle URLs (no API needed). Owner-generated 30-day share links for loan items need backend work (token generation, `share_token` on item detail and loan requests) and deep-link handling.
+- **Push notifications:** replacing the emails the web sends, such as message notifications and loan due-soon and overdue reminders.
+- **Static pages and contact:** link to About, How it works, Terms, Privacy policy, and the Contact form on the web. The privacy policy link is required for store listings.
+- **Store submission** and release automation.
+
+## Web-Only By Design
+
+- admin panel, regional circle settings, and the activity log admin view
+- email digest management and unsubscribe pages, reached from email links
+- reply by email, handled by the backend's inbound mail webhook
+- the logged-out landing page and public share preview pages, which are for people without the app
+
+The web app has no ratings, blocking or reporting, map view, message attachments, or signed-in password or email change, so those are not gaps.
 
 ## Risks And Mitigations
 
-### Backend write endpoints are still landing
+### Backend additions gate some PRs
 
-Mitigation: keep MVP 1 scoped to the already-supported auth and read-heavy surfaces.
+Mitigation: each PR lists the backend change it needs. Land the change in `meutch` first or in parallel, rather than building screens against a placeholder.
 
 ### Expo Go is limited
 
-Mitigation: use Expo Go first for speed, but configure EAS early so moving to development builds is procedural rather than architectural.
+Mitigation: use Expo Go for speed, with EAS already configured so moving to development builds is procedural.
 
 ### Staging holds a copy of production data
 
-Mitigation: staging is isolated from production and sends no email, so mobile QA can use it freely. Keep it that way — if staging ever gains outbound email or a write path back to production, the mobile team needs a different shared target.
+Mitigation: staging is isolated from production and sends no email, so QA can use it freely. If staging ever gains outbound email or a write path to production, the mobile team needs a different target. See [DEVELOPMENT.md](DEVELOPMENT.md).
 
-### Mobile UX can drift from backend constraints
+### Mobile UX can drift from backend rules
 
-Mitigation: use the Meutch API docs and schemas in the backend repo as the source of truth for behavior and data shapes.
+Mitigation: use the API docs and schemas in the backend repo as the source of truth, and don't reimplement permission rules in the client; rely on server flags like `profile_viewable`.
 
 ## Success Criteria
 
-PR 1 is complete when this repo is ready for mobile scaffolding without further cleanup.
+MVP 1 succeeds when a tester with the Android build can, without the web app:
 
-The first MVP is successful when a tester on Android can:
-
-- sign in with an existing account
-- stay logged in across app restarts
-- browse the feed and item details
+- sign in and stay signed in across restarts
+- browse the feed, items, categories, and tags
 - read and reply to messages
-- inspect circles and update profile and settings
+- see circles and the profiles of members they share them with
+- update about me and settings
 
-without needing the web app for those tasks.
+Web parity succeeds when a member can do everything outside [Web-Only By Design](#web-only-by-design) from the app.

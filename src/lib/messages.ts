@@ -401,3 +401,28 @@ export async function markThreadRead(
 
   return parseMarkThreadReadResponse(await readJsonOrThrow<unknown>(response));
 }
+
+/** A conversation hangs off exactly one subject; the backend 422s on both or neither. */
+export type ConversationSubject = { itemId: string } | { requestId: string };
+
+/**
+ * Starts, or continues, the viewer's conversation about an item or request.
+ * The backend reuses an existing conversation on the same subject.
+ */
+export async function startConversation(
+  fetchImpl: ApiFetch,
+  subject: ConversationSubject,
+  body: string,
+): Promise<MessageSummary> {
+  const target =
+    'itemId' in subject
+      ? { item_id: subject.itemId }
+      : { request_id: subject.requestId };
+
+  const response = await fetchImpl(
+    '/messages',
+    buildJsonRequestInit({ ...target, body }, { method: 'POST' }),
+  );
+
+  return parseReplyResponse(await readJsonOrThrow<unknown>(response));
+}

@@ -5,6 +5,7 @@ import {
   fetchMessageThread,
   markThreadRead,
   replyToMessage,
+  startConversation,
 } from '../messages';
 
 function createMockResponse(body: unknown, status = 200): Response {
@@ -631,5 +632,46 @@ describe('markThreadRead', () => {
 
     expect(isApiError(error)).toBe(true);
     expect(isApiError(error) && error.status).toBe(403);
+  });
+});
+
+describe('startConversation', () => {
+  test('posts a request conversation and parses the created message', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse(
+        { message: createMessage({ sender: viewer, recipient: otherUser }) },
+        201,
+      ),
+    );
+
+    const message = await startConversation(
+      fetchImpl,
+      { requestId: REQUEST_ID },
+      'I can help.',
+    );
+    const init = getRequestInit(fetchImpl);
+
+    expect(getRequestPath(fetchImpl)).toBe('/messages');
+    expect(init?.method).toBe('POST');
+    expect(init?.body).toBe(
+      JSON.stringify({ request_id: REQUEST_ID, body: 'I can help.' }),
+    );
+    expect(message.id).toBe(MESSAGE_ID);
+  });
+
+  test('sends item_id for an item conversation', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ message: createMessage() }, 201),
+    );
+
+    await startConversation(fetchImpl, { itemId: ITEM_ID }, 'Still free?');
+
+    expect(getRequestInit(fetchImpl)?.body).toBe(
+      JSON.stringify({ item_id: ITEM_ID, body: 'Still free?' }),
+    );
   });
 });

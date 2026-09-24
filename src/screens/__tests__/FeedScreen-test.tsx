@@ -353,7 +353,7 @@ describe('FeedScreen', () => {
     expect(push).toHaveBeenCalledWith(`/circle/${event.circle_id}`);
   });
 
-  test('a request event with no item is not pressable', async () => {
+  test('tapping a request event pushes to the request screen', async () => {
     const event = requestEvent();
     const authenticatedApiFetch = jest.fn(async (_path: string) =>
       jsonResponse({ events: [event], pagination: pagination() }),
@@ -361,10 +361,12 @@ describe('FeedScreen', () => {
 
     renderFeedScreen(authenticatedApiFetch);
 
-    expect(await screen.findByText(headlineFor(event))).toBeTruthy();
-    expect(
-      screen.queryByRole('button', { name: headlineFor(event) }),
-    ).toBeNull();
-    expect(push).not.toHaveBeenCalled();
+    const card = await screen.findByRole('button', {
+      name: headlineFor(event),
+    });
+
+    fireEvent.press(card);
+
+    expect(push).toHaveBeenCalledWith(`/request/${event.request_id}`);
   });
 });

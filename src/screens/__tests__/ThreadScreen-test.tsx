@@ -486,4 +486,28 @@ describe('<ThreadScreen />', () => {
 
     expect(push).toHaveBeenCalledWith(`/circle/${CIRCLE_ID}`);
   });
+
+  test('tapping a request context opens the request screen', async () => {
+    const requestId = 'f6666666-6666-4666-8666-666666666666';
+
+    renderThreadScreen({
+      thread: {
+        item: null,
+        item_request: {
+          id: requestId,
+          title: 'Extension ladder',
+          status: 'open',
+          visibility: 'public',
+          expires_at: '2026-06-15T00:00:00',
+        },
+        shared_circles: [],
+      },
+    });
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: 'Extension ladder' }),
+    );
+
+    expect(push).toHaveBeenCalledWith(`/request/${requestId}`);
+  });
 });

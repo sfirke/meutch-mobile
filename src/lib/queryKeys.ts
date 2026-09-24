@@ -47,6 +47,11 @@ export const circleKeys = {
   detail: (id: string) => [...circleKeys.all, 'detail', id] as const,
 };
 
+export const requestKeys = {
+  all: ['requests'] as const,
+  detail: (id: string) => [...requestKeys.all, 'detail', id] as const,
+};
+
 export const messageKeys = {
   all: ['messages'] as const,
   inbox: (filters: InboxListFilters) =>

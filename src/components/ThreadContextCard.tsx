@@ -14,6 +14,7 @@ export type ThreadContextCardProps = {
   sharedCircles: ConversationCircleContext[];
   onPressItem?: (itemId: string) => void;
   onPressCircle?: (circleId: string) => void;
+  onPressRequest?: (requestId: string) => void;
 };
 
 const CIRCLE_TYPE_LABELS: Record<string, string> = {
@@ -56,6 +57,7 @@ export function ThreadContextCard({
   sharedCircles,
   onPressItem,
   onPressCircle,
+  onPressRequest,
 }: ThreadContextCardProps) {
   const sharedCirclesLine = describeSharedCircles(sharedCircles);
 
@@ -120,18 +122,32 @@ export function ThreadContextCard({
       ) : null}
 
       {context.kind === 'request' ? (
-        <View style={styles.card}>
+        <Pressable
+          accessibilityLabel={context.request.title}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !onPressRequest }}
+          onPress={
+            onPressRequest
+              ? () => onPressRequest(context.request.id)
+              : undefined
+          }
+          style={styles.card}
+        >
+          <View style={styles.iconBox}>
+            <Icon color={colors.secondary} name="request" size={20} />
+          </View>
           <View style={styles.cardBody}>
             <Text numberOfLines={1} style={styles.cardTitle}>
               {context.request.title}
             </Text>
+            <Text style={styles.cardCaption}>Request</Text>
           </View>
           <View style={styles.statusChip}>
             <Text style={styles.statusChipText}>
               {capitalize(context.request.status)}
             </Text>
           </View>
-        </View>
+        </Pressable>
       ) : null}
 
       {sharedCirclesLine ? (

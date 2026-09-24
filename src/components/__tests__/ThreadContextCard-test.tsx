@@ -59,7 +59,9 @@ describe('<ThreadContextCard />', () => {
     expect(screen.getByText('Closed circle')).toBeTruthy();
   });
 
-  test('request context renders the title and a status chip with no button role', () => {
+  test('request context renders the title and a status chip, and calls onPressRequest', () => {
+    const onPressRequest = jest.fn();
+
     render(
       <ThreadContextCard
         context={{
@@ -72,13 +74,16 @@ describe('<ThreadContextCard />', () => {
             expires_at: null,
           },
         }}
+        onPressRequest={onPressRequest}
         sharedCircles={[]}
       />,
     );
 
-    expect(screen.getByText('Need a ladder')).toBeTruthy();
     expect(screen.getByText('Open')).toBeTruthy();
-    expect(screen.queryByRole('button')).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: 'Need a ladder' }));
+    expect(onPressRequest).toHaveBeenCalledWith(
+      'c3333333-3333-4333-8333-333333333333',
+    );
   });
 
   test('renders nothing for kind "none" with no shared circles', () => {

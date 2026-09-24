@@ -160,4 +160,4 @@ The backend, data model, and API contract stay in the sibling `meutch` repo. The
 
 ## Upcoming PRs
 
-Member profiles (PR 5.6), and an internal Android build (PR 6) come next, followed by the web-parity PRs. See the [PR sequence](dev_docs/MOBILE_APP_PLAN.md#pr-sequence).
+Member profiles (PR 5.6) and an internal Android build (PR 6) come next, followed by the web-parity PRs. See the [PR sequence](dev_docs/MOBILE_APP_PLAN.md#pr-sequence).

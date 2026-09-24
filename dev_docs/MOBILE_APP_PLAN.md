@@ -41,7 +41,6 @@ Backend additions the mobile roadmap still needs, each noted on the PR that depe
 
 | Addition | Needed by |
 | --- | --- |
-| `GET /categories/<id>/items`, `GET /tags/<id>/items` | PR 5.5 |
 | `GET /users/<id>` and per-user `profile_viewable` flags | PR 5.6 |
 | a "mine" filter on `GET /requests` | PR 7 |
 | mark a conversation unread | PR 9 |
@@ -49,12 +48,13 @@ Backend additions the mobile roadmap still needs, each noted on the PR that depe
 | loan extension requests (borrower asks, owner approves or denies) | PR 14 |
 | circle recommendations and secret-circle lookup by ID | PR 17 |
 | an email confirmation endpoint, or a decision to open the web page | PR 17 |
+| `GET /categories/<id>/items`, `GET /tags/<id>/items` | PR 18 |
 | share-token generation and `share_token` on item detail and loan requests | Later |
 
 ## Release Milestones
 
-- **MVP 1 (internal testers):** PRs 1 through 6. Sign in, stay signed in, browse the feed, items, categories, and tags, read and reply to messages, see circles and member profiles, edit about me and settings, all from an installable Android build.
-- **Web parity:** PRs 7 through 17. Everything a member does on the web, except the web-only features listed below.
+- **MVP 1 (internal testers):** PRs 1 through 6. Sign in, stay signed in, browse the feed and items, read and reply to messages, see circles and member profiles, edit about me and settings, all from an installable Android build.
+- **Web parity:** PRs 7 through 18. Everything a member does on the web, except the web-only features listed below.
 - **Store release:** needs sign up, in-app account deletion, and a linked privacy policy before submission.
 
 ## PR Sequence
@@ -86,16 +86,6 @@ Status: PRs 1 through 4 are merged. PR 5 is open as a draft (#4). Later PR order
 - inbox and thread detail, with reply and mark read
 - circles list, discovery, and detail, with join and cancel join request
 - profile (about me, web links) and settings (vacation mode, digest frequency, radius)
-
-### PR 5.5: Category And Tag Browse
-
-- backend: `GET /api/v1/categories/<category_id>/items` and `GET /api/v1/tags/<tag_id>/items`, reusing the `build_category_items_pagination` and `build_tag_items_pagination` helpers in `app/utils/item_queries.py` that back the web app's `/category/<id>` and `/tag/<id>` pages. Today `/categories` and `/tags` only return flat lists, and `/items` filters by category but not by tag.
-- make the category chip on item cards and item detail, and each tag chip on item detail, tappable
-- add `category/[id]` and `tag/[id]` routes with a paginated item list, reusing the item-card and pagination patterns from browse
-- support the loans / giveaways / both filter the web pages offer (`item_type`)
-- loading, empty, and error states
-
-Verification: tapping a category or tag chip anywhere opens a paginated list of its items.
 
 ### PR 5.6: Member Profiles
 
@@ -180,6 +170,18 @@ All supported by the API today; the app currently sends only a search term.
 - new members with no circles land on circle discovery with recommendations and pinned regional circles, as on the web. Backend: no recommendations endpoint.
 - find a secret circle by its ID. Backend: `GET /circles/<id>` returns not-found for secret circles to non-members.
 
+### PR 18: Category And Tag Browse
+
+Deferred to last: it needs two new backend endpoints.
+
+- backend: `GET /api/v1/categories/<category_id>/items` and `GET /api/v1/tags/<tag_id>/items`, reusing the `build_category_items_pagination` and `build_tag_items_pagination` helpers in `app/utils/item_queries.py` that back the web app's `/category/<id>` and `/tag/<id>` pages. Today `/categories` and `/tags` only return flat lists, and `/items` filters by category but not by tag.
+- make the category chip on item cards and item detail, and each tag chip on item detail, tappable
+- add `category/[id]` and `tag/[id]` routes with a paginated item list, reusing the item-card and pagination patterns from browse
+- support the loans / giveaways / both filter the web pages offer (`item_type`)
+- loading, empty, and error states
+
+Verification: tapping a category or tag chip anywhere opens a paginated list of its items.
+
 ### Later
 
 - **Share links:** native share sheet for public giveaway, request, and circle URLs (no API needed). Owner-generated 30-day share links for loan items need backend work (token generation, `share_token` on item detail and loan requests) and deep-link handling.
@@ -219,7 +221,7 @@ Mitigation: use the API docs and schemas in the backend repo as the source of tr
 MVP 1 succeeds when a tester with the Android build can, without the web app:
 
 - sign in and stay signed in across restarts
-- browse the feed, items, categories, and tags
+- browse the feed and items
 - read and reply to messages
 - see circles and the profiles of members they share them with
 - update about me and settings

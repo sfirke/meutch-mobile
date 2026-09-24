@@ -11,7 +11,10 @@ import {
 import { InboxScreen } from '../InboxScreen';
 
 jest.mock('../../session/SessionProvider', () => ({ useSession: jest.fn() }));
-jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
+jest.mock('expo-router', () => ({
+  useFocusEffect: jest.fn(),
+  useRouter: jest.fn(),
+}));
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
 
 const push = jest.fn();

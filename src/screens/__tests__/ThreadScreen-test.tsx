@@ -17,6 +17,7 @@ jest.mock('../../session/SessionProvider', () => ({ useSession: jest.fn() }));
 
 jest.mock('expo-router', () => ({
   Stack: { Screen: jest.fn(() => null) },
+  useFocusEffect: jest.fn(),
   useLocalSearchParams: jest.fn(),
   useRouter: jest.fn(),
 }));

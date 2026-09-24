@@ -26,7 +26,9 @@ import { isApiError } from '../lib/api';
 import { describeError, type ErrorCopyOverrides } from '../lib/errorCopy';
 import type { MessageSummary, MessageThread } from '../lib/messages';
 import { isUuid } from '../lib/parse';
+import { messageKeys } from '../lib/queryKeys';
 import { useMarkThreadReadMutation } from '../query/useMarkThreadReadMutation';
+import { useRefreshOnFocus } from '../query/useRefreshOnFocus';
 import { useReplyMutation } from '../query/useReplyMutation';
 import { useThreadQuery } from '../query/useThreadQuery';
 import { useSession } from '../session/SessionProvider';
@@ -223,9 +225,12 @@ export function ThreadScreen() {
   const { data, error, isPending, isFetching, refetch } = useThreadQuery(rawId);
   const reply = useReplyMutation(anchorId);
   const markRead = useMarkThreadReadMutation(anchorId);
+  const threadKey = useMemo(() => messageKeys.thread(anchorId), [anchorId]);
   const [draft, setDraft] = useState('');
   const hasMarkedRead = useRef(false);
   const now = useMemo(() => new Date(), []);
+
+  useRefreshOnFocus(threadKey);
   const { bottom: bottomInset } = useSafeAreaInsets();
 
   const markThreadRead = markRead.mutate;

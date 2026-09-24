@@ -22,6 +22,7 @@ import type {
 import { messageKeys } from '../lib/queryKeys';
 import { webOnlyNote } from '../lib/webOnly';
 import { useInboxQuery } from '../query/useInboxQuery';
+import { useRefreshOnFocus } from '../query/useRefreshOnFocus';
 import { useSession } from '../session/SessionProvider';
 import { colors, radii, spacing, typography } from '../theme';
 
@@ -66,6 +67,9 @@ export function InboxScreen() {
     isRefetchError,
     refetch,
   } = useInboxQuery(status);
+  const inboxKey = useMemo(() => messageKeys.inbox({ status }), [status]);
+
+  useRefreshOnFocus(inboxKey);
 
   // Captured once, not per row, so every visible row renders relative times
   // against the same instant.

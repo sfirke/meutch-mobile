@@ -4,12 +4,12 @@ import {
   Linking,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
@@ -171,7 +171,9 @@ function ProfileBody({ profile, isRefreshing, onRefresh }: ProfileBodyProps) {
   const memberSince = formatMonthYear(profile.created_at);
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
+      bottomOffset={spacing[16]}
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl
@@ -222,7 +224,7 @@ function ProfileBody({ profile, isRefreshing, onRefresh }: ProfileBodyProps) {
         </View>
         <Text style={styles.note}>{LOCATION_NOTE}</Text>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { QueryStateView } from '../components/QueryStateView';
 import { clampRadius, RadiusInput } from '../components/RadiusInput';
@@ -254,7 +255,8 @@ function SettingsForm({ settings }: SettingsFormProps) {
   const saveDisabled = !isDirty || updateSettings.isPending;
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
+      bottomOffset={spacing[16]}
       contentContainerStyle={styles.content}
       testID="settings-scroll"
       keyboardShouldPersistTaps="handled"
@@ -356,7 +358,7 @@ function SettingsForm({ settings }: SettingsFormProps) {
           </Text>
         ) : null}
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

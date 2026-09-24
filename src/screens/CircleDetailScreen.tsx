@@ -4,12 +4,12 @@ import { useState } from 'react';
 import {
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { describeDistance } from '../components/CircleCard';
 import { ErrorState } from '../components/ErrorState';
@@ -281,7 +281,9 @@ function CircleDetailBody({
   const description = circle.description?.trim() || null;
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
+      bottomOffset={spacing[16]}
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl
@@ -348,7 +350,7 @@ function CircleDetailBody({
 
       <MembershipBlock circle={circle} />
       <MembersSection circle={circle} paging={membersPaging} />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

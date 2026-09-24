@@ -8,8 +8,13 @@ import {
   TextInput,
   View,
   type ListRenderItemInfo,
+  type ScrollViewProps,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import {
+  KeyboardChatScrollView,
+  KeyboardStickyView,
+} from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ErrorState } from '../components/ErrorState';
 import { Icon } from '../components/Icon';
@@ -72,6 +77,7 @@ function readBodyDetail(error: unknown): string | null {
 }
 
 type ComposerProps = {
+  bottomInset: number;
   draft: string;
   isSending: boolean;
   error: unknown;
@@ -80,6 +86,7 @@ type ComposerProps = {
 };
 
 function Composer({
+  bottomInset,
   draft,
   isSending,
   error,
@@ -91,7 +98,9 @@ function Composer({
   const failureMessage = readBodyDetail(error) ?? failure?.message;
 
   return (
-    <View style={styles.composer}>
+    <View
+      style={[styles.composer, { paddingBottom: spacing[12] + bottomInset }]}
+    >
       {failure ? (
         <View style={styles.replyError} testID="reply-error">
           <Text style={styles.replyErrorTitle}>{failure.title}</Text>
@@ -136,6 +145,7 @@ function Composer({
 }
 
 type ThreadListProps = {
+  bottomInset: number;
   thread: MessageThread;
   currentUserId: string;
   now: Date;
@@ -144,6 +154,7 @@ type ThreadListProps = {
 };
 
 function ThreadList({
+  bottomInset,
   thread,
   currentUserId,
   now,
@@ -167,6 +178,15 @@ function ThreadList({
     [currentUserId, now],
   );
 
+  // Pads the list by the keyboard height so the newest messages stay visible
+  // above the composer, which rides the keyboard in a KeyboardStickyView.
+  const renderScrollComponent = useCallback(
+    (props: ScrollViewProps) => (
+      <KeyboardChatScrollView {...props} inverted offset={bottomInset} />
+    ),
+    [bottomInset],
+  );
+
   return (
     <FlatList
       contentContainerStyle={styles.listContent}
@@ -188,6 +208,7 @@ function ThreadList({
         </View>
       }
       renderItem={renderItem}
+      renderScrollComponent={renderScrollComponent}
       testID="thread-list"
     />
   );
@@ -205,6 +226,7 @@ export function ThreadScreen() {
   const [draft, setDraft] = useState('');
   const hasMarkedRead = useRef(false);
   const now = useMemo(() => new Date(), []);
+  const { bottom: bottomInset } = useSafeAreaInsets();
 
   const markThreadRead = markRead.mutate;
   const isUnread = data?.has_unread_messages ?? false;
@@ -261,13 +283,7 @@ export function ThreadScreen() {
   }
 
   return (
-    // RN's own KeyboardAvoidingView can't lift the composer on Android
-    // edge-to-edge, where the window no longer resizes for the keyboard.
-    <KeyboardAvoidingView
-      automaticOffset
-      behavior="padding"
-      style={styles.screen}
-    >
+    <View style={styles.screen}>
       <Stack.Screen
         options={{ title: data?.other_user.full_name ?? DEFAULT_TITLE }}
       />
@@ -285,6 +301,7 @@ export function ThreadScreen() {
       >
         {data ? (
           <ThreadList
+            bottomInset={bottomInset}
             currentUserId={user?.id ?? ''}
             now={now}
             onPressCircle={handlePressCircle}
@@ -295,15 +312,21 @@ export function ThreadScreen() {
       </QueryStateView>
 
       {data ? (
-        <Composer
-          draft={draft}
-          error={reply.error}
-          isSending={reply.isPending}
-          onChangeDraft={setDraft}
-          onSend={handleSend}
-        />
+        // Translates with the keyboard rather than relying on window resize,
+        // which Android edge-to-edge no longer does. The opened offset drops
+        // the safe-area padding the keyboard already covers.
+        <KeyboardStickyView offset={{ opened: bottomInset }}>
+          <Composer
+            bottomInset={bottomInset}
+            draft={draft}
+            error={reply.error}
+            isSending={reply.isPending}
+            onChangeDraft={setDraft}
+            onSend={handleSend}
+          />
+        </KeyboardStickyView>
       ) : null}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

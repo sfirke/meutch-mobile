@@ -1,5 +1,11 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 import { describeError, type ErrorCopyOverrides } from '../lib/errorCopy';
 import { colors } from '../theme';
@@ -16,6 +22,9 @@ export type QueryStateViewProps = {
   renderEmpty?: () => ReactNode;
   errorOverrides?: ErrorCopyOverrides;
   loadingLabel?: string;
+  /** Makes the empty state pull-to-refreshable, like the list it replaces. */
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
   children: ReactNode;
 };
 
@@ -35,6 +44,8 @@ export function QueryStateView({
   renderEmpty,
   errorOverrides,
   loadingLabel = 'Loading',
+  onRefresh,
+  isRefreshing = false,
   children,
 }: QueryStateViewProps) {
   if (isPending) {
@@ -59,11 +70,33 @@ export function QueryStateView({
   }
 
   if (isEmpty) {
-    if (renderEmpty) {
-      return <>{renderEmpty()}</>;
+    const emptyContent = renderEmpty ? (
+      renderEmpty()
+    ) : empty ? (
+      <EmptyState {...empty} />
+    ) : null;
+
+    if (!onRefresh) {
+      return <>{emptyContent}</>;
     }
 
-    return empty ? <EmptyState {...empty} /> : null;
+    return (
+      <ScrollView
+        contentContainerStyle={styles.grow}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            colors={[colors.primaryDark]}
+            onRefresh={onRefresh}
+            refreshing={isRefreshing}
+            tintColor={colors.primaryDark}
+          />
+        }
+        testID="empty-state-scroll"
+      >
+        {emptyContent}
+      </ScrollView>
+    );
   }
 
   return <>{children}</>;
@@ -74,5 +107,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
+  },
+  grow: {
+    flexGrow: 1,
   },
 });

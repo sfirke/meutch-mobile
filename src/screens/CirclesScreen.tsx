@@ -228,8 +228,10 @@ export function CirclesScreen({
           error={error}
           isEmpty={circles.length === 0}
           isPending={isPending}
+          isRefreshing={isRefreshing}
           isRetrying={isRefetching}
           loadingLabel="Loading circles"
+          onRefresh={handleRefresh}
           onRetry={() => {
             void refetch();
           }}

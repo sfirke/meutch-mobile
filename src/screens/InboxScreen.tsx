@@ -143,8 +143,10 @@ export function InboxScreen() {
           error={error}
           isEmpty={conversations.length === 0}
           isPending={isPending}
+          isRefreshing={isRefreshing}
           isRetrying={isFetching}
           loadingLabel="Loading messages"
+          onRefresh={() => void handleRefresh()}
           onRetry={() => void refetch()}
         >
           {isRefetchError ? (

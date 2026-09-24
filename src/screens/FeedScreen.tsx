@@ -114,7 +114,9 @@ export function FeedScreen() {
         error={error}
         isEmpty={events.length === 0}
         isPending={isPending}
+        isRefreshing={isRefreshing}
         isRetrying={isFetching}
+        onRefresh={() => void handleRefresh()}
         onRetry={() => void refetch()}
       >
         {isRefetchError ? (

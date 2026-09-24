@@ -9,7 +9,7 @@ import {
   mockApiFetch,
   mockSession,
 } from '../../test-utils/renderWithProviders';
-import { circleKeys } from '../../lib/queryKeys';
+import { circleKeys, feedKeys, itemKeys } from '../../lib/queryKeys';
 import { useJoinCircleMutation } from '../useJoinCircleMutation';
 
 jest.mock('../../session/SessionProvider', () => ({ useSession: jest.fn() }));
@@ -51,6 +51,34 @@ test('joining invalidates circleKeys.all on success', async () => {
     join_request: null,
   });
   expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: circleKeys.all });
+  // A pending request opens up nothing yet, so Feed and Browse stay put.
+  expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: feedKeys.all });
+  expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: itemKeys.all });
+});
+
+test('becoming a member also invalidates the feed and items', async () => {
+  const queryClient = createTestQueryClient();
+  const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries');
+  const authenticatedApiFetch = mockApiFetch({
+    [`POST /circles/${CIRCLE_ID}/join`]: {
+      membership_status: 'member',
+      join_request: null,
+    },
+  });
+
+  mockSession({ authenticatedApiFetch });
+
+  const { result } = renderHook(() => useJoinCircleMutation(CIRCLE_ID), {
+    wrapper: createWrapper(queryClient),
+  });
+
+  await act(async () => {
+    await result.current.mutateAsync(undefined);
+  });
+
+  expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: circleKeys.all });
+  expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: feedKeys.all });
+  expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: itemKeys.all });
 });
 
 test('a failed join does not invalidate and exposes the ApiError', async () => {

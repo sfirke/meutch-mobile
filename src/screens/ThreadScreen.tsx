@@ -2,8 +2,6 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -11,6 +9,7 @@ import {
   View,
   type ListRenderItemInfo,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 import { ErrorState } from '../components/ErrorState';
 import { Icon } from '../components/Icon';
@@ -262,8 +261,11 @@ export function ThreadScreen() {
   }
 
   return (
+    // RN's own KeyboardAvoidingView can't lift the composer on Android
+    // edge-to-edge, where the window no longer resizes for the keyboard.
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      automaticOffset
+      behavior="padding"
       style={styles.screen}
     >
       <Stack.Screen

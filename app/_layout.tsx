@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { QueryProvider } from '../src/query/QueryProvider';
@@ -42,12 +43,14 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <SessionProvider>
-        <QueryProvider>
-          <StatusBar style="dark" />
-          <RootNavigator />
-        </QueryProvider>
-      </SessionProvider>
+      <KeyboardProvider>
+        <SessionProvider>
+          <QueryProvider>
+            <StatusBar style="dark" />
+            <RootNavigator />
+          </QueryProvider>
+        </SessionProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

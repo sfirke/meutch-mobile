@@ -105,11 +105,21 @@ function buildStatusBanner(
     };
   }
 
+  if (request.status === 'open') {
+    return {
+      label: 'Open',
+      color: colors.warning,
+      icon: 'request',
+      detail: date ? `Expires ${date}.` : null,
+    };
+  }
+
+  // An unrecognised status is never open; say so rather than promising a date.
   return {
-    label: 'Open',
-    color: colors.warning,
-    icon: 'request',
-    detail: date ? `Expires ${date}.` : null,
+    label: 'Closed',
+    color: colors.secondary,
+    icon: 'pending',
+    detail: null,
   };
 }
 

@@ -33,7 +33,32 @@ describe('parseUserSummary', () => {
       last_name: 'Example',
       full_name: 'Ada Example',
       profile_image_url: null,
+      profile_viewable: false,
     });
+  });
+
+  test('defaults profile_viewable to false when absent', () => {
+    const user = parseUserSummary(createUserPayload(), MESSAGE);
+
+    expect(user.profile_viewable).toBe(false);
+  });
+
+  test('defaults a non-boolean profile_viewable to false', () => {
+    const user = parseUserSummary(
+      createUserPayload({ profile_viewable: 'yes' }),
+      MESSAGE,
+    );
+
+    expect(user.profile_viewable).toBe(false);
+  });
+
+  test('passes through a true profile_viewable', () => {
+    const user = parseUserSummary(
+      createUserPayload({ profile_viewable: true }),
+      MESSAGE,
+    );
+
+    expect(user.profile_viewable).toBe(true);
   });
 
   test('normalizes a relative profile image url to null', () => {
@@ -98,7 +123,7 @@ describe('parseLoanSummary', () => {
       start_date: '2026-06-01',
       end_date: '2026-06-08',
       status: 'approved',
-      borrower: createUserPayload(),
+      borrower: { ...createUserPayload(), profile_viewable: false },
     });
   });
 

@@ -16,6 +16,7 @@ import {
   getAvailabilityBadge,
   type AvailabilityBadgeTone,
 } from '../components/itemBadge';
+import { MemberPressable } from '../components/MemberPressable';
 import { QueryStateView } from '../components/QueryStateView';
 import { formatCalendarDate } from '../lib/dates';
 import type { ErrorCopyOverrides } from '../lib/errorCopy';
@@ -302,12 +303,19 @@ function ItemDetailBody({
 
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Shared by</Text>
-        <View style={styles.ownerRow}>
-          <Avatar testID="item-owner-avatar" user={item.owner} />
-          <Text style={styles.ownerName}>
-            {item.owner ? item.owner.full_name : DELETED_OWNER_NAME}
-          </Text>
-        </View>
+        {item.owner ? (
+          <MemberPressable user={item.owner}>
+            <View style={styles.ownerRow}>
+              <Avatar testID="item-owner-avatar" user={item.owner} />
+              <Text style={styles.ownerName}>{item.owner.full_name}</Text>
+            </View>
+          </MemberPressable>
+        ) : (
+          <View style={styles.ownerRow}>
+            <Avatar testID="item-owner-avatar" user={item.owner} />
+            <Text style={styles.ownerName}>{DELETED_OWNER_NAME}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.section}>

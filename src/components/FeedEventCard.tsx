@@ -1,5 +1,7 @@
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import {
+  type AccessibilityActionEvent,
   Pressable,
   StyleProp,
   StyleSheet,
@@ -13,6 +15,7 @@ import { formatRelativeTime } from '../lib/relativeTime';
 import { colors, radii, shadows, spacing, typography } from '../theme';
 import { Icon, type IconName } from './Icon';
 import { ImagePlaceholder } from './ImagePlaceholder';
+import { MemberPressable } from './MemberPressable';
 
 export type FeedEventCardProps = {
   event: FeedEvent;
@@ -123,9 +126,10 @@ export function FeedEventCard({
   style,
   now,
 }: FeedEventCardProps) {
+  const router = useRouter();
   const meta = getEventTypeMeta(event.event_type);
   const relativeTime = formatRelativeTime(event.created_at, now ?? new Date());
-  const headline = `${event.actor_name} ${event.action} · ${event.title}`;
+  const headlineText = `${event.actor_name} ${event.action} · ${event.title}`;
   const itemId = event.item_id;
   const onPress = resolveOnPress(event, {
     onPressItem,
@@ -133,57 +137,82 @@ export function FeedEventCard({
     onPressRequest,
   });
 
-  const body = (
-    <>
-      <View style={styles.header}>
-        {event.actor_avatar_url ? (
-          <Image
-            source={{ uri: event.actor_avatar_url }}
-            style={styles.avatar}
-            testID="feed-event-avatar"
-          />
-        ) : (
+  const actorId = event.actor_id;
+  // Gate on actor_profile_viewable, never actor_id alone: the feed includes
+  // public activity from people the viewer can't view.
+  const actorLinkable = actorId !== null && event.actor_profile_viewable;
+  const goToActorProfile = () => {
+    if (actorId !== null) {
+      router.push(`/user/${actorId}`);
+    }
+  };
+
+  const avatar = event.actor_avatar_url ? (
+    <Image
+      source={{ uri: event.actor_avatar_url }}
+      style={styles.avatar}
+      testID="feed-event-avatar"
+    />
+  ) : (
+    <View style={styles.avatarFallback} testID="feed-event-avatar-initials">
+      <Text style={styles.avatarInitials}>{getInitials(event.actor_name)}</Text>
+    </View>
+  );
+
+  const header = (
+    <View style={styles.header}>
+      {actorId !== null ? (
+        <MemberPressable
+          user={{
+            id: actorId,
+            full_name: event.actor_name,
+            profile_viewable: event.actor_profile_viewable,
+          }}
+        >
+          {avatar}
+        </MemberPressable>
+      ) : (
+        avatar
+      )}
+      <View style={styles.headerText}>
+        <Text style={styles.headline}>
+          {actorLinkable ? (
+            <Text accessibilityRole="link" onPress={goToActorProfile}>
+              {event.actor_name}
+            </Text>
+          ) : (
+            event.actor_name
+          )}
+          {` ${event.action} · ${event.title}`}
+        </Text>
+        <View style={styles.metaRow}>
           <View
-            style={styles.avatarFallback}
-            testID="feed-event-avatar-initials"
+            style={[styles.chip, { backgroundColor: meta.backgroundColor }]}
           >
-            <Text style={styles.avatarInitials}>
-              {getInitials(event.actor_name)}
+            <Icon color={meta.textColor} name={meta.icon} size={11} />
+            <Text style={[styles.chipLabel, { color: meta.textColor }]}>
+              {meta.label}
             </Text>
           </View>
-        )}
-        <View style={styles.headerText}>
-          {/*
-            The actor is not tappable in this PR. When it becomes tappable
-            (profile screens land in PR 5), gate it on
-            actor_profile_viewable, never on actor_id != null — the feed
-            includes public activity from people whose profiles the viewer
-            may not be allowed to open.
-          */}
-          <Text style={styles.headline}>{headline}</Text>
-          <View style={styles.metaRow}>
-            <View
-              style={[styles.chip, { backgroundColor: meta.backgroundColor }]}
-            >
-              <Icon color={meta.textColor} name={meta.icon} size={11} />
-              <Text style={[styles.chipLabel, { color: meta.textColor }]}>
-                {meta.label}
-              </Text>
+          {relativeTime ? (
+            <Text style={styles.metaText}>{relativeTime}</Text>
+          ) : null}
+          {/* distance is a deliberately coarse bucket; render verbatim,
+              never parse, reformat, compare, or sort by it. */}
+          {event.distance ? (
+            <View style={styles.distanceRow}>
+              <Icon color={colors.secondary} name="location" size={11} />
+              <Text style={styles.metaText}>{event.distance}</Text>
             </View>
-            {relativeTime ? (
-              <Text style={styles.metaText}>{relativeTime}</Text>
-            ) : null}
-            {/* distance is a deliberately coarse bucket; render verbatim,
-                never parse, reformat, compare, or sort by it. */}
-            {event.distance ? (
-              <View style={styles.distanceRow}>
-                <Icon color={colors.secondary} name="location" size={11} />
-                <Text style={styles.metaText}>{event.distance}</Text>
-              </View>
-            ) : null}
-          </View>
+          ) : null}
         </View>
       </View>
+    </View>
+  );
+
+  const body = (
+    <>
+      {header}
 
       {event.description ? (
         <Text style={styles.description} numberOfLines={2}>
@@ -208,7 +237,28 @@ export function FeedEventCard({
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={headline}
+        accessibilityLabel={headlineText}
+        accessibilityActions={
+          actorLinkable
+            ? [
+                {
+                  name: 'viewProfile',
+                  label: `View ${event.actor_name}'s profile`,
+                },
+              ]
+            : undefined
+        }
+        onAccessibilityAction={
+          actorLinkable
+            ? (accessibilityEvent: AccessibilityActionEvent) => {
+                if (
+                  accessibilityEvent.nativeEvent.actionName === 'viewProfile'
+                ) {
+                  goToActorProfile();
+                }
+              }
+            : undefined
+        }
         onPress={onPress}
         style={({ pressed }) => [
           styles.card,

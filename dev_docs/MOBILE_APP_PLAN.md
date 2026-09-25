@@ -42,7 +42,7 @@ Backend additions the mobile roadmap still needs, each noted on the PR that depe
 | Addition | Needed by |
 | --- | --- |
 | `GET /users/<id>` and per-user `profile_viewable` flags | PR 5.6 |
-| a "mine" filter on `GET /requests` | PR 7 |
+| `GET /me/requests` (active and recently fulfilled, like the web profile) | PR 10 |
 | mark a conversation unread | PR 9 |
 | list a circle's pending join requests | PR 12 |
 | loan extension requests (borrower asks, owner approves or denies) | PR 14 |
@@ -103,11 +103,14 @@ Verification: tapping a member's name or avatar on item detail, the feed, a thre
 - produce an internal Android build from the `preview` EAS profile
 - verify testers can install it and reach the staging API
 
-### PR 7: Requests
+### PR 7: Request Detail
 
-- request list (`GET /requests`, with scope, circle, and distance filters) and request detail (`GET /requests/<id>`)
-- make request cards in the feed open request detail
-- "my requests" list; backend: add a "mine" filter to `GET /requests`
+Requests reach members through the home feed, as on the web, so there is no separate request list.
+
+- request detail (`GET /requests/<id>`), opened from feed request cards and from a thread's request context
+- message the requester (`POST /messages` with `request_id`), which opens the thread
+- the owner sees conversations about the request, each opening its thread
+- offering an item, fulfill, edit, and delete point to the web until PR 16
 
 ### PR 8: Filters And Sorting
 
@@ -119,7 +122,7 @@ All supported by the API today; the app currently sends only a search term.
 
 ### PR 9: Starting Conversations And Inbox Management
 
-- "Message owner" on item detail and "Respond" on request detail (`POST /messages` with `item_id` or `request_id`). On a giveaway, this is also how a member records interest.
+- "Message owner" on item detail (`POST /messages` with `item_id`). On a giveaway, this is also how a member records interest. Messaging a requester landed in PR 7.
 - archive and unarchive, bulk archive, bulk mark read, mark all read, inbox sort
 - backend: mark a conversation unread (the web app supports it; the API does not)
 - make URLs in messages, item descriptions, request text, and bios tappable, matching the web app
@@ -128,7 +131,7 @@ All supported by the API today; the app currently sends only a search term.
 
 - my listings, with search (`GET /me/items?q=`), split into items for lending and active and past giveaways
 - items I'm borrowing and items I'm lending (`GET /me/loans?role=borrowing|lending`), with loan detail (`GET /loans/<id>`)
-- my requests, from PR 7
+- my requests, active and recently fulfilled. Backend: `GET /me/requests`, mirroring `GET /me/items`
 
 ### PR 11: Account And Profile Editing
 

@@ -10,9 +10,10 @@ PR 5 adds messaging, circles, and profile on top of the read-only foundation fro
 - Inbox: inbox/archived segments, paging, pull-to-refresh, and an unread badge on the tab
 - Thread detail (`/message/<uuid>`): full history, reply, mark-read on open, and a context card for the item, circle, or request the conversation is about
 - Circles: My circles / Discover segments with name search; circle detail (`/circle/<uuid>`) with a member list, joining an open circle, and requesting to join (or cancelling a request for) a closed one
+- Request detail (`/request/<uuid>`), opened from feed request cards and thread context: message the requester, or, as the owner, see conversations about it
 - Profile: view and edit "about me", web links that open in the browser, a Settings screen (`/profile/settings`) for vacation mode, digest frequency, and radius, and sign out (moved here from the tab header)
 
-The app now performs writes for reply, mark-read, circle join, cancel join request, about-me update, and settings update. Everything else — starting a new conversation, archive/bulk actions, loan actions, circle admin and leave, profile photo, link and location editing, and account deletion — still links out to meutch.com.
+The app now performs writes for reply, messaging a requester, mark-read, circle join, cancel join request, about-me update, and settings update. Everything else — starting a conversation about an item, archive/bulk actions, loan actions, circle admin and leave, profile photo, link and location editing, and account deletion — still links out to meutch.com.
 
 The session layer from PR 3 is unchanged: secure JWT persistence via Expo Secure Store, login/refresh/logout/restore against `/api/v1/auth`, and a token-injecting fetch wrapper so components never read tokens directly. See [Auth Flow](#auth-flow).
 

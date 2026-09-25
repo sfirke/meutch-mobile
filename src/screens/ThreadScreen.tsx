@@ -22,8 +22,11 @@ import { LoanBanner } from '../components/LoanBanner';
 import { MessageBubble } from '../components/MessageBubble';
 import { QueryStateView } from '../components/QueryStateView';
 import { ThreadContextCard } from '../components/ThreadContextCard';
-import { isApiError } from '../lib/api';
-import { describeError, type ErrorCopyOverrides } from '../lib/errorCopy';
+import {
+  describeError,
+  readFieldError,
+  type ErrorCopyOverrides,
+} from '../lib/errorCopy';
 import type { MessageSummary, MessageThread } from '../lib/messages';
 import { isUuid } from '../lib/parse';
 import { messageKeys } from '../lib/queryKeys';
@@ -61,23 +64,6 @@ function keyExtractor(message: MessageSummary): string {
   return message.id;
 }
 
-/** A 422 puts the per-field reason in `details.body`; prefer it over the generic. */
-function readBodyDetail(error: unknown): string | null {
-  if (!isApiError(error)) {
-    return null;
-  }
-
-  const body = error.details?.body;
-
-  if (Array.isArray(body)) {
-    const [first] = body;
-
-    return typeof first === 'string' ? first : null;
-  }
-
-  return typeof body === 'string' ? body : null;
-}
-
 type ComposerProps = {
   bottomInset: number;
   draft: string;
@@ -97,7 +83,7 @@ function Composer({
 }: ComposerProps) {
   const canSend = draft.trim().length > 0 && !isSending;
   const failure = error ? describeError(error) : null;
-  const failureMessage = readBodyDetail(error) ?? failure?.message;
+  const failureMessage = readFieldError(error, 'body') ?? failure?.message;
 
   return (
     <View
@@ -153,6 +139,7 @@ type ThreadListProps = {
   now: Date;
   onPressItem: (itemId: string) => void;
   onPressCircle: (circleId: string) => void;
+  onPressRequest: (requestId: string) => void;
 };
 
 function ThreadList({
@@ -162,6 +149,7 @@ function ThreadList({
   now,
   onPressItem,
   onPressCircle,
+  onPressRequest,
 }: ThreadListProps) {
   // The API sends messages ascending; an inverted list renders newest first.
   const reversed = useMemo(
@@ -204,6 +192,7 @@ function ThreadList({
             context={thread.context}
             onPressCircle={onPressCircle}
             onPressItem={onPressItem}
+            onPressRequest={onPressRequest}
             sharedCircles={thread.shared_circles}
           />
           {thread.active_loan ? <LoanBanner loan={thread.active_loan} /> : null}
@@ -262,6 +251,13 @@ export function ThreadScreen() {
     [router],
   );
 
+  const handlePressRequest = useCallback(
+    (requestId: string) => {
+      router.push(`/request/${requestId}`);
+    },
+    [router],
+  );
+
   const sendReply = reply.mutate;
 
   const handleSend = useCallback(() => {
@@ -311,6 +307,7 @@ export function ThreadScreen() {
             now={now}
             onPressCircle={handlePressCircle}
             onPressItem={handlePressItem}
+            onPressRequest={handlePressRequest}
             thread={data}
           />
         ) : null}

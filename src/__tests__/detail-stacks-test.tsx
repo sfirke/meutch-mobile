@@ -34,6 +34,7 @@ const member: SessionValue['user'] = {
 
 const THREAD_ID = '0f2f0d1a-6e8b-4f0f-9c2f-1b9d2a3c4d5e';
 const CIRCLE_ID = '1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d';
+const REQUEST_ID = '2b3c4d5e-6f7a-4b2c-9d3e-4f5a6b7c8d9e';
 
 function mockSession(overrides: Partial<SessionValue>) {
   mockedUseSession.mockReturnValue({
@@ -78,6 +79,18 @@ describe('detail stacks', () => {
     // state.
     expect(await screen.findByLabelText('Loading circle')).toBeTruthy();
     expect(getPathname()).toBe(`/circle/${CIRCLE_ID}`);
+  });
+
+  test('mounts the request detail screen for a request deep link', async () => {
+    mockSession({ status: 'signed-in', user: member });
+
+    const { getPathname } = renderRouter('app', {
+      initialUrl: `/request/${REQUEST_ID}`,
+    });
+
+    // As above: the empty fetch never returns a request detail payload.
+    expect(await screen.findByLabelText('Loading request')).toBeTruthy();
+    expect(getPathname()).toBe(`/request/${REQUEST_ID}`);
   });
 
   test('mounts the settings screen at /profile/settings', async () => {

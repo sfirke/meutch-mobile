@@ -126,13 +126,36 @@ describe('<FeedEventCard />', () => {
     expect(onPressItem).toHaveBeenCalledWith('item-123');
   });
 
-  test('a request event exposes no button role and is not pressable', () => {
-    const onPressItem = jest.fn();
+  test('calls onPressRequest with the request id for a request event', () => {
+    const onPressRequest = jest.fn();
 
     render(
       <FeedEventCard
-        event={createEvent({ event_type: 'request', item_id: null })}
-        onPressItem={onPressItem}
+        event={createEvent({
+          event_type: 'request',
+          item_id: null,
+          request_id: 'request-123',
+        })}
+        onPressItem={jest.fn()}
+        onPressRequest={onPressRequest}
+        now={NOW}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button'));
+
+    expect(onPressRequest).toHaveBeenCalledWith('request-123');
+  });
+
+  test('a request event is not pressable without onPressRequest', () => {
+    render(
+      <FeedEventCard
+        event={createEvent({
+          event_type: 'request',
+          item_id: null,
+          request_id: 'request-123',
+        })}
+        onPressItem={jest.fn()}
         now={NOW}
       />,
     );

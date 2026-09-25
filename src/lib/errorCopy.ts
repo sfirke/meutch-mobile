@@ -141,3 +141,20 @@ export function describeError(
 
   return { ...copy, ...overrides?.[key] };
 }
+
+/** A 422 puts the per-field reason in `details[field]`; prefer it over the generic. */
+export function readFieldError(error: unknown, field: string): string | null {
+  if (!isApiError(error)) {
+    return null;
+  }
+
+  const detail = error.details?.[field];
+
+  if (Array.isArray(detail)) {
+    const [first] = detail;
+
+    return typeof first === 'string' ? first : null;
+  }
+
+  return typeof detail === 'string' ? detail : null;
+}

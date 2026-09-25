@@ -18,6 +18,7 @@ export type FeedEventCardProps = {
   event: FeedEvent;
   onPressItem?: (itemId: string) => void;
   onPressCircle?: (circleId: string) => void;
+  onPressRequest?: (requestId: string) => void;
   style?: StyleProp<ViewStyle>;
   now?: Date;
 };
@@ -83,10 +84,42 @@ function getInitials(name: string): string {
   return (first + last).toUpperCase();
 }
 
+type PressHandlers = Pick<
+  FeedEventCardProps,
+  'onPressItem' | 'onPressCircle' | 'onPressRequest'
+>;
+
+/** An item link wins; otherwise a circle join opens its circle and a request opens itself. */
+function resolveOnPress(
+  event: FeedEvent,
+  { onPressItem, onPressCircle, onPressRequest }: PressHandlers,
+): (() => void) | null {
+  const { circle_id: circleId, item_id: itemId, request_id: requestId } = event;
+
+  if (itemId !== null && onPressItem) {
+    return () => onPressItem(itemId);
+  }
+
+  if (
+    event.event_type === 'circle_join' &&
+    circleId !== null &&
+    onPressCircle
+  ) {
+    return () => onPressCircle(circleId);
+  }
+
+  if (event.event_type === 'request' && requestId !== null && onPressRequest) {
+    return () => onPressRequest(requestId);
+  }
+
+  return null;
+}
+
 export function FeedEventCard({
   event,
   onPressItem,
   onPressCircle,
+  onPressRequest,
   style,
   now,
 }: FeedEventCardProps) {
@@ -94,10 +127,11 @@ export function FeedEventCard({
   const relativeTime = formatRelativeTime(event.created_at, now ?? new Date());
   const headline = `${event.actor_name} ${event.action} · ${event.title}`;
   const itemId = event.item_id;
-  const canTapItem = itemId !== null && onPressItem !== undefined;
-  const circleId =
-    !canTapItem && event.event_type === 'circle_join' ? event.circle_id : null;
-  const canTapCircle = circleId !== null && onPressCircle !== undefined;
+  const onPress = resolveOnPress(event, {
+    onPressItem,
+    onPressCircle,
+    onPressRequest,
+  });
 
   const body = (
     <>
@@ -170,29 +204,12 @@ export function FeedEventCard({
     </>
   );
 
-  if (canTapItem && itemId !== null && onPressItem) {
+  if (onPress) {
     return (
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={headline}
-        onPress={() => onPressItem(itemId)}
-        style={({ pressed }) => [
-          styles.card,
-          pressed && styles.cardPressed,
-          style,
-        ]}
-      >
-        {body}
-      </Pressable>
-    );
-  }
-
-  if (canTapCircle && circleId !== null && onPressCircle) {
-    return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={headline}
-        onPress={() => onPressCircle(circleId)}
+        onPress={onPress}
         style={({ pressed }) => [
           styles.card,
           pressed && styles.cardPressed,

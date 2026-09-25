@@ -89,7 +89,7 @@ Status: PRs 1 through 5 and PR 7 are merged. Later PR order is a proposal and ca
 
 ### PR 5.6: Member Profiles
 
-- backend: `GET /api/v1/users/<user_id>`, gated by profile access (self, admin, shared circle, or shared conversation). Return not-found on denial so the route does not confirm which IDs exist.
+- backend: `GET /api/v1/users/<user_id>`, gated by profile access (self, admin, shared circle, shared conversation, or a pending join request to a circle the viewer administers). Return not-found on denial so the route does not confirm which IDs exist.
 - return avatar, name, about me, web links, shared circles, and the access reason; like the web page, do not list the member's items or email
 - backend: add a `profile_viewable` flag to nested user payloads (item owner, inbox and thread partners, message senders, circle members, and request and request-conversation users), computed with `viewable_profile_user_ids`, following the feed's existing `actor_profile_viewable`
 - add a `user/[id]` route, reusing `Avatar` and `WebLinkRow`

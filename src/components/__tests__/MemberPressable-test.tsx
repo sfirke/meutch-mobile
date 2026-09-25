@@ -41,7 +41,7 @@ describe('<MemberPressable />', () => {
     );
   });
 
-  test('labels the link with the full name', () => {
+  test('labels the link with the full name by default', () => {
     render(
       <MemberPressable user={buildUser({ full_name: 'Ada Example' })}>
         <Text>Ada Example</Text>
@@ -49,6 +49,34 @@ describe('<MemberPressable />', () => {
     );
 
     expect(screen.getByLabelText("View Ada Example's profile")).toBeTruthy();
+  });
+
+  test('uses a custom accessibility label when given one', () => {
+    render(
+      <MemberPressable
+        accessibilityLabel="Ada Example, admin, joined Jan 2026"
+        user={buildUser()}
+      >
+        <Text>Ada Example</Text>
+      </MemberPressable>,
+    );
+
+    expect(
+      screen.getByLabelText('Ada Example, admin, joined Jan 2026'),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("View Ada Example's profile")).toBeNull();
+  });
+
+  test('passes through a custom accessibility hint', () => {
+    render(
+      <MemberPressable accessibilityHint="Opens profile" user={buildUser()}>
+        <Text>Ada Example</Text>
+      </MemberPressable>,
+    );
+
+    expect(screen.getByRole('link').props.accessibilityHint).toBe(
+      'Opens profile',
+    );
   });
 
   test('renders children plain, with no link role, when not viewable', () => {

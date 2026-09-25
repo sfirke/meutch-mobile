@@ -3,11 +3,11 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { ErrorState } from '../components/ErrorState';
 import { ImagePlaceholder } from '../components/ImagePlaceholder';
@@ -71,7 +71,7 @@ function SharedCirclesSection({ circles, onPress }: SharedCirclesSectionProps) {
       {circles.map((circle) => (
         <Pressable
           accessibilityLabel={circle.name}
-          accessibilityRole="button"
+          accessibilityRole="link"
           key={circle.id}
           onPress={() => onPress(circle.id)}
           style={({ pressed }) => [styles.circleRow, pressed && styles.pressed]}
@@ -117,10 +117,8 @@ function UserProfileBody({
   const accessNote = describeAccessReason(accessReason, profile.first_name);
 
   return (
-    <KeyboardAwareScrollView
-      bottomOffset={spacing[16]}
+    <ScrollView
       contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl
           onRefresh={onRefresh}
@@ -148,7 +146,7 @@ function UserProfileBody({
       ) : null}
 
       <SharedCirclesSection circles={sharedCircles} onPress={onPressCircle} />
-    </KeyboardAwareScrollView>
+    </ScrollView>
   );
 }
 

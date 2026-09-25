@@ -388,16 +388,12 @@ describe('<FeedEventCard />', () => {
     expect(screen.getByText('5m ago')).toBeTruthy();
   });
 
-  test('links to the actor profile when viewable, without triggering the card press', () => {
+  test('links to the actor profile via the avatar when viewable, without triggering the card press', () => {
     const onPressItem = jest.fn();
 
     render(
       <FeedEventCard
-        event={createEvent({
-          actor_id: 'a1111111-1111-4111-8111-111111111111',
-          actor_profile_viewable: true,
-          item_id: 'item-123',
-        })}
+        event={createEvent({ item_id: 'item-123' })}
         onPressItem={onPressItem}
         now={NOW}
       />,
@@ -411,20 +407,70 @@ describe('<FeedEventCard />', () => {
     expect(onPressItem).not.toHaveBeenCalled();
   });
 
+  test('links to the actor profile via the name in the headline when viewable, without triggering the card press', () => {
+    const onPressItem = jest.fn();
+
+    render(
+      <FeedEventCard
+        event={createEvent({ item_id: 'item-123' })}
+        onPressItem={onPressItem}
+        now={NOW}
+      />,
+    );
+
+    fireEvent.press(screen.getByText('Ada Example'));
+
+    expect(mockPush).toHaveBeenCalledWith(
+      '/user/a1111111-1111-4111-8111-111111111111',
+    );
+    expect(onPressItem).not.toHaveBeenCalled();
+  });
+
+  test('triggers the profile view via the accessibility action when viewable', () => {
+    const onPressItem = jest.fn();
+
+    render(
+      <FeedEventCard
+        event={createEvent({ item_id: 'item-123' })}
+        onPressItem={onPressItem}
+        now={NOW}
+      />,
+    );
+
+    fireEvent(screen.getByRole('button'), 'accessibilityAction', {
+      nativeEvent: { actionName: 'viewProfile' },
+    });
+
+    expect(mockPush).toHaveBeenCalledWith(
+      '/user/a1111111-1111-4111-8111-111111111111',
+    );
+    expect(onPressItem).not.toHaveBeenCalled();
+  });
+
   test('does not link to the actor profile when not viewable', () => {
+    const onPressItem = jest.fn();
+
     render(
       <FeedEventCard
         event={createEvent({
-          actor_id: 'a1111111-1111-4111-8111-111111111111',
           actor_profile_viewable: false,
+          item_id: 'item-123',
         })}
+        onPressItem={onPressItem}
         now={NOW}
       />,
     );
 
     expect(screen.queryByLabelText("View Ada Example's profile")).toBeNull();
+    expect(screen.queryByText('Ada Example')).toBeNull();
     expect(
       screen.getByText('Ada Example posted a giveaway · Cordless drill'),
     ).toBeTruthy();
+
+    fireEvent(screen.getByRole('button'), 'accessibilityAction', {
+      nativeEvent: { actionName: 'viewProfile' },
+    });
+
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });

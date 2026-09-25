@@ -100,10 +100,12 @@ describe('<MemberRow />', () => {
     expect(label).toBeTruthy();
   });
 
-  test('links to the profile when viewable', () => {
+  test('links to the profile when viewable, with the full descriptive label', () => {
     render(
       <MemberRow
         member={buildMember({
+          is_admin: true,
+          joined_at: '2026-01-15T09:00:00+00:00',
           user: {
             id: 'a1111111-1111-4111-8111-111111111111',
             first_name: 'Ada',
@@ -116,7 +118,14 @@ describe('<MemberRow />', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('link'));
+    const link = screen.getByRole('link');
+
+    expect(link.props.accessibilityLabel).toBe(
+      'Ada Example, admin, joined Jan 2026',
+    );
+    expect(link.props.accessibilityHint).toBe('Opens profile');
+
+    fireEvent.press(link);
 
     expect(mockedPush).toHaveBeenCalledWith(
       '/user/a1111111-1111-4111-8111-111111111111',

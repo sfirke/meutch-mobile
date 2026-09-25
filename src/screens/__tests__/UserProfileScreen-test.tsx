@@ -112,7 +112,7 @@ describe('<UserProfileScreen />', () => {
       ),
     ).toBeTruthy();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Oak Street' }));
+    fireEvent.press(screen.getByRole('link', { name: 'Oak Street' }));
 
     expect(mockPush).toHaveBeenCalledWith(`/circle/${CIRCLE_ID}`);
   });

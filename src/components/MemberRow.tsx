@@ -41,7 +41,12 @@ export function MemberRow({ member }: MemberRowProps) {
       }
       style={styles.row}
     >
-      <MemberPressable style={styles.content} user={member.user}>
+      <MemberPressable
+        accessibilityHint="Opens profile"
+        accessibilityLabel={buildAccessibilityLabel(member, joined)}
+        style={styles.content}
+        user={member.user}
+      >
         <Avatar size={40} user={member.user} />
 
         <View style={styles.body}>

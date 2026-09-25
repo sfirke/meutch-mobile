@@ -1,6 +1,11 @@
 import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 export type MemberPressableUser = {
   id: string;
@@ -12,6 +17,9 @@ export type MemberPressableProps = {
   user: MemberPressableUser;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** Overrides the default "View {full_name}'s profile" label. */
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 };
 
 // Wraps children in a link to the member's profile when it's viewable.
@@ -22,6 +30,8 @@ export function MemberPressable({
   user,
   children,
   style,
+  accessibilityLabel,
+  accessibilityHint,
 }: MemberPressableProps) {
   const router = useRouter();
 
@@ -31,12 +41,21 @@ export function MemberPressable({
 
   return (
     <Pressable
-      accessibilityLabel={`View ${user.full_name}'s profile`}
+      accessibilityLabel={
+        accessibilityLabel ?? `View ${user.full_name}'s profile`
+      }
+      accessibilityHint={accessibilityHint}
       accessibilityRole="link"
       onPress={() => router.push(`/user/${user.id}`)}
-      style={style}
+      style={({ pressed }) => [style, pressed && styles.pressed]}
     >
       {children}
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  pressed: {
+    opacity: 0.75,
+  },
+});

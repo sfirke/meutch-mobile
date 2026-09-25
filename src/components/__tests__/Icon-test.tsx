@@ -49,4 +49,10 @@ describe('<Icon />', () => {
       screen.getByTestId(`icon-${ICON_GLYPHS.clear}`, HIDDEN).props.size,
     ).toBe(16);
   });
+
+  test('renders the send glyph', () => {
+    render(<Icon color="#000000" name="send" />);
+
+    expect(screen.getByTestId(`icon-${ICON_GLYPHS.send}`, HIDDEN)).toBeTruthy();
+  });
 });

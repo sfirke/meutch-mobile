@@ -199,4 +199,37 @@ describe('<QueryStateView />', () => {
 
     expect(screen.getByText('content')).toBeTruthy();
   });
+  test('makes the empty state pull-to-refreshable when given onRefresh', () => {
+    const onRefresh = jest.fn();
+
+    render(
+      <QueryStateView
+        empty={emptyProps}
+        error={null}
+        isEmpty
+        isPending={false}
+        onRefresh={onRefresh}
+      >
+        <Text>content</Text>
+      </QueryStateView>,
+    );
+
+    expect(screen.getByText('No items yet')).toBeTruthy();
+
+    const scroll = screen.getByTestId('empty-state-scroll');
+
+    scroll.props.refreshControl.props.onRefresh();
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  test('leaves the empty state static without onRefresh', () => {
+    render(
+      <QueryStateView empty={emptyProps} error={null} isEmpty isPending={false}>
+        <Text>content</Text>
+      </QueryStateView>,
+    );
+
+    expect(screen.getByText('No items yet')).toBeTruthy();
+    expect(screen.queryByTestId('empty-state-scroll')).toBeNull();
+  });
 });

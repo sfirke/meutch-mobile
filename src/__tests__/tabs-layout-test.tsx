@@ -64,23 +64,49 @@ describe('tabs layout', () => {
     expect(getPathname()).toBe('/browse');
   });
 
-  test('signs out from the header button', async () => {
-    renderRouter('app');
+  test('switches to the inbox tab', async () => {
+    const { getPathname } = renderRouter('app');
 
     expect(await screen.findByText('Nothing here yet')).toBeTruthy();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Inbox' }));
 
-    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('No messages yet')).toBeTruthy();
+    expect(getPathname()).toBe('/inbox');
   });
 
-  test('disables the header button while signing out', async () => {
-    mockSession({ status: 'signing-out' });
+  test('switches to the circles tab', async () => {
+    const { getPathname } = renderRouter('app');
 
+    expect(await screen.findByText('Nothing here yet')).toBeTruthy();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Circles' }));
+
+    expect(
+      await screen.findByText("You're not in any circles yet"),
+    ).toBeTruthy();
+    expect(getPathname()).toBe('/circles');
+  });
+
+  test('switches to the profile tab', async () => {
+    const { getPathname } = renderRouter('app');
+
+    expect(await screen.findByText('Nothing here yet')).toBeTruthy();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Profile' }));
+
+    // The name comes from GET /me/profile, which emptyApiFetch answers with
+    // defaultProfileFixture.
+    expect(await screen.findByText('Fake Member')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeTruthy();
+    expect(getPathname()).toBe('/profile');
+  });
+
+  test('has no sign-out button on the feed tab', async () => {
     renderRouter('app');
 
     expect(await screen.findByText('Nothing here yet')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Sign out' })).toBeDisabled();
-    expect(screen.getByText('Signing out...')).toBeTruthy();
+
+    expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
   });
 });

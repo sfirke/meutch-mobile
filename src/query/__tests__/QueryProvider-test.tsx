@@ -1,5 +1,10 @@
-import { QueryClient, useQueryClient } from '@tanstack/react-query';
-import { render } from '@testing-library/react-native';
+import {
+  focusManager,
+  QueryClient,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { act, render } from '@testing-library/react-native';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import { ApiError, RequestTimeoutError } from '../../lib/api';
 import { SessionExpiredError, SessionRequiredError } from '../../lib/session';
@@ -128,6 +133,42 @@ describe('<QueryProvider />', () => {
 
     expect(clients).toHaveLength(2);
     expect(clients[0]).toBe(clients[1]);
+  });
+
+  test('reports the app foregrounding to the focus manager', () => {
+    let onChange: (state: AppStateStatus) => void = () => {};
+    const remove = jest.fn();
+
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        onChange = listener;
+        return { remove };
+      });
+    const setFocusedSpy = jest.spyOn(focusManager, 'setFocused');
+
+    mockedUseSession.mockReturnValue(
+      buildSession({ status: 'signed-in', user: fakeUser }),
+    );
+
+    const { unmount } = render(
+      <QueryProvider>
+        <ClientProbe onClient={() => {}} />
+      </QueryProvider>,
+    );
+
+    act(() => {
+      onChange('background');
+    });
+    expect(setFocusedSpy).toHaveBeenLastCalledWith(false);
+
+    act(() => {
+      onChange('active');
+    });
+    expect(setFocusedSpy).toHaveBeenLastCalledWith(true);
+
+    unmount();
+    expect(remove).toHaveBeenCalledTimes(1);
   });
 
   test('does not clear the cache on the first sign-in', () => {

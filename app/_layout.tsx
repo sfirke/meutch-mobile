@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { QueryProvider } from '../src/query/QueryProvider';
@@ -32,6 +33,10 @@ function RootNavigator() {
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="item" options={{ headerShown: false }} />
+      <Stack.Screen name="request" options={{ headerShown: false }} />
+      <Stack.Screen name="message" options={{ headerShown: false }} />
+      <Stack.Screen name="circle" options={{ headerShown: false }} />
+      <Stack.Screen name="profile" options={{ headerShown: false }} />
     </Stack>
   );
 }
@@ -39,12 +44,14 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <SessionProvider>
-        <QueryProvider>
-          <StatusBar style="dark" />
-          <RootNavigator />
-        </QueryProvider>
-      </SessionProvider>
+      <KeyboardProvider>
+        <SessionProvider>
+          <QueryProvider>
+            <StatusBar style="dark" />
+            <RootNavigator />
+          </QueryProvider>
+        </SessionProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

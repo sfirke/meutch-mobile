@@ -49,16 +49,32 @@ export function FeedScreen() {
     [router],
   );
 
+  const handlePressCircle = useCallback(
+    (circleId: string) => {
+      router.push(`/circle/${circleId}`);
+    },
+    [router],
+  );
+
+  const handlePressRequest = useCallback(
+    (requestId: string) => {
+      router.push(`/request/${requestId}`);
+    },
+    [router],
+  );
+
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<FeedEvent>) => (
       <FeedEventCard
         event={item}
         now={now}
         onPressItem={handlePressItem}
+        onPressCircle={handlePressCircle}
+        onPressRequest={handlePressRequest}
         style={styles.card}
       />
     ),
-    [handlePressItem, now],
+    [handlePressCircle, handlePressItem, handlePressRequest, now],
   );
 
   const keyExtractor = useCallback(
@@ -106,7 +122,9 @@ export function FeedScreen() {
         error={error}
         isEmpty={events.length === 0}
         isPending={isPending}
+        isRefreshing={isRefreshing}
         isRetrying={isFetching}
+        onRefresh={() => void handleRefresh()}
         onRetry={() => void refetch()}
       >
         {isRefetchError ? (

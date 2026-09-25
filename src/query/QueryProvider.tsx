@@ -1,5 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  focusManager,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
 import { useEffect, useRef, useState, type PropsWithChildren } from 'react';
+import { AppState, Platform } from 'react-native';
 
 import { isApiError, RequestTimeoutError } from '../lib/api';
 import { SessionExpiredError, SessionRequiredError } from '../lib/session';
@@ -43,9 +48,8 @@ export function createQueryClient(): QueryClient {
         // Long enough to survive quick screen swaps; sign-out clears the
         // cache outright anyway, so this isn't the privacy boundary.
         gcTime: 5 * 60 * 1000,
-        // There is no browser "window" to focus on native; wiring
-        // AppState/NetInfo-based refetching is out of scope for this PR.
-        refetchOnWindowFocus: false,
+        // Left at the default `true`: on native, "focus" is the app returning
+        // to the foreground (see QueryProvider), which refetches stale queries.
       },
     },
   });
@@ -55,6 +59,22 @@ export function QueryProvider({ children }: PropsWithChildren) {
   const [queryClient] = useState(() => createQueryClient());
   const { status, user } = useSession();
   const previousUserIdRef = useRef<string | null | undefined>(undefined);
+
+  // TanStack Query only knows browser focus; on native, report the app
+  // coming to the foreground instead. Web keeps its own visibility listener.
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      return undefined;
+    }
+
+    const subscription = AppState.addEventListener('change', (state) => {
+      focusManager.setFocused(state === 'active');
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const currentUserId = user?.id ?? null;

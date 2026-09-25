@@ -251,7 +251,7 @@ describe('<ItemDetailScreen />', () => {
     renderScreen({ item: { owner: null } });
 
     expect(await screen.findByText('Deleted User')).toBeTruthy();
-    expect(screen.getByTestId('item-owner-initials')).toBeTruthy();
+    expect(screen.getByTestId('item-owner-avatar-initials')).toBeTruthy();
     expect(screen.queryByTestId('item-owner-avatar')).toBeNull();
   });
 });

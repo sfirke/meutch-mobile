@@ -6,12 +6,22 @@ import {
   isNumber,
   isObject,
   isString,
+  LOAN_STATUSES,
+  matchEnum,
   normalizeImageUrl,
   parseArray,
+  parseLoanSummary,
   parsePagination,
+  parseUserSummary,
+  type LoanStatus,
+  type LoanSummary,
   type Pagination,
   type QueryParam,
+  type UserSummary,
 } from './parse';
+
+export type { LoanStatus, UserSummary };
+export { LOAN_STATUSES };
 
 export const ITEM_CLAIM_STATUSES = [
   'unclaimed',
@@ -25,27 +35,9 @@ export const GIVEAWAY_VISIBILITIES = ['default', 'public'] as const;
 
 export type GiveawayVisibility = (typeof GIVEAWAY_VISIBILITIES)[number];
 
-export const LOAN_STATUSES = [
-  'pending',
-  'approved',
-  'canceled',
-  'denied',
-  'completed',
-] as const;
-
-export type LoanStatus = (typeof LOAN_STATUSES)[number];
-
 export const VIEWER_INTEREST_STATUSES = ['active', 'selected'] as const;
 
 export type ViewerInterestStatus = (typeof VIEWER_INTEREST_STATUSES)[number];
-
-export type UserSummary = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  full_name: string;
-  profile_image_url: string | null;
-};
 
 export type ItemCategory = {
   id: string;
@@ -80,15 +72,7 @@ export type ItemImage = {
   created_at: string;
 };
 
-export type ItemLoanSummary = {
-  id: string;
-  /** `YYYY-MM-DD`, not a datetime. */
-  start_date: string;
-  end_date: string;
-  /** `null` when the server reports a status this client does not know. */
-  status: LoanStatus | null;
-  borrower: UserSummary | null;
-};
+export type ItemLoanSummary = LoanSummary;
 
 export type ItemDetail = ItemSummary & {
   images: ItemImage[];
@@ -134,47 +118,6 @@ export function normalizeSearchQuery(value: string | undefined): string | null {
   const trimmedValue = value?.trim();
 
   return trimmedValue ? trimmedValue : null;
-}
-
-function matchEnum<T extends string>(
-  value: string | null | undefined,
-  allowedValues: readonly T[],
-): T | null {
-  return typeof value === 'string' && allowedValues.includes(value as T)
-    ? (value as T)
-    : null;
-}
-
-function parseUserSummary(value: unknown, message: string): UserSummary {
-  if (!isObject(value)) {
-    throw new Error(message);
-  }
-
-  const {
-    first_name: firstName,
-    full_name: fullName,
-    id,
-    last_name: lastName,
-    profile_image_url: profileImageUrl,
-  } = value;
-
-  if (
-    !isString(id) ||
-    !isString(firstName) ||
-    !isString(lastName) ||
-    !isString(fullName) ||
-    !isNullableString(profileImageUrl)
-  ) {
-    throw new Error(message);
-  }
-
-  return {
-    id,
-    first_name: firstName,
-    last_name: lastName,
-    full_name: fullName,
-    profile_image_url: normalizeImageUrl(profileImageUrl),
-  };
 }
 
 function parseNamedReference(
@@ -273,40 +216,6 @@ function parseItemImage(value: unknown): ItemImage {
   };
 }
 
-function parseItemLoanSummary(value: unknown): ItemLoanSummary {
-  if (!isObject(value)) {
-    throw new Error(INVALID_ITEM_DETAIL);
-  }
-
-  const {
-    borrower,
-    end_date: endDate,
-    id,
-    start_date: startDate,
-    status,
-  } = value;
-
-  if (
-    !isString(id) ||
-    !isString(startDate) ||
-    !isString(endDate) ||
-    !isNullableString(status)
-  ) {
-    throw new Error(INVALID_ITEM_DETAIL);
-  }
-
-  return {
-    id,
-    start_date: startDate,
-    end_date: endDate,
-    status: matchEnum(status, LOAN_STATUSES),
-    borrower:
-      borrower === null || borrower === undefined
-        ? null
-        : parseUserSummary(borrower, INVALID_ITEM_DETAIL),
-  };
-}
-
 export function parseItemDetail(value: unknown): ItemDetail {
   if (!isObject(value)) {
     throw new Error(INVALID_ITEM_DETAIL);
@@ -340,7 +249,7 @@ export function parseItemDetail(value: unknown): ItemDetail {
     current_loan:
       currentLoan === null || currentLoan === undefined
         ? null
-        : parseItemLoanSummary(currentLoan),
+        : parseLoanSummary(currentLoan, INVALID_ITEM_DETAIL),
     viewer_interest_status: matchEnum(
       viewerInterestStatus,
       VIEWER_INTEREST_STATUSES,

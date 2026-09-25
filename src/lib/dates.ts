@@ -55,3 +55,27 @@ export function formatCalendarDate(value: string): string | null {
 
   return `${MONTH_ABBREVIATIONS[date.month - 1]} ${date.day}, ${date.year}`;
 }
+
+const LEADING_MONTH_PATTERN = /^(\d{4})-(\d{2})/;
+
+/**
+ * Formats the leading `YYYY-MM` of an ISO date or datetime string as
+ * `Jan 2026`, or `null` if unparseable. Reads the digits with a regex rather
+ * than `new Date`, so the month cannot drift across a timezone boundary.
+ */
+export function formatMonthYear(value: string): string | null {
+  const match = LEADING_MONTH_PATTERN.exec(value);
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+
+  if (month < 1 || month > 12) {
+    return null;
+  }
+
+  return `${MONTH_ABBREVIATIONS[month - 1]} ${year}`;
+}

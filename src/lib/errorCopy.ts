@@ -7,6 +7,10 @@ export type ErrorCopyKey =
   | 'NOT_FOUND'
   | 'API_READ_ONLY'
   | 'API_DISABLED'
+  | 'BAD_REQUEST'
+  | 'INVALID_ACTION'
+  | 'CONFLICT'
+  | 'VALIDATION_ERROR'
   | 'OFFLINE'
   | 'TIMEOUT'
   | 'SESSION_EXPIRED'
@@ -39,6 +43,15 @@ const NOT_FOUND_COPY: ErrorCopy = {
   message: "This isn't available anymore.",
   canRetry: false,
 };
+
+// Titles for write failures whose message comes from the backend verbatim.
+// BAD_REQUEST is what "already a member / already requested" returns.
+const WRITE_FAILURE_TITLES = {
+  BAD_REQUEST: "That didn't work",
+  INVALID_ACTION: "That didn't work",
+  CONFLICT: 'Already done',
+  VALIDATION_ERROR: 'Check your input',
+} as const;
 
 const MAINTENANCE_COPY: ErrorCopy = {
   title: 'Meutch is temporarily unavailable',
@@ -90,6 +103,18 @@ function classify(error: unknown): { key: ErrorCopyKey; copy: ErrorCopy } {
         return { key: 'API_READ_ONLY', copy: MAINTENANCE_COPY };
       case 'API_DISABLED':
         return { key: 'API_DISABLED', copy: MAINTENANCE_COPY };
+      case 'BAD_REQUEST':
+      case 'INVALID_ACTION':
+      case 'CONFLICT':
+      case 'VALIDATION_ERROR':
+        return {
+          key: error.code,
+          copy: {
+            title: WRITE_FAILURE_TITLES[error.code],
+            message: error.message || GENERIC_COPY.message,
+            canRetry: false,
+          },
+        };
       default:
         // An unrecognised ApiError's message comes from our own backend, so
         // (unlike an arbitrary thrown error) it is safe to show verbatim.
@@ -126,4 +151,21 @@ export function describeError(
   const { key, copy } = classify(error);
 
   return { ...copy, ...overrides?.[key] };
+}
+
+/** A 422 puts the per-field reason in `details[field]`; prefer it over the generic. */
+export function readFieldError(error: unknown, field: string): string | null {
+  if (!isApiError(error)) {
+    return null;
+  }
+
+  const detail = error.details?.[field];
+
+  if (Array.isArray(detail)) {
+    const [first] = detail;
+
+    return typeof first === 'string' ? first : null;
+  }
+
+  return typeof detail === 'string' ? detail : null;
 }

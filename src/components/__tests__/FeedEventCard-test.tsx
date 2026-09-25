@@ -1,10 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { useRouter } from 'expo-router';
 
 import type { FeedEvent } from '../../lib/feed';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import { FeedEventCard } from '../FeedEventCard';
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
+
+const mockPush = jest.fn();
+
+jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 
 const NOW = new Date('2026-05-26T18:30:00.000Z');
 
@@ -32,6 +37,13 @@ function createEvent(overrides: Partial<FeedEvent> = {}): FeedEvent {
     ...overrides,
   };
 }
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  jest.mocked(useRouter).mockReturnValue({
+    push: mockPush,
+  } as unknown as ReturnType<typeof useRouter>);
+});
 
 describe('<FeedEventCard />', () => {
   test('renders a request event: chip, verbatim action, and title', () => {
@@ -374,5 +386,45 @@ describe('<FeedEventCard />', () => {
     );
 
     expect(screen.getByText('5m ago')).toBeTruthy();
+  });
+
+  test('links to the actor profile when viewable, without triggering the card press', () => {
+    const onPressItem = jest.fn();
+
+    render(
+      <FeedEventCard
+        event={createEvent({
+          actor_id: 'a1111111-1111-4111-8111-111111111111',
+          actor_profile_viewable: true,
+          item_id: 'item-123',
+        })}
+        onPressItem={onPressItem}
+        now={NOW}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText("View Ada Example's profile"));
+
+    expect(mockPush).toHaveBeenCalledWith(
+      '/user/a1111111-1111-4111-8111-111111111111',
+    );
+    expect(onPressItem).not.toHaveBeenCalled();
+  });
+
+  test('does not link to the actor profile when not viewable', () => {
+    render(
+      <FeedEventCard
+        event={createEvent({
+          actor_id: 'a1111111-1111-4111-8111-111111111111',
+          actor_profile_viewable: false,
+        })}
+        now={NOW}
+      />,
+    );
+
+    expect(screen.queryByLabelText("View Ada Example's profile")).toBeNull();
+    expect(
+      screen.getByText('Ada Example posted a giveaway · Cordless drill'),
+    ).toBeTruthy();
   });
 });

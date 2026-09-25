@@ -19,9 +19,12 @@ jest.mock('../../session/SessionProvider', () => ({
   useSession: jest.fn(),
 }));
 
+const mockPush = jest.fn();
+
 jest.mock('expo-router', () => ({
   Stack: { Screen: jest.fn(() => null) },
   useLocalSearchParams: jest.fn(),
+  useRouter: () => ({ push: mockPush }),
 }));
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
@@ -256,6 +259,23 @@ describe('<ItemDetailScreen />', () => {
     expect(await screen.findByText('Deleted User')).toBeTruthy();
     expect(screen.getByTestId('item-owner-avatar-initials')).toBeTruthy();
     expect(screen.queryByTestId('item-owner-avatar')).toBeNull();
+  });
+
+  test('links to the owner profile when viewable', async () => {
+    renderScreen({ item: { owner: { ...owner, profile_viewable: true } } });
+
+    expect(await screen.findByText('Ada Example')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("View Ada Example's profile"));
+
+    expect(mockPush).toHaveBeenCalledWith(`/user/${owner.id}`);
+  });
+
+  test('does not link to the owner profile when not viewable', async () => {
+    renderScreen({ item: { owner: { ...owner, profile_viewable: false } } });
+
+    expect(await screen.findByText('Ada Example')).toBeTruthy();
+    expect(screen.queryByLabelText("View Ada Example's profile")).toBeNull();
   });
 });
 

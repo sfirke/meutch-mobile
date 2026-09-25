@@ -13,6 +13,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Avatar } from '../components/Avatar';
 import { ErrorState } from '../components/ErrorState';
 import { Icon, type IconName } from '../components/Icon';
+import { MemberPressable } from '../components/MemberPressable';
 import { QueryStateView } from '../components/QueryStateView';
 import {
   describeError,
@@ -328,10 +329,17 @@ function RequestDetailBody({
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Requested by</Text>
         <View style={styles.ownerRow}>
-          <Avatar testID="request-owner-avatar" user={request.user} />
-          <Text style={styles.ownerName}>
-            {isOwner ? 'You' : request.user.full_name}
-          </Text>
+          {isOwner ? (
+            <>
+              <Avatar testID="request-owner-avatar" user={request.user} />
+              <Text style={styles.ownerName}>You</Text>
+            </>
+          ) : (
+            <MemberPressable style={styles.ownerRowLink} user={request.user}>
+              <Avatar testID="request-owner-avatar" user={request.user} />
+              <Text style={styles.ownerName}>{request.user.full_name}</Text>
+            </MemberPressable>
+          )}
         </View>
       </View>
 
@@ -532,6 +540,12 @@ const styles = StyleSheet.create({
   },
   ownerRow: {
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing[12],
+  },
+  ownerRowLink: {
+    alignItems: 'center',
+    flex: 1,
     flexDirection: 'row',
     gap: spacing[12],
   },

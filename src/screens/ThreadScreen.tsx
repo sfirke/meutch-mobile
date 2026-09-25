@@ -16,9 +16,11 @@ import {
 } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Avatar } from '../components/Avatar';
 import { ErrorState } from '../components/ErrorState';
 import { Icon } from '../components/Icon';
 import { LoanBanner } from '../components/LoanBanner';
+import { MemberPressable } from '../components/MemberPressable';
 import { MessageBubble } from '../components/MessageBubble';
 import { QueryStateView } from '../components/QueryStateView';
 import { ThreadContextCard } from '../components/ThreadContextCard';
@@ -289,6 +291,13 @@ export function ThreadScreen() {
         options={{ title: data?.other_user.full_name ?? DEFAULT_TITLE }}
       />
 
+      {data?.other_user.profile_viewable ? (
+        <MemberPressable style={styles.partnerRow} user={data.other_user}>
+          <Avatar size={32} user={data.other_user} />
+          <Text style={styles.partnerName}>{data.other_user.full_name}</Text>
+        </MemberPressable>
+      ) : null}
+
       <QueryStateView
         error={error}
         errorOverrides={ERROR_OVERRIDES}
@@ -369,6 +378,17 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: spacing[16],
+  },
+  partnerName: {
+    color: colors.text,
+    ...typography.label,
+  },
+  partnerRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing[10],
+    paddingHorizontal: spacing[16],
+    paddingTop: spacing[12],
   },
   pressed: {
     opacity: 0.75,

@@ -9,6 +9,7 @@ const ada: UserSummary = {
   last_name: 'Example',
   full_name: 'Ada Example',
   profile_image_url: 'https://example.com/ada.jpg',
+  profile_viewable: false,
 };
 
 describe('<Avatar />', () => {

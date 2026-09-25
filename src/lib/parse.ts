@@ -137,6 +137,7 @@ export type UserSummary = {
   last_name: string;
   full_name: string;
   profile_image_url: string | null;
+  profile_viewable: boolean;
 };
 
 export function parseUserSummary(value: unknown, message: string): UserSummary {
@@ -150,6 +151,7 @@ export function parseUserSummary(value: unknown, message: string): UserSummary {
     id,
     last_name: lastName,
     profile_image_url: profileImageUrl,
+    profile_viewable: profileViewable,
   } = value;
 
   if (
@@ -168,6 +170,8 @@ export function parseUserSummary(value: unknown, message: string): UserSummary {
     last_name: lastName,
     full_name: fullName,
     profile_image_url: normalizeImageUrl(profileImageUrl),
+    profile_viewable:
+      typeof profileViewable === 'boolean' ? profileViewable : false,
   };
 }
 

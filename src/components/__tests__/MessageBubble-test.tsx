@@ -12,6 +12,7 @@ const sender: MessageSummary['sender'] = {
   last_name: 'Example',
   full_name: 'Ada Example',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 const recipient: MessageSummary['recipient'] = {
@@ -20,6 +21,7 @@ const recipient: MessageSummary['recipient'] = {
   last_name: 'Member',
   full_name: 'Morgan Member',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 function buildMessage(overrides: Partial<MessageSummary> = {}): MessageSummary {

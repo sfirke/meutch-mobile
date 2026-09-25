@@ -19,6 +19,7 @@ function buildMember(overrides: Partial<CircleMember> = {}): CircleMember {
       last_name: 'Example',
       full_name: 'Ada Example',
       profile_image_url: null,
+      profile_viewable: false,
     },
     joined_at: '2026-01-15T09:00:00+00:00',
     is_admin: false,

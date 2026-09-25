@@ -36,6 +36,7 @@ const requester: UserSummary = {
   last_name: 'Example',
   full_name: 'Ada Example',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 const responder: UserSummary = {
@@ -44,6 +45,7 @@ const responder: UserSummary = {
   last_name: 'Sample',
   full_name: 'Bo Sample',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 function buildRequest(overrides?: Partial<RequestSummary>): RequestSummary {

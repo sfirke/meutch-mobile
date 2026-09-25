@@ -12,6 +12,7 @@ const owner = {
   last_name: 'Example',
   full_name: 'Ada Example',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 function buildItem(overrides?: Partial<ItemSummary>): ItemSummary {

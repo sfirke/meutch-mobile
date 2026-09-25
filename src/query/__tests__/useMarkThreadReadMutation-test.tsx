@@ -23,6 +23,7 @@ const otherUser = {
   last_name: 'Member',
   full_name: 'Morgan Member',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 const viewer = {
@@ -31,6 +32,7 @@ const viewer = {
   last_name: 'Example',
   full_name: 'Ada Example',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 function createThread(): MessageThread {

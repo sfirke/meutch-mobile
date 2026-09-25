@@ -34,6 +34,7 @@ const owner: UserSummary = {
   last_name: 'Example',
   full_name: 'Ada Example',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 const borrower: UserSummary = {
@@ -42,6 +43,7 @@ const borrower: UserSummary = {
   last_name: 'Sample',
   full_name: 'Bo Sample',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 const recipient: UserSummary = {
@@ -50,6 +52,7 @@ const recipient: UserSummary = {
   last_name: 'Placeholder',
   full_name: 'Cy Placeholder',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 function buildImage(id: string, position: number): ItemImage {

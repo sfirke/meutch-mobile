@@ -15,6 +15,7 @@ const otherUser: UserSummary = {
   last_name: 'Example',
   full_name: 'Ada Example',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 const currentUser: UserSummary = {
@@ -23,6 +24,7 @@ const currentUser: UserSummary = {
   last_name: 'Member',
   full_name: 'Morgan Member',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 function buildConversation(

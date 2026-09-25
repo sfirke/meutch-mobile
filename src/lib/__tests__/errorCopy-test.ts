@@ -1,4 +1,4 @@
-import { ApiError } from '../api';
+import { ApiError, RequestTimeoutError } from '../api';
 import { describeError } from '../errorCopy';
 import { SessionExpiredError, SessionRequiredError } from '../session';
 
@@ -48,6 +48,13 @@ describe('describeError', () => {
 
     expect(result.canRetry).toBe(true);
     expect(result.title).toMatch(/offline/i);
+  });
+
+  test('maps RequestTimeoutError to retryable could-not-reach copy', () => {
+    const result = describeError(new RequestTimeoutError());
+
+    expect(result.canRetry).toBe(true);
+    expect(result.title).toMatch(/couldn't reach/i);
   });
 
   test('maps SessionExpiredError to non-retryable sign-in-again copy', () => {

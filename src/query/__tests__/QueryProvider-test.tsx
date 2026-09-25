@@ -6,7 +6,7 @@ import {
 import { act, render } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 
-import { ApiError } from '../../lib/api';
+import { ApiError, RequestTimeoutError } from '../../lib/api';
 import { SessionExpiredError, SessionRequiredError } from '../../lib/session';
 import { useSession } from '../../session/SessionProvider';
 import {
@@ -63,6 +63,10 @@ describe('shouldRetryQuery', () => {
 
   test('never retries SessionRequiredError', () => {
     expect(shouldRetryQuery(0, new SessionRequiredError())).toBe(false);
+  });
+
+  test('never retries a RequestTimeoutError', () => {
+    expect(shouldRetryQuery(0, new RequestTimeoutError())).toBe(false);
   });
 
   test('never retries a 4xx ApiError', () => {

@@ -12,6 +12,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Avatar } from '../components/Avatar';
 import { ErrorState } from '../components/ErrorState';
 import { Icon, type IconName } from '../components/Icon';
+import { LinkedText } from '../components/LinkedText';
 import { MemberPressable } from '../components/MemberPressable';
 import { MessageComposer } from '../components/MessageComposer';
 import { QueryStateView } from '../components/QueryStateView';
@@ -217,7 +218,7 @@ function RequestDetailBody({
         </View>
 
         {description ? (
-          <Text style={styles.description}>{description}</Text>
+          <LinkedText style={styles.description} text={description} />
         ) : null}
 
         <View style={styles.chipRow}>

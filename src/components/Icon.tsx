@@ -26,7 +26,11 @@ export type IconName =
   | 'admin'
   | 'link'
   | 'check'
-  | 'chevron';
+  | 'chevron'
+  | 'archive'
+  | 'sort'
+  | 'unread'
+  | 'read';
 
 /**
  * FontAwesome 6 Free solid glyph names. Covered by Icon-test.tsx, which
@@ -57,6 +61,10 @@ export const ICON_GLYPHS: Record<IconName, string> = {
   link: 'link',
   check: 'check',
   chevron: 'chevron-right',
+  archive: 'box-archive',
+  sort: 'arrow-down-wide-short',
+  unread: 'envelope',
+  read: 'envelope-open',
 };
 
 export type IconProps = {

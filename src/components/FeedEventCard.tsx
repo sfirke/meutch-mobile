@@ -118,6 +118,51 @@ function resolveOnPress(
   return null;
 }
 
+/** A giveaway that has been handed off. The item is no longer viewable. */
+function isClaimedGiveaway(event: FeedEvent): boolean {
+  return event.event_type === 'giveaway' && event.claim_status === 'claimed';
+}
+
+function ClaimedGiveawayRow({
+  event,
+  now,
+  style,
+}: Pick<FeedEventCardProps, 'event' | 'now' | 'style'>) {
+  const relativeTime = formatRelativeTime(event.created_at, now ?? new Date());
+  const headline = `${event.actor_name} ${event.action} ${event.title}`;
+
+  const label = `${headline}, claimed`;
+
+  return (
+    <View
+      accessibilityLabel={relativeTime ? `${label}, ${relativeTime}` : label}
+      accessible
+      style={[styles.card, styles.claimedRow, style]}
+      testID="feed-claimed-giveaway"
+    >
+      {event.image_url ? (
+        <Image
+          source={{ uri: event.image_url }}
+          style={styles.claimedThumbnail}
+          contentFit="cover"
+        />
+      ) : (
+        <ImagePlaceholder style={styles.claimedThumbnail} />
+      )}
+      <View style={styles.claimedTextColumn}>
+        <Text numberOfLines={2} style={styles.claimedHeadline}>
+          <Text style={styles.claimedStrong}>{event.actor_name}</Text>
+          {` ${event.action} `}
+          <Text style={styles.claimedStrong}>{event.title}</Text>
+        </Text>
+        {relativeTime ? (
+          <Text style={styles.claimedTime}>{relativeTime}</Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 export function FeedEventCard({
   event,
   onPressItem,
@@ -127,6 +172,11 @@ export function FeedEventCard({
   now,
 }: FeedEventCardProps) {
   const router = useRouter();
+
+  if (isClaimedGiveaway(event)) {
+    return <ClaimedGiveawayRow event={event} now={now} style={style} />;
+  }
+
   const meta = getEventTypeMeta(event.event_type);
   const relativeTime = formatRelativeTime(event.created_at, now ?? new Date());
   const headlineText = `${event.actor_name} ${event.action} · ${event.title}`;
@@ -281,6 +331,33 @@ const styles = StyleSheet.create({
     gap: spacing[12],
     padding: spacing[16],
     ...shadows.card,
+  },
+  claimedRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    paddingVertical: spacing[12],
+  },
+  claimedThumbnail: {
+    borderRadius: radii.sm,
+    height: 40,
+    opacity: 0.5,
+    width: 40,
+  },
+  claimedTextColumn: {
+    flex: 1,
+    gap: spacing[4],
+  },
+  claimedHeadline: {
+    color: colors.secondary,
+    ...typography.itemMeta,
+  },
+  claimedStrong: {
+    color: colors.text,
+    fontWeight: '600',
+  },
+  claimedTime: {
+    color: colors.secondary,
+    ...typography.itemMeta,
   },
   cardPressed: {
     opacity: 0.85,

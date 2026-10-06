@@ -473,4 +473,36 @@ describe('<FeedEventCard />', () => {
 
     expect(mockPush).not.toHaveBeenCalled();
   });
+  describe('claimed giveaway', () => {
+    const claimed = () =>
+      createEvent({
+        action: 'gave away',
+        claim_status: 'claimed',
+        description: 'Works great',
+        title: 'Kids bike',
+        image_url: 'https://example.com/bike.jpg',
+      });
+
+    test('renders a compact row without chip or description', () => {
+      render(<FeedEventCard event={claimed()} now={NOW} />);
+
+      expect(screen.getByTestId('feed-claimed-giveaway')).toBeTruthy();
+      expect(screen.getByText(/gave away/)).toBeTruthy();
+      expect(screen.getByText('Kids bike')).toBeTruthy();
+      expect(screen.queryByText('Giveaway')).toBeNull();
+      expect(screen.queryByText('Works great')).toBeNull();
+    });
+
+    test('is not pressable even when handlers are provided', () => {
+      const onPressItem = jest.fn();
+      render(
+        <FeedEventCard event={claimed()} now={NOW} onPressItem={onPressItem} />,
+      );
+
+      expect(screen.queryByRole('button')).toBeNull();
+      fireEvent.press(screen.getByText('Kids bike'));
+      expect(onPressItem).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+  });
 });

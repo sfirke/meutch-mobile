@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { Linking } from 'react-native';
 
 import type { UserSummary } from '../../lib/parse';
 import type { RequestConversation, RequestSummary } from '../../lib/requests';
@@ -340,5 +341,19 @@ describe('<RequestDetailScreen /> errors', () => {
 
     expect(await screen.findByText('This request is gone')).toBeTruthy();
     expect(authenticatedApiFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('<RequestDetailScreen /> description links', () => {
+  test('opens a url in the text in the browser', async () => {
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+
+    renderScreen({ request: { description: 'See https://example.org/path' } });
+
+    fireEvent.press(
+      await screen.findByRole('link', { name: 'https://example.org/path' }),
+    );
+
+    expect(openURL).toHaveBeenCalledWith('https://example.org/path');
   });
 });

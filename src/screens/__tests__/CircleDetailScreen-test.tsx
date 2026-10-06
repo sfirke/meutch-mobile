@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
+import { Linking } from 'react-native';
 
 import type { ApiFetch } from '../../lib/api';
 import { circleKeys } from '../../lib/queryKeys';
@@ -648,5 +649,19 @@ describe('<CircleDetailScreen /> route params', () => {
 
     expect(await screen.findByText('Oak Street Tool Library')).toBeTruthy();
     expect(apiFetch.mock.calls[0][0]).toBe(DETAIL_PATH);
+  });
+});
+
+describe('<CircleDetailScreen /> description links', () => {
+  test('opens a url in the text in the browser', async () => {
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+
+    renderCircle({ description: 'Rules at https://example.org/path' });
+
+    fireEvent.press(
+      await screen.findByRole('link', { name: 'https://example.org/path' }),
+    );
+
+    expect(openURL).toHaveBeenCalledWith('https://example.org/path');
   });
 });

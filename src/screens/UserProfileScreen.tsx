@@ -11,6 +11,7 @@ import {
 
 import { ErrorState } from '../components/ErrorState';
 import { ImagePlaceholder } from '../components/ImagePlaceholder';
+import { LinkedText } from '../components/LinkedText';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { ProfileLinksSection } from '../components/ProfileLinksSection';
 import { QueryStateView } from '../components/QueryStateView';
@@ -135,7 +136,7 @@ function UserProfileBody({
       {aboutMe ? (
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>About me</Text>
-          <Text style={styles.aboutText}>{aboutMe}</Text>
+          <LinkedText style={styles.aboutText} text={aboutMe} />
         </View>
       ) : null}
 

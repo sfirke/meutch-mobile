@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
+import { Linking } from 'react-native';
 
 import type {
   ItemDetail,
@@ -821,5 +822,19 @@ describe('<ItemDetailScreen /> route params', () => {
 
     expect(await screen.findByText('Cordless drill')).toBeTruthy();
     expect(authenticatedApiFetch.mock.calls[0][0]).toBe(`/items/${ITEM_ID}`);
+  });
+});
+
+describe('<ItemDetailScreen /> description links', () => {
+  test('opens a url in the text in the browser', async () => {
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+
+    renderScreen({ item: { description: 'Manual: https://example.org/path' } });
+
+    fireEvent.press(
+      await screen.findByRole('link', { name: 'https://example.org/path' }),
+    );
+
+    expect(openURL).toHaveBeenCalledWith('https://example.org/path');
   });
 });

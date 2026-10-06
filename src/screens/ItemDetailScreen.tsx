@@ -17,6 +17,7 @@ import {
   getAvailabilityBadge,
   type AvailabilityBadgeTone,
 } from '../components/itemBadge';
+import { LinkedText } from '../components/LinkedText';
 import { MemberPressable } from '../components/MemberPressable';
 import { MessageComposer } from '../components/MessageComposer';
 import { QueryStateView } from '../components/QueryStateView';
@@ -309,7 +310,7 @@ function ItemDetailBody({
         </View>
 
         {description ? (
-          <Text style={styles.description}>{description}</Text>
+          <LinkedText style={styles.description} text={description} />
         ) : null}
       </View>
 

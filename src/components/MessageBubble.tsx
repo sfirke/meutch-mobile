@@ -1,7 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { hasLinks } from '../lib/linkify';
 import type { MessageSummary } from '../lib/messages';
 import { formatRelativeTime } from '../lib/relativeTime';
+import { LinkedText } from './LinkedText';
 import { colors, radii, spacing, typography } from '../theme';
 
 export type MessageBubbleProps = {
@@ -14,21 +16,24 @@ export type MessageBubbleProps = {
 // others align left on the neutral surface. Body text always wraps.
 export function MessageBubble({ message, isOwn, now }: MessageBubbleProps) {
   const relativeTime = formatRelativeTime(message.timestamp, now);
-  const label = isOwn
-    ? `You: ${message.body}`
-    : `${message.sender.first_name}: ${message.body}`;
+  const prefix = isOwn ? 'You:' : `${message.sender.first_name}:`;
+  // A grouped accessible label would hide nested links from screen readers.
+  const linked = hasLinks(message.body);
 
   return (
     <View style={[styles.row, isOwn ? styles.rowOwn : styles.rowOther]}>
       <View
-        accessible
-        accessibilityLabel={label}
+        accessible={linked ? undefined : true}
+        accessibilityLabel={linked ? undefined : `${prefix} ${message.body}`}
         style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}
         testID={isOwn ? 'message-bubble-own' : 'message-bubble-other'}
       >
-        <Text style={isOwn ? styles.textOwn : styles.textOther}>
-          {message.body}
-        </Text>
+        {linked ? <Text style={styles.srOnly}>{prefix}</Text> : null}
+        <LinkedText
+          linkColor={isOwn ? colors.onPrimaryText : undefined}
+          style={isOwn ? styles.textOwn : styles.textOther}
+          text={message.body}
+        />
         {relativeTime ? (
           <Text
             style={[styles.time, isOwn ? styles.textOwn : styles.textOther]}
@@ -64,6 +69,12 @@ const styles = StyleSheet.create({
   },
   rowOwn: {
     justifyContent: 'flex-end',
+  },
+  srOnly: {
+    height: 1,
+    opacity: 0,
+    position: 'absolute',
+    width: 1,
   },
   textOther: {
     color: colors.text,

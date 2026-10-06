@@ -1,4 +1,6 @@
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+
+import { Linking } from 'react-native';
 
 import type { MessageSummary } from '../../lib/messages';
 import { colors } from '../../theme';
@@ -81,5 +83,65 @@ describe('<MessageBubble />', () => {
     render(<MessageBubble isOwn={false} message={buildMessage()} now={NOW} />);
 
     expect(screen.getByLabelText('Ada: See you Saturday?')).toBeTruthy();
+  });
+
+  describe('with links', () => {
+    const body = 'Details at https://example.com/page today';
+
+    test('a url opens through Linking when pressed', () => {
+      const spy = jest
+        .spyOn(Linking, 'openURL')
+        .mockResolvedValue(undefined as never);
+      render(
+        <MessageBubble
+          isOwn={false}
+          message={buildMessage({ body })}
+          now={NOW}
+        />,
+      );
+
+      fireEvent.press(screen.getByRole('link'));
+
+      expect(spy).toHaveBeenCalledWith('https://example.com/page');
+      spy.mockRestore();
+    });
+
+    test('an own bubble link uses the on-primary color', () => {
+      render(
+        <MessageBubble isOwn message={buildMessage({ body })} now={NOW} />,
+      );
+
+      expect(screen.getByRole('link')).toHaveStyle({
+        color: colors.onPrimaryText,
+      });
+    });
+
+    test('drops the grouped label but keeps the sender prefix', () => {
+      render(
+        <MessageBubble
+          isOwn={false}
+          message={buildMessage({ body })}
+          now={NOW}
+        />,
+      );
+
+      expect(screen.queryByLabelText(`Ada: ${body}`)).toBeNull();
+      expect(screen.getByText('Ada:')).toBeTruthy();
+    });
+
+    test('an own linked bubble keeps the "You:" prefix', () => {
+      render(
+        <MessageBubble isOwn message={buildMessage({ body })} now={NOW} />,
+      );
+
+      expect(screen.getByText('You:')).toBeTruthy();
+    });
+
+    test('a plain body still has the grouped label', () => {
+      render(<MessageBubble isOwn message={buildMessage()} now={NOW} />);
+
+      expect(screen.getByLabelText('You: See you Saturday?')).toBeTruthy();
+      expect(screen.queryByText('You:')).toBeNull();
+    });
   });
 });

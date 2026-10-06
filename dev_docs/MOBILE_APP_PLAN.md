@@ -30,7 +30,7 @@ The `/api/v1` API already covers nearly the whole web app, including writes (`AP
 - **Auth:** login, refresh, logout, `me`, register, forgot and reset password, resend confirmation
 - **Reads:** feed, items, my items, requests, circles, conversations and threads, loans, profile, settings, categories, tags
 - **Items:** create, edit, delete, image upload, reorder, and delete
-- **Messaging:** start a conversation about an item or request, reply, mark read, archive and unarchive, bulk archive, bulk mark read, mark all read
+- **Messaging:** start a conversation about an item or request, reply, mark read, archive and unarchive, bulk archive, bulk mark read, mark all read, mark unread, bulk unarchive
 - **Requests:** create, edit, delete, respond with an item, fulfill
 - **Loans:** request, approve, deny, cancel, owner cancel, complete, extend
 - **Giveaways:** interest list, select or change recipient, release to all, confirm handoff, mark given away
@@ -42,7 +42,6 @@ Backend additions the mobile roadmap still needs, each noted on the PR that depe
 | Addition | Needed by |
 | --- | --- |
 | `GET /me/requests` (active and recently fulfilled, like the web profile) | PR 10 |
-| mark a conversation unread | PR 9 |
 | list a circle's pending join requests | PR 12 |
 | loan extension requests (borrower asks, owner approves or denies) | PR 14 |
 | circle recommendations and secret-circle lookup by ID | PR 17 |
@@ -123,10 +122,20 @@ All supported by the API today; the app currently sends only a search term.
 
 ### PR 9: Starting Conversations And Inbox Management
 
-- "Message owner" on item detail (`POST /messages` with `item_id`). On a giveaway, this is also how a member records interest. Messaging a requester landed in PR 7.
-- archive and unarchive, bulk archive, bulk mark read, mark all read, inbox sort
-- backend: mark a conversation unread (the web app supports it; the API does not)
-- make URLs in messages, item descriptions, request text, and bios tappable, matching the web app
+Split into two mobile PRs so the first half does not wait on the backend.
+
+#### PR 9a: Message Owner And Links
+
+- "Message owner" on item detail (`POST /messages` with `item_id`), shown to any viewer who is not the owner; the server decides availability and circle rules. On a giveaway, this is also how a member records interest, so the composer carries that hint and the item detail refetches after a send. Messaging a requester landed in PR 7, and its composer is now the shared `MessageComposer`.
+- make URLs in messages, item descriptions, request text, circle descriptions, and bios tappable, matching the web app. `splitLinks` ports the backend's `linkify` rules (`http(s)://` and `www.` only, trailing punctuation trimmed); truncated previews stay plain.
+
+#### PR 9b: Inbox Management
+
+- archive and unarchive, bulk archive, bulk unarchive, bulk mark read, mark unread, mark all read, inbox sort (`newest`, `oldest`, `unread`, `name_asc`)
+- long-press enters a selection mode with a bottom action bar (archive or unarchive, mark read, mark unread); sort and "Mark all read" sit in a toolbar under the Inbox/Archived switch. No swipe actions.
+- one mutation hook patches the cached folder after each action and marks the other folders stale without refetching them, since the API allows 60 reads a minute
+- mark unread flips only the latest message the member received in each conversation, as on the web; when fewer conversations were marked than selected, the app says that conversations with no received messages cannot be marked unread
+- backend: `POST /conversations/bulk-mark-unread` (returns how many messages were marked) and `POST /conversations/bulk-unarchive`
 
 ### PR 10: My Items And My Activity
 

@@ -5,7 +5,7 @@ import {
   type ConversationSubject,
   type MessageSummary,
 } from '../lib/messages';
-import { messageKeys } from '../lib/queryKeys';
+import { itemKeys, messageKeys } from '../lib/queryKeys';
 import { useSession } from '../session/SessionProvider';
 
 export function useStartConversationMutation(subject: ConversationSubject) {
@@ -18,6 +18,13 @@ export function useStartConversationMutation(subject: ConversationSubject) {
     onSuccess: () => {
       // The new message lands in the inbox, possibly as a new conversation.
       void queryClient.invalidateQueries({ queryKey: messageKeys.all });
+
+      // Messaging about a giveaway can register the viewer's interest.
+      if ('itemId' in subject) {
+        void queryClient.invalidateQueries({
+          queryKey: itemKeys.detail(subject.itemId),
+        });
+      }
     },
   });
 }

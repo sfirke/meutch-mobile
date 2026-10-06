@@ -45,7 +45,7 @@ export function splitLinks(text: string): LinkSegment[] {
       segments.push({ kind: 'text', text: text.slice(cursor, match.index) });
     }
     // A "www." match has no scheme; the visible text stays as typed.
-    const href = url.includes('://') ? url : `https://${url}`;
+    const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
     segments.push({ kind: 'link', text: url, href });
     cursor = match.index + url.length;
   }

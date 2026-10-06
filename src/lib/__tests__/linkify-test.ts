@@ -150,6 +150,15 @@ describe('splitLinks', () => {
   test('a lone scheme is not a link', () => {
     expect(hasLinks('https://')).toBe(false);
   });
+
+  test('prefixes https:// to a www. host whose query holds a url', () => {
+    expect(splitLinks('www.example.com/?u=http://x.org')).toEqual([
+      link(
+        'www.example.com/?u=http://x.org',
+        'https://www.example.com/?u=http://x.org',
+      ),
+    ]);
+  });
 });
 
 describe('hasLinks', () => {

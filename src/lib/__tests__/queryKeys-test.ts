@@ -68,16 +68,27 @@ describe('query keys', () => {
     expect(messageKeys.inbox({ status: 'inbox' })).toEqual([
       'messages',
       'inbox',
-      { status: 'inbox' },
+      { status: 'inbox', sort: 'newest' },
     ]);
     expect(messageKeys.inbox({ status: 'archived' })).toEqual([
       'messages',
       'inbox',
-      { status: 'archived' },
+      { status: 'archived', sort: 'newest' },
     ]);
     expect(messageKeys.inbox({ status: 'inbox' })).not.toEqual(
       messageKeys.inbox({ status: 'archived' }),
     );
+  });
+
+  test('an omitted inbox sort shares the key with an explicit newest', () => {
+    expect(messageKeys.inbox({ status: 'inbox' })).toEqual(
+      messageKeys.inbox({ status: 'inbox', sort: 'newest' }),
+    );
+    expect(messageKeys.inbox({ status: 'inbox', sort: 'unread' })).toEqual([
+      'messages',
+      'inbox',
+      { status: 'inbox', sort: 'unread' },
+    ]);
   });
 
   test('message thread keys are scoped by id and nest under messages', () => {

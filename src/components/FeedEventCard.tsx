@@ -118,6 +118,49 @@ function resolveOnPress(
   return null;
 }
 
+/** A giveaway that has been handed off. The item is no longer viewable. */
+function isClaimedGiveaway(event: FeedEvent): boolean {
+  return event.event_type === 'giveaway' && event.claim_status === 'claimed';
+}
+
+function ClaimedGiveawayRow({
+  event,
+  now,
+  style,
+}: Pick<FeedEventCardProps, 'event' | 'now' | 'style'>) {
+  const relativeTime = formatRelativeTime(event.created_at, now ?? new Date());
+  const headline = `${event.actor_name} ${event.action} ${event.title}`;
+
+  return (
+    <View
+      accessibilityLabel={
+        relativeTime ? `${headline}, ${relativeTime}` : headline
+      }
+      accessible
+      style={[styles.claimedRow, style]}
+      testID="feed-claimed-giveaway"
+    >
+      <Text numberOfLines={3} style={styles.claimedText}>
+        <Text style={styles.claimedActor} numberOfLines={1}>
+          {event.actor_name}
+        </Text>
+        {` ${event.action} `}
+        <Text style={styles.claimedTitle}>{event.title}</Text>
+      </Text>
+      {event.image_url ? (
+        <Image
+          source={{ uri: event.image_url }}
+          style={styles.claimedThumbnail}
+          contentFit="cover"
+        />
+      ) : null}
+      {relativeTime ? (
+        <Text style={styles.claimedTime}>{relativeTime}</Text>
+      ) : null}
+    </View>
+  );
+}
+
 export function FeedEventCard({
   event,
   onPressItem,
@@ -127,6 +170,11 @@ export function FeedEventCard({
   now,
 }: FeedEventCardProps) {
   const router = useRouter();
+
+  if (isClaimedGiveaway(event)) {
+    return <ClaimedGiveawayRow event={event} now={now} style={style} />;
+  }
+
   const meta = getEventTypeMeta(event.event_type);
   const relativeTime = formatRelativeTime(event.created_at, now ?? new Date());
   const headlineText = `${event.actor_name} ${event.action} · ${event.title}`;
@@ -275,6 +323,36 @@ export function FeedEventCard({
 }
 
 const styles = StyleSheet.create({
+  claimedRow: {
+    alignItems: 'flex-start',
+    backgroundColor: colors.secondaryBackground,
+    borderRadius: radii.md,
+    flexDirection: 'row',
+    gap: spacing[8],
+    opacity: 0.6,
+    paddingHorizontal: spacing[12],
+    paddingVertical: spacing[8],
+  },
+  claimedText: {
+    color: colors.secondary,
+    flex: 1,
+    ...typography.meta,
+  },
+  claimedActor: {
+    fontWeight: '700',
+  },
+  claimedTitle: {
+    fontWeight: '600',
+  },
+  claimedThumbnail: {
+    borderRadius: radii.sm,
+    height: 32,
+    width: 32,
+  },
+  claimedTime: {
+    color: colors.secondary,
+    ...typography.meta,
+  },
   card: {
     backgroundColor: colors.background,
     borderRadius: radii.md,

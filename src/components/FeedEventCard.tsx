@@ -131,32 +131,34 @@ function ClaimedGiveawayRow({
   const relativeTime = formatRelativeTime(event.created_at, now ?? new Date());
   const headline = `${event.actor_name} ${event.action} ${event.title}`;
 
+  const label = `${headline}, claimed`;
+
   return (
     <View
-      accessibilityLabel={
-        relativeTime ? `${headline}, ${relativeTime}` : headline
-      }
+      accessibilityLabel={relativeTime ? `${label}, ${relativeTime}` : label}
       accessible
-      style={[styles.claimedRow, style]}
+      style={[styles.card, styles.claimedRow, style]}
       testID="feed-claimed-giveaway"
     >
-      <Text numberOfLines={3} style={styles.claimedText}>
-        <Text style={styles.claimedActor} numberOfLines={1}>
-          {event.actor_name}
-        </Text>
-        {` ${event.action} `}
-        <Text style={styles.claimedTitle}>{event.title}</Text>
-      </Text>
       {event.image_url ? (
         <Image
           source={{ uri: event.image_url }}
           style={styles.claimedThumbnail}
           contentFit="cover"
         />
-      ) : null}
-      {relativeTime ? (
-        <Text style={styles.claimedTime}>{relativeTime}</Text>
-      ) : null}
+      ) : (
+        <ImagePlaceholder style={styles.claimedThumbnail} />
+      )}
+      <View style={styles.claimedTextColumn}>
+        <Text numberOfLines={2} style={styles.claimedHeadline}>
+          <Text style={styles.claimedStrong}>{event.actor_name}</Text>
+          {` ${event.action} `}
+          <Text style={styles.claimedStrong}>{event.title}</Text>
+        </Text>
+        {relativeTime ? (
+          <Text style={styles.claimedTime}>{relativeTime}</Text>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -323,42 +325,39 @@ export function FeedEventCard({
 }
 
 const styles = StyleSheet.create({
-  claimedRow: {
-    alignItems: 'flex-start',
-    backgroundColor: colors.secondaryBackground,
-    borderRadius: radii.md,
-    flexDirection: 'row',
-    gap: spacing[8],
-    opacity: 0.6,
-    paddingHorizontal: spacing[12],
-    paddingVertical: spacing[8],
-  },
-  claimedText: {
-    color: colors.secondary,
-    flex: 1,
-    ...typography.meta,
-  },
-  claimedActor: {
-    fontWeight: '700',
-  },
-  claimedTitle: {
-    fontWeight: '600',
-  },
-  claimedThumbnail: {
-    borderRadius: radii.sm,
-    height: 32,
-    width: 32,
-  },
-  claimedTime: {
-    color: colors.secondary,
-    ...typography.meta,
-  },
   card: {
     backgroundColor: colors.background,
     borderRadius: radii.md,
     gap: spacing[12],
     padding: spacing[16],
     ...shadows.card,
+  },
+  claimedRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    paddingVertical: spacing[12],
+  },
+  claimedThumbnail: {
+    borderRadius: radii.sm,
+    height: 40,
+    opacity: 0.5,
+    width: 40,
+  },
+  claimedTextColumn: {
+    flex: 1,
+    gap: spacing[4],
+  },
+  claimedHeadline: {
+    color: colors.secondary,
+    ...typography.itemMeta,
+  },
+  claimedStrong: {
+    color: colors.text,
+    fontWeight: '600',
+  },
+  claimedTime: {
+    color: colors.secondary,
+    ...typography.itemMeta,
   },
   cardPressed: {
     opacity: 0.85,

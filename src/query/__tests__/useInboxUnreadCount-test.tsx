@@ -2,7 +2,12 @@ import { QueryClientProvider, type InfiniteData } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
-import type { ConversationPage, ConversationSummary } from '../../lib/messages';
+import type {
+  ConversationPage,
+  ConversationSummary,
+  InboxSort,
+  InboxStatus,
+} from '../../lib/messages';
 import { messageKeys } from '../../lib/queryKeys';
 import { createTestQueryClient } from '../../test-utils/renderWithProviders';
 import { useInboxUnreadCount } from '../useInboxUnreadCount';
@@ -65,11 +70,12 @@ function page(
 
 function renderUnreadCount() {
   const queryClient = createTestQueryClient();
-  const inboxKey = messageKeys.inbox({ status: 'inbox' });
 
   // The test client gcs entries with no observer immediately, and this hook
   // never subscribes to the query itself.
-  queryClient.setQueryDefaults(inboxKey, { gcTime: Infinity });
+  queryClient.setQueryDefaults([...messageKeys.all, 'inbox'], {
+    gcTime: Infinity,
+  });
 
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -77,14 +83,22 @@ function renderUnreadCount() {
 
   const view = renderHook(() => useInboxUnreadCount(), { wrapper });
 
-  function setInbox(pages: ConversationPage[]): void {
+  function setInbox(
+    pages: ConversationPage[],
+    {
+      status = 'inbox',
+      sort,
+      updatedAt,
+    }: { status?: InboxStatus; sort?: InboxSort; updatedAt?: number } = {},
+  ): void {
     act(() => {
       queryClient.setQueryData<InfiniteData<ConversationPage, number>>(
-        inboxKey,
+        messageKeys.inbox({ status, sort }),
         {
           pages,
           pageParams: pages.map((_, index) => index + 1),
         },
+        { updatedAt },
       );
     });
   }
@@ -124,5 +138,53 @@ describe('useInboxUnreadCount', () => {
     setInbox([page(1, [conversation('conversation-1', 0)])]);
 
     expect(result.current).toBe(0);
+  });
+
+  test('reads the most recently updated inbox sort', () => {
+    const { result, setInbox } = renderUnreadCount();
+
+    setInbox(
+      [
+        page(1, [
+          conversation('conversation-1', 1),
+          conversation('conversation-2', 1),
+        ]),
+      ],
+      { sort: 'newest', updatedAt: 1000 },
+    );
+
+    expect(result.current).toBe(2);
+
+    setInbox(
+      [
+        page(1, [
+          conversation('conversation-1', 1),
+          conversation('conversation-2', 1),
+          conversation('conversation-3', 1),
+        ]),
+      ],
+      { sort: 'unread', updatedAt: 2000 },
+    );
+
+    expect(result.current).toBe(3);
+  });
+
+  test('ignores the archived folder', () => {
+    const { result, setInbox } = renderUnreadCount();
+
+    setInbox([page(1, [conversation('conversation-1', 1)])], {
+      updatedAt: 1000,
+    });
+    setInbox(
+      [
+        page(1, [
+          conversation('conversation-2', 1),
+          conversation('conversation-3', 1),
+        ]),
+      ],
+      { status: 'archived', updatedAt: 2000 },
+    );
+
+    expect(result.current).toBe(1);
   });
 });

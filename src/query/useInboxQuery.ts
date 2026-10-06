@@ -5,6 +5,7 @@ import {
   fetchConversations,
   type ConversationPage,
   type ConversationSummary,
+  type InboxSort,
   type InboxStatus,
 } from '../lib/messages';
 import { messageKeys } from '../lib/queryKeys';
@@ -15,14 +16,16 @@ import { useSession } from '../session/SessionProvider';
  * over live data, so a conversation can arrive on two pages as newer messages
  * shift the order — `conversations` is the flattened, de-duplicated list.
  */
-export function useInboxQuery(status: InboxStatus) {
+export function useInboxQuery(status: InboxStatus, sort: InboxSort = 'newest') {
   const { authenticatedApiFetch } = useSession();
 
   const query = useInfiniteQuery({
-    queryKey: messageKeys.inbox({ status }),
+    queryKey: messageKeys.inbox({ status, sort }),
     queryFn: ({ pageParam, signal }) =>
       fetchConversations(authenticatedApiFetch, {
         status,
+        // `newest` is the backend default, so it goes unsent.
+        sort: sort === 'newest' ? undefined : sort,
         page: pageParam,
         signal,
       }),

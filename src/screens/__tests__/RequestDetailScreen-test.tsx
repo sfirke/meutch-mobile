@@ -36,6 +36,7 @@ const requester: UserSummary = {
   last_name: 'Example',
   full_name: 'Ada Example',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 const responder: UserSummary = {
@@ -44,6 +45,7 @@ const responder: UserSummary = {
   last_name: 'Sample',
   full_name: 'Bo Sample',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 function buildRequest(overrides?: Partial<RequestSummary>): RequestSummary {
@@ -266,6 +268,37 @@ describe('<RequestDetailScreen />', () => {
     expect(
       await screen.findByText('No one has messaged you about this yet.'),
     ).toBeTruthy();
+  });
+
+  test('links to the requester profile when viewable', async () => {
+    renderScreen({
+      request: { user: { ...requester, profile_viewable: true } },
+    });
+
+    fireEvent.press(
+      await screen.findByRole('link', {
+        name: "View Ada Example's profile",
+      }),
+    );
+
+    expect(mockPush).toHaveBeenCalledWith(`/user/${requester.id}`);
+  });
+
+  test('has no profile link when the requester is not viewable', async () => {
+    renderScreen();
+
+    expect(await screen.findByText('Ada Example')).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  test('has no profile link for the owner viewing their own request', async () => {
+    renderScreen({
+      asOwner: true,
+      request: { user: { ...requester, profile_viewable: true } },
+    });
+
+    expect(await screen.findByText('You')).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
   });
 });
 

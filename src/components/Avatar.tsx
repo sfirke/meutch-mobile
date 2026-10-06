@@ -4,14 +4,20 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { UserSummary } from '../lib/parse';
 import { colors, typography } from '../theme';
 
+/** The fields an avatar reads; any user shape with them will do. */
+export type AvatarUser = Pick<
+  UserSummary,
+  'first_name' | 'last_name' | 'full_name' | 'profile_image_url'
+>;
+
 type AvatarProps = {
-  user: UserSummary | null;
+  user: AvatarUser | null;
   size?: number;
   testID?: string;
 };
 
 /** `'?'` covers a deleted account (`user` is `null`) or blank names. */
-export function getInitials(user: UserSummary | null): string {
+export function getInitials(user: AvatarUser | null): string {
   if (!user) {
     return '?';
   }

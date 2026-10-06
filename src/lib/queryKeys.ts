@@ -65,3 +65,8 @@ export const profileKeys = {
   me: () => [...profileKeys.all, 'me'] as const,
   settings: () => [...profileKeys.all, 'settings'] as const,
 };
+
+export const userKeys = {
+  all: ['users'] as const,
+  detail: (id: string) => [...userKeys.all, 'detail', id] as const,
+};

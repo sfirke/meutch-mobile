@@ -19,6 +19,9 @@ jest.mock('../../session/SessionProvider', () => ({
 jest.mock('expo-router', () => ({
   Stack: { Screen: jest.fn(() => null) },
   useLocalSearchParams: jest.fn(),
+  // MemberRow now wraps members in MemberPressable, which calls useRouter
+  // unconditionally even when the profile link isn't rendered.
+  useRouter: jest.fn(() => ({ push: jest.fn() })),
 }));
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);

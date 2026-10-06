@@ -37,6 +37,7 @@ function RootNavigator() {
       <Stack.Screen name="message" options={{ headerShown: false }} />
       <Stack.Screen name="circle" options={{ headerShown: false }} />
       <Stack.Screen name="profile" options={{ headerShown: false }} />
+      <Stack.Screen name="user" options={{ headerShown: false }} />
     </Stack>
   );
 }

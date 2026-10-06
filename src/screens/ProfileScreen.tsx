@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Linking,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -11,10 +10,10 @@ import {
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
-import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
+import { ProfileHeader } from '../components/ProfileHeader';
+import { ProfileLinksSection } from '../components/ProfileLinksSection';
 import { QueryStateView } from '../components/QueryStateView';
-import { WebLinkRow } from '../components/WebLinkRow';
 import { runtimeConfig } from '../config/env';
 import { isApiError } from '../lib/api';
 import { formatMonthYear } from '../lib/dates';
@@ -56,12 +55,6 @@ function describeLocation(profile: UserProfile): string {
   }
 
   return 'No location set';
-}
-
-function openLink(url: string) {
-  // Nothing to tell the member if the OS declines the url, so the rejection
-  // is swallowed rather than surfaced.
-  void Linking.openURL(url).catch(() => undefined);
 }
 
 type AboutMeSectionProps = {
@@ -184,35 +177,24 @@ function ProfileBody({ profile, isRefreshing, onRefresh }: ProfileBodyProps) {
       }
       testID="profile-scroll"
     >
-      <View style={styles.header}>
-        <Avatar size={72} testID="profile-avatar" user={profile} />
-        <View style={styles.headerCopy}>
-          <Text style={styles.name}>{profile.full_name}</Text>
-          <View style={styles.emailRow}>
-            <Text style={styles.email}>{profile.email}</Text>
-            {profile.email_confirmed ? null : (
-              <View style={styles.chip}>
-                <Text style={styles.chipText}>Unconfirmed</Text>
-              </View>
-            )}
-          </View>
-          {memberSince ? (
-            <Text style={styles.note}>{`Member since ${memberSince}`}</Text>
-          ) : null}
+      <ProfileHeader user={profile}>
+        <View style={styles.emailRow}>
+          <Text style={styles.email}>{profile.email}</Text>
+          {profile.email_confirmed ? null : (
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>Unconfirmed</Text>
+            </View>
+          )}
         </View>
-      </View>
+        {memberSince ? (
+          <Text style={styles.note}>{`Member since ${memberSince}`}</Text>
+        ) : null}
+      </ProfileHeader>
 
       <AboutMeSection aboutMe={profile.about_me} />
 
       <View style={styles.section}>
-        {profile.web_links.length > 0 ? (
-          <>
-            <Text style={styles.sectionLabel}>Links</Text>
-            {profile.web_links.map((link) => (
-              <WebLinkRow key={link.id} link={link} onPress={openLink} />
-            ))}
-          </>
-        ) : null}
+        <ProfileLinksSection links={profile.web_links} />
         <Text style={styles.note}>{LINKS_NOTE}</Text>
       </View>
 
@@ -371,17 +353,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     ...typography.itemMeta,
   },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing[16],
-    paddingHorizontal: spacing[16],
-    paddingTop: spacing[16],
-  },
-  headerCopy: {
-    flex: 1,
-    gap: spacing[4],
-  },
   inlineError: {
     color: colors.errorText,
     ...typography.itemMeta,
@@ -394,10 +365,6 @@ const styles = StyleSheet.create({
   locationText: {
     color: colors.text,
     ...typography.body,
-  },
-  name: {
-    color: colors.text,
-    ...typography.value,
   },
   note: {
     color: colors.secondary,

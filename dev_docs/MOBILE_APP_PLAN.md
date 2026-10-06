@@ -59,7 +59,7 @@ Backend additions the mobile roadmap still needs, each noted on the PR that depe
 
 ## PR Sequence
 
-Status: PRs 1 through 4 are merged. PR 5 is open as a draft (#4). Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
+Status: PRs 1 through 5 and PR 7 are merged. Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
 
 ### PR 1: Repo Foundation (merged)
 
@@ -81,7 +81,7 @@ Status: PRs 1 through 4 are merged. PR 5 is open as a draft (#4). Later PR order
 
 - app shell navigation, feed, browse, item detail, loading, empty, and error states
 
-### PR 5: Messaging, Circles, And Profile (draft)
+### PR 5: Messaging, Circles, And Profile (merged)
 
 - inbox and thread detail, with reply and mark read
 - circles list, discovery, and detail, with join and cancel join request
@@ -89,21 +89,23 @@ Status: PRs 1 through 4 are merged. PR 5 is open as a draft (#4). Later PR order
 
 ### PR 5.6: Member Profiles
 
-- backend: `GET /api/v1/users/<user_id>`, gated by `profile_access_reason` in `app/utils/profile_visibility.py` (shared circle, shared conversation, or a pending join request to a circle the viewer administers). Return not-found on denial so the route does not confirm which IDs exist.
-- return avatar, name, about me, web links, shared circles, and the access reason; like the web page, do not list the member's items
-- backend: add a `profile_viewable` flag to nested user payloads (item owner, conversation partner, message sender, circle member, join requester), computed with `viewable_profile_user_ids`, following the feed's existing `actor_profile_viewable`
+- backend: `GET /api/v1/users/<user_id>`, gated by profile access (self, admin, shared circle, shared conversation, or a pending join request to a circle the viewer administers). Return not-found on denial so the route does not confirm which IDs exist.
+- return avatar, name, about me, web links, shared circles, and the access reason; like the web page, do not list the member's items or email
+- backend: add a `profile_viewable` flag to nested user payloads (item owner, inbox and thread partners, message senders, circle members, and request and request-conversation users), computed with `viewable_profile_user_ids`, following the feed's existing `actor_profile_viewable`
 - add a `user/[id]` route, reusing `Avatar` and `WebLinkRow`
-- make names and avatars tappable only when the payload marks them viewable
+- make the feed actor, item "Shared by", thread partner in the thread header, circle `MemberRow`, and request "Requested by" tappable when the payload marks them viewable; inbox rows and request-conversation rows stay whole-row taps to the thread
 - loading, not-found, and error states
 
-Verification: tapping a member's name or avatar on item detail, the feed, a thread, or circle detail opens their profile, and members the viewer cannot see are not tappable.
+Circle join requesters are not listed anywhere in the app yet, so they are out of scope here; see PR 12.
+
+Verification: tapping a member's name or avatar on the feed, item detail, a thread header, or circle detail opens their profile, and members the viewer cannot see are not tappable.
 
 ### PR 6: Android Internal Distribution
 
 - produce an internal Android build from the `preview` EAS profile
 - verify testers can install it and reach the staging API
 
-### PR 7: Request Detail
+### PR 7: Request Detail (merged)
 
 Requests reach members through the home feed, as on the web, so there is no separate request list.
 
@@ -146,6 +148,7 @@ All supported by the API today; the app currently sends only a search term.
 - create and edit a circle, with image and location
 - admin: approve or reject join requests, remove a member, add or remove an admin
 - backend: an endpoint that lists a circle's pending join requests; circle detail returns only a count today
+- list a circle's pending join requests with `profile_viewable`
 
 ### PR 13: Item Posting And Editing
 

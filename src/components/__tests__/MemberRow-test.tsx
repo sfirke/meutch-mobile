@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import { useRouter } from 'expo-router';
 
 import type { CircleMember } from '../../lib/circles';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
@@ -6,10 +7,20 @@ import { MemberRow } from '../MemberRow';
 import { ICON_GLYPHS } from '../Icon';
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
+jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 
 // Icons are decorative (hidden from the a11y tree), so finding them needs
 // includeHiddenElements.
 const HIDDEN = { includeHiddenElements: true };
+
+const mockedPush = jest.fn();
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  jest.mocked(useRouter).mockReturnValue({
+    push: mockedPush,
+  } as unknown as ReturnType<typeof useRouter>);
+});
 
 function buildMember(overrides: Partial<CircleMember> = {}): CircleMember {
   return {
@@ -19,6 +30,7 @@ function buildMember(overrides: Partial<CircleMember> = {}): CircleMember {
       last_name: 'Example',
       full_name: 'Ada Example',
       profile_image_url: null,
+      profile_viewable: false,
     },
     joined_at: '2026-01-15T09:00:00+00:00',
     is_admin: false,
@@ -86,5 +98,45 @@ describe('<MemberRow />', () => {
     );
 
     expect(label).toBeTruthy();
+  });
+
+  test('links to the profile when viewable, with the full descriptive label', () => {
+    render(
+      <MemberRow
+        member={buildMember({
+          is_admin: true,
+          joined_at: '2026-01-15T09:00:00+00:00',
+          user: {
+            id: 'a1111111-1111-4111-8111-111111111111',
+            first_name: 'Ada',
+            last_name: 'Example',
+            full_name: 'Ada Example',
+            profile_image_url: null,
+            profile_viewable: true,
+          },
+        })}
+      />,
+    );
+
+    const link = screen.getByRole('link');
+
+    expect(link.props.accessibilityLabel).toBe(
+      'Ada Example, admin, joined Jan 2026',
+    );
+    expect(link.props.accessibilityHint).toBe('Opens profile');
+
+    fireEvent.press(link);
+
+    expect(mockedPush).toHaveBeenCalledWith(
+      '/user/a1111111-1111-4111-8111-111111111111',
+    );
+  });
+
+  test('has no profile link when not viewable', () => {
+    render(<MemberRow member={buildMember()} />);
+
+    expect(screen.getByText('Ada Example')).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(mockedPush).not.toHaveBeenCalled();
   });
 });

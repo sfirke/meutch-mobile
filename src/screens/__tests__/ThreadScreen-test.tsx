@@ -47,6 +47,7 @@ const otherUser = {
   last_name: 'Example',
   full_name: 'Ada Example',
   profile_image_url: null,
+  profile_viewable: false,
 };
 
 const otherMessage = {
@@ -207,6 +208,25 @@ describe('<ThreadScreen />', () => {
     expect(screen.getByText('You share Oak Street')).toBeTruthy();
     expect(screen.getByTestId('loan-banner')).toBeTruthy();
     expect(screen.getByText('Loan request pending')).toBeTruthy();
+  });
+
+  test('links to the partner profile when viewable', async () => {
+    renderThreadScreen({
+      thread: { other_user: { ...otherUser, profile_viewable: true } },
+    });
+
+    fireEvent.press(
+      await screen.findByRole('link', { name: "View Ada Example's profile" }),
+    );
+
+    expect(push).toHaveBeenCalledWith(`/user/${otherUser.id}`);
+  });
+
+  test('has no partner profile link when not viewable', async () => {
+    renderThreadScreen();
+
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
   });
 
   test('omits the loan banner when there is no active loan', async () => {

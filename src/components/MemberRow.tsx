@@ -5,6 +5,7 @@ import { formatMonthYear } from '../lib/dates';
 import { colors, radii, spacing, typography } from '../theme';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
+import { MemberPressable } from './MemberPressable';
 
 export type MemberRowProps = {
   member: CircleMember;
@@ -27,31 +28,42 @@ function buildAccessibilityLabel(
   return parts.join(', ');
 }
 
-// No profile screens for other members yet, so this row is display-only.
 export function MemberRow({ member }: MemberRowProps) {
   const joined = formatMonthYear(member.joined_at);
+  const viewable = member.user.profile_viewable;
 
   return (
     <View
-      accessibilityLabel={buildAccessibilityLabel(member, joined)}
+      // When viewable, the MemberPressable link below carries its own label;
+      // otherwise this label describes the display-only row.
+      accessibilityLabel={
+        viewable ? undefined : buildAccessibilityLabel(member, joined)
+      }
       style={styles.row}
     >
-      <Avatar size={40} user={member.user} />
+      <MemberPressable
+        accessibilityHint="Opens profile"
+        accessibilityLabel={buildAccessibilityLabel(member, joined)}
+        style={styles.content}
+        user={member.user}
+      >
+        <Avatar size={40} user={member.user} />
 
-      <View style={styles.body}>
-        <View style={styles.nameRow}>
-          <Text style={styles.name}>{member.user.full_name}</Text>
+        <View style={styles.body}>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{member.user.full_name}</Text>
 
-          {member.is_admin ? (
-            <View style={styles.adminChip}>
-              <Icon color={colors.onPrimaryText} name="admin" size={11} />
-              <Text style={styles.adminChipText}>Admin</Text>
-            </View>
-          ) : null}
+            {member.is_admin ? (
+              <View style={styles.adminChip}>
+                <Icon color={colors.onPrimaryText} name="admin" size={11} />
+                <Text style={styles.adminChipText}>Admin</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {joined ? <Text style={styles.joined}>Joined {joined}</Text> : null}
         </View>
-
-        {joined ? <Text style={styles.joined}>Joined {joined}</Text> : null}
-      </View>
+      </MemberPressable>
     </View>
   );
 }
@@ -74,6 +86,12 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     gap: spacing[4],
+  },
+  content: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing[12],
   },
   joined: {
     color: colors.secondary,

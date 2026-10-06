@@ -250,4 +250,117 @@ describe('<ConversationRow />', () => {
 
     expect(onPress).toHaveBeenCalledWith(conversation);
   });
+
+  test('long press calls onLongPress, including for a null other_user', () => {
+    const onLongPress = jest.fn();
+    const conversation = buildConversation({ other_user: null });
+
+    render(
+      <ConversationRow
+        conversation={conversation}
+        currentUserId={currentUser.id}
+        now={NOW}
+        onLongPress={onLongPress}
+      />,
+    );
+
+    fireEvent(screen.getByLabelText('Deleted User'), 'longPress');
+
+    expect(onLongPress).toHaveBeenCalledWith(conversation);
+  });
+
+  test('in selection mode a tap toggles selection instead of calling onPress', () => {
+    const onPress = jest.fn();
+    const onToggleSelect = jest.fn();
+    const conversation = buildConversation();
+
+    render(
+      <ConversationRow
+        conversation={conversation}
+        currentUserId={currentUser.id}
+        now={NOW}
+        onPress={onPress}
+        onToggleSelect={onToggleSelect}
+        selectionMode
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('checkbox'));
+
+    expect(onToggleSelect).toHaveBeenCalledWith(conversation);
+    expect(onPress).not.toHaveBeenCalled();
+  });
+
+  test('a null other_user row is toggleable in selection mode', () => {
+    const onToggleSelect = jest.fn();
+    const conversation = buildConversation({ other_user: null });
+
+    render(
+      <ConversationRow
+        conversation={conversation}
+        currentUserId={currentUser.id}
+        now={NOW}
+        onToggleSelect={onToggleSelect}
+        selectionMode
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('checkbox'));
+
+    expect(onToggleSelect).toHaveBeenCalledWith(conversation);
+  });
+
+  test('the checkbox renders only in selection mode and reflects selected', () => {
+    const props = {
+      conversation: buildConversation(),
+      currentUserId: currentUser.id,
+      now: NOW,
+      onToggleSelect: jest.fn(),
+    };
+    const { rerender } = render(<ConversationRow {...props} />);
+
+    expect(screen.queryByTestId('conversation-checkbox')).toBeNull();
+
+    rerender(<ConversationRow {...props} selectionMode />);
+
+    expect(screen.getByTestId('conversation-checkbox')).toBeTruthy();
+    expect(screen.queryByTestId('icon-check', { hidden: true })).toBeNull();
+    expect(screen.getByRole('checkbox').props.accessibilityState).toEqual({
+      selected: false,
+    });
+
+    rerender(<ConversationRow {...props} selected selectionMode />);
+
+    expect(screen.getByTestId('icon-check', { hidden: true })).toBeTruthy();
+    expect(screen.getByRole('checkbox').props.accessibilityState).toEqual({
+      selected: true,
+    });
+  });
+
+  test('the select accessibility action calls onToggleSelect', () => {
+    const onToggleSelect = jest.fn();
+    const conversation = buildConversation({ unread_count: 1 });
+
+    render(
+      <ConversationRow
+        conversation={conversation}
+        currentUserId={currentUser.id}
+        now={NOW}
+        onPress={jest.fn()}
+        onToggleSelect={onToggleSelect}
+      />,
+    );
+
+    const row = screen.getByLabelText('Ada Example, unread');
+
+    expect(row.props.accessibilityActions).toEqual([
+      { name: 'select', label: 'Select' },
+    ]);
+
+    fireEvent(row, 'accessibilityAction', {
+      nativeEvent: { actionName: 'select' },
+    });
+
+    expect(onToggleSelect).toHaveBeenCalledWith(conversation);
+  });
 });

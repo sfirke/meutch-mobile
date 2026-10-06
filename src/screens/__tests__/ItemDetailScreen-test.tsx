@@ -7,8 +7,10 @@ import type {
   ItemViewerState,
   UserSummary,
 } from '../../lib/items';
+import { itemKeys } from '../../lib/queryKeys';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import {
+  getRequestBody,
   jsonResponse,
   mockSession,
   renderWithProviders,
@@ -30,6 +32,9 @@ jest.mock('expo-router', () => ({
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
 
 const ITEM_ID = 'b2222222-2222-4222-8222-222222222222';
+const MESSAGE_ID = 'aa222222-2222-4222-8222-222222222222';
+const GIVEAWAY_HINT =
+  'Ask a question or express your interest. The owner can pick anyone who sends them a message.';
 
 const owner: UserSummary = {
   id: 'a1111111-1111-4111-8111-111111111111',
@@ -140,9 +145,9 @@ function renderScreen(options: RenderOptions = {}) {
 
   authenticatedApiFetch.mockResolvedValue(jsonResponse({ item, viewer }));
   setParams(options.id ?? ITEM_ID);
-  renderWithProviders(<ItemDetailScreen />);
+  const { queryClient } = renderWithProviders(<ItemDetailScreen />);
 
-  return { authenticatedApiFetch, item, viewer };
+  return { authenticatedApiFetch, item, viewer, queryClient };
 }
 
 function expectOnlyReads(authenticatedApiFetch: jest.Mock) {
@@ -472,18 +477,17 @@ describe('<ItemDetailScreen /> affordances', () => {
     expect(screen.queryByTestId('item-primary-action')).toBeNull();
   });
 
-  test('offers a disabled interest action on an open giveaway', async () => {
+  test('offers a message to the owner on an open giveaway', async () => {
     renderScreen({ item: { is_giveaway: true } });
 
-    const action = await screen.findByTestId('item-primary-action');
-
-    expect(screen.getByText('Express Interest')).toBeTruthy();
-    expect(action).toBeDisabled();
-    expect(
-      screen.getByText(
-        'Expressing interest is coming to the app soon. For now, use meutch.com.',
-      ),
-    ).toBeTruthy();
+    expect(await screen.findByTestId('item-composer')).toBeTruthy();
+    expect(screen.getByText('Message Ada')).toBeTruthy();
+    expect(screen.getByText(GIVEAWAY_HINT)).toBeTruthy();
+    expect(screen.getByLabelText('Message').props.placeholder).toBe(
+      "Hi! I'm interested in this item. When could I pick it up?",
+    );
+    expect(screen.queryByTestId('item-primary-action')).toBeNull();
+    expect(screen.queryByText(/coming to the app soon/)).toBeNull();
   });
 
   test('reflects interest the viewer has already expressed', async () => {
@@ -491,10 +495,13 @@ describe('<ItemDetailScreen /> affordances', () => {
       item: { is_giveaway: true, viewer_interest_status: 'active' },
     });
 
-    const action = await screen.findByTestId('item-primary-action');
-
-    expect(screen.getByText("You've expressed interest")).toBeTruthy();
-    expect(action).toBeDisabled();
+    expect(
+      await screen.findByText(
+        "You've expressed interest. The owner picks who receives it.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByTestId('item-composer')).toBeTruthy();
+    expect(screen.queryByTestId('item-primary-action')).toBeNull();
   });
 
   test('tells the owner where their item is managed', async () => {
@@ -548,7 +555,7 @@ describe('<ItemDetailScreen /> affordances', () => {
       item: { is_giveaway: true, giveaway_visibility: 'public' },
     });
 
-    expect(await screen.findByTestId('item-primary-action')).toBeTruthy();
+    expect(await screen.findByTestId('item-composer')).toBeTruthy();
     expect(screen.queryByText(/share a circle/)).toBeNull();
   });
 
@@ -571,11 +578,131 @@ describe('<ItemDetailScreen /> affordances', () => {
     });
 
     expect(
-      await screen.findByText(
-        'Returns and messages are on meutch.com for now.',
-      ),
+      await screen.findByText('Returns are on meutch.com for now.'),
     ).toBeTruthy();
+    expect(screen.getByTestId('item-composer')).toBeTruthy();
     expect(screen.queryByTestId('item-primary-action')).toBeNull();
+  });
+});
+
+describe('<ItemDetailScreen /> messaging the owner', () => {
+  function respondToSend(
+    authenticatedApiFetch: jest.Mock,
+    sendResponse: Response,
+  ) {
+    const item = buildItem();
+
+    authenticatedApiFetch.mockImplementation(
+      async (path: string, init?: RequestInit) =>
+        path === '/messages' && init?.method === 'POST'
+          ? sendResponse
+          : jsonResponse({ item, viewer: buildViewer() }),
+    );
+  }
+
+  test('sends a message to the owner and opens the thread', async () => {
+    const { authenticatedApiFetch, queryClient } = renderScreen();
+
+    respondToSend(
+      authenticatedApiFetch,
+      jsonResponse(
+        {
+          message: {
+            id: MESSAGE_ID,
+            body: 'Is it free this weekend?',
+            timestamp: '2026-05-27T10:00:00+00:00',
+            is_read: false,
+            sender: { ...borrower, id: viewingUser.id },
+            recipient: owner,
+          },
+        },
+        201,
+      ),
+    );
+
+    const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries');
+
+    fireEvent.changeText(
+      await screen.findByLabelText('Message'),
+      'Is it free this weekend?',
+    );
+    fireEvent.press(screen.getByRole('button', { name: 'Send message' }));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith(`/message/${MESSAGE_ID}`);
+    });
+
+    const [, init] = authenticatedApiFetch.mock.calls.find(
+      ([calledPath]) => calledPath === '/messages',
+    ) as [string, RequestInit];
+
+    expect(getRequestBody(init)).toEqual({
+      item_id: ITEM_ID,
+      body: 'Is it free this weekend?',
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: itemKeys.detail(ITEM_ID),
+    });
+    await waitFor(() => {
+      expect(
+        authenticatedApiFetch.mock.calls.filter(
+          ([calledPath]) => calledPath === `/items/${ITEM_ID}`,
+        ),
+      ).toHaveLength(2);
+    });
+  });
+
+  test('shows why a message failed to send', async () => {
+    const { authenticatedApiFetch } = renderScreen();
+
+    respondToSend(
+      authenticatedApiFetch,
+      jsonResponse(
+        {
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You must share a circle with the owner.',
+          },
+        },
+        403,
+      ),
+    );
+
+    fireEvent.changeText(await screen.findByLabelText('Message'), 'Hello');
+    fireEvent.press(screen.getByRole('button', { name: 'Send message' }));
+
+    expect(await screen.findByTestId('item-send-error')).toBeTruthy();
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  test('uses the loan placeholder and no hint on a loan item', async () => {
+    renderScreen();
+
+    expect(await screen.findByTestId('item-composer')).toBeTruthy();
+    expect(screen.getByLabelText('Message').props.placeholder).toBe(
+      'What do you want to know about the item or lending it?',
+    );
+    expect(screen.queryByText(GIVEAWAY_HINT)).toBeNull();
+  });
+
+  test('offers the owner no composer', async () => {
+    renderScreen({
+      viewer: { is_owner: true, shares_circle_with_owner: false },
+      item: { is_giveaway: true, interested_count: 0 },
+    });
+
+    expect(
+      await screen.findByText('This is your item. Manage it on meutch.com.'),
+    ).toBeTruthy();
+    expect(screen.queryByTestId('item-composer')).toBeNull();
+  });
+
+  test('offers no composer when the owner account is deleted', async () => {
+    renderScreen({ item: { owner: null, is_giveaway: true } });
+
+    expect(await screen.findByText('Deleted User')).toBeTruthy();
+    expect(screen.queryByTestId('item-composer')).toBeNull();
+    expect(screen.queryByLabelText('Message')).toBeNull();
   });
 });
 

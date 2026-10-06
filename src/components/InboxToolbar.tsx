@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { INBOX_SORTS, type InboxSort } from '../lib/messages';
 import { colors, spacing, typography } from '../theme';
 import { Icon } from './Icon';
 import { OptionSheet } from './OptionSheet';
-
-export type InboxSort = 'newest' | 'oldest' | 'unread' | 'name_asc';
 
 export const INBOX_SORT_LABELS: Record<InboxSort, string> = {
   newest: 'Newest',
@@ -14,9 +13,10 @@ export const INBOX_SORT_LABELS: Record<InboxSort, string> = {
   name_asc: 'Name',
 };
 
-const SORT_OPTIONS = (Object.keys(INBOX_SORT_LABELS) as InboxSort[]).map(
-  (value) => ({ value, label: INBOX_SORT_LABELS[value] }),
-);
+const SORT_OPTIONS = INBOX_SORTS.map((value) => ({
+  value,
+  label: INBOX_SORT_LABELS[value],
+}));
 
 type InboxToolbarProps = {
   sort: InboxSort;

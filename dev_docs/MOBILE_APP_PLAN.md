@@ -123,10 +123,18 @@ All supported by the API today; the app currently sends only a search term.
 
 ### PR 9: Starting Conversations And Inbox Management
 
-- "Message owner" on item detail (`POST /messages` with `item_id`). On a giveaway, this is also how a member records interest. Messaging a requester landed in PR 7.
-- archive and unarchive, bulk archive, bulk mark read, mark all read, inbox sort
-- backend: mark a conversation unread (the web app supports it; the API does not)
-- make URLs in messages, item descriptions, request text, and bios tappable, matching the web app
+Split into two mobile PRs so the first half does not wait on the backend.
+
+#### PR 9a: Message Owner And Links
+
+- "Message owner" on item detail (`POST /messages` with `item_id`), shown to any viewer who is not the owner; the server decides availability and circle rules. On a giveaway, this is also how a member records interest, so the composer carries that hint and the item detail refetches after a send. Messaging a requester landed in PR 7, and its composer is now the shared `MessageComposer`.
+- make URLs in messages, item descriptions, request text, circle descriptions, and bios tappable, matching the web app. `splitLinks` ports the backend's `linkify` rules (`http(s)://` and `www.` only, trailing punctuation trimmed); truncated previews stay plain.
+
+#### PR 9b: Inbox Management
+
+- archive and unarchive, bulk archive, bulk unarchive, bulk mark read, mark unread, mark all read, inbox sort
+- long-press enters a selection mode with a bottom action bar; sort and "Mark all read" sit in a toolbar under the Inbox/Archived switch
+- backend: `POST /conversations/bulk-mark-unread` (returns how many messages were marked, so the app can say when a selection had no received messages) and `POST /conversations/bulk-unarchive`
 
 ### PR 10: My Items And My Activity
 

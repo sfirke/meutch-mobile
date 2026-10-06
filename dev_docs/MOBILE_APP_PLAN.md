@@ -35,13 +35,12 @@ The `/api/v1` API already covers nearly the whole web app, including writes (`AP
 - **Loans:** request, approve, deny, cancel, owner cancel, complete, extend
 - **Giveaways:** interest list, select or change recipient, release to all, confirm handoff, mark given away
 - **Circles:** create, edit, join, cancel join request, leave, approve or reject join requests, remove member, add or remove admin
-- **Profile:** edit profile (about me, photo, links), settings, location, delete account
+- **Profile:** view a member's profile, edit profile (name, about me, photo, links), settings, location, delete account
 
 Backend additions the mobile roadmap still needs, each noted on the PR that depends on it:
 
 | Addition | Needed by |
 | --- | --- |
-| `GET /users/<id>` and per-user `profile_viewable` flags | PR 5.6 |
 | `GET /me/requests` (active and recently fulfilled, like the web profile) | PR 10 |
 | mark a conversation unread | PR 9 |
 | list a circle's pending join requests | PR 12 |
@@ -59,7 +58,7 @@ Backend additions the mobile roadmap still needs, each noted on the PR that depe
 
 ## PR Sequence
 
-Status: PRs 1 through 5 and PR 7 are merged. Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
+Status: PRs 1 through 5.6 and PR 7 are merged. Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
 
 ### PR 1: Repo Foundation (merged)
 
@@ -87,7 +86,7 @@ Status: PRs 1 through 5 and PR 7 are merged. Later PR order is a proposal and ca
 - circles list, discovery, and detail, with join and cancel join request
 - profile (about me, web links) and settings (vacation mode, digest frequency, radius)
 
-### PR 5.6: Member Profiles
+### PR 5.6: Member Profiles (merged)
 
 - backend: `GET /api/v1/users/<user_id>`, gated by profile access (self, admin, shared circle, shared conversation, or a pending join request to a circle the viewer administers). Return not-found on denial so the route does not confirm which IDs exist.
 - return avatar, name, about me, web links, shared circles, and the access reason; like the web page, do not list the member's items or email
@@ -138,7 +137,7 @@ All supported by the API today; the app currently sends only a search term.
 ### PR 11: Account And Profile Editing
 
 - "Forgot password" on sign in, reset password, resend confirmation email (`/auth/forgot-password`, `/auth/reset-password`, `/auth/resend-confirmation`)
-- profile photo upload and removal, web link editing (`PATCH /me/profile`)
+- first and last name editing, profile photo upload and removal, web link editing (`PATCH /me/profile`)
 - location by address (`PATCH /me/location`)
 - account deletion (`DELETE /me`), showing outstanding loans first like the web page
 

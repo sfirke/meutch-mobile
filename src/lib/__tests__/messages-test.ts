@@ -711,7 +711,9 @@ describe('conversation archive actions', () => {
   ] as const)('%s posts without a body', async (_name, action, suffix) => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 
-    fetchImpl.mockResolvedValueOnce(createMockResponse({ status: 'ok' }));
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ is_archived: suffix === 'archive' }),
+    );
 
     await expect(action(fetchImpl, CONVERSATION_ID)).resolves.toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledWith(
@@ -723,17 +725,17 @@ describe('conversation archive actions', () => {
   test('encodes the conversation id', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 
-    fetchImpl.mockResolvedValueOnce(createMockResponse({ status: 'ok' }));
+    fetchImpl.mockResolvedValueOnce(createMockResponse({ is_archived: true }));
 
     await archiveConversation(fetchImpl, 'a/b');
 
     expect(getRequestPath(fetchImpl)).toBe('/conversations/a%2Fb/archive');
   });
 
-  test('rejects a response without an ok status', async () => {
+  test('rejects a response that is not an object', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 
-    fetchImpl.mockResolvedValueOnce(createMockResponse({}));
+    fetchImpl.mockResolvedValueOnce(createMockResponse(null));
 
     await expect(
       unarchiveConversation(fetchImpl, CONVERSATION_ID),
@@ -751,9 +753,7 @@ describe('bulk conversation actions', () => {
     async (_name, action, path, count) => {
       const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 
-      fetchImpl.mockResolvedValueOnce(
-        createMockResponse({ status: 'ok', ...count }),
-      );
+      fetchImpl.mockResolvedValueOnce(createMockResponse(count));
 
       await expect(
         action(fetchImpl, [CONVERSATION_ID, MESSAGE_ID]),
@@ -769,10 +769,10 @@ describe('bulk conversation actions', () => {
     },
   );
 
-  test('rejects a bulk response without an ok status', async () => {
+  test('rejects a bulk response that is not an object', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 
-    fetchImpl.mockResolvedValueOnce(createMockResponse({ archived: 1 }));
+    fetchImpl.mockResolvedValueOnce(createMockResponse(null));
 
     await expect(bulkArchive(fetchImpl, [CONVERSATION_ID])).rejects.toThrow(
       'Invalid conversation action payload.',
@@ -782,9 +782,7 @@ describe('bulk conversation actions', () => {
   test('bulkMarkUnread posts the ids and parses the count', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 
-    fetchImpl.mockResolvedValueOnce(
-      createMockResponse({ status: 'ok', marked: 1 }),
-    );
+    fetchImpl.mockResolvedValueOnce(createMockResponse({ marked: 1 }));
 
     const result = await bulkMarkUnread(fetchImpl, [CONVERSATION_ID]);
     const init = getRequestInit(fetchImpl);
@@ -797,12 +795,23 @@ describe('bulk conversation actions', () => {
     expect(result).toEqual({ marked: 1 });
   });
 
-  test('bulkMarkUnread rejects a non-numeric count', async () => {
+  // Backends that predate the standardized responses also send `status`.
+  test('bulkMarkUnread accepts the older response with a status field', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 
     fetchImpl.mockResolvedValueOnce(
-      createMockResponse({ status: 'ok', marked: '1' }),
+      createMockResponse({ status: 'ok', marked: 1 }),
     );
+
+    await expect(bulkMarkUnread(fetchImpl, [CONVERSATION_ID])).resolves.toEqual(
+      { marked: 1 },
+    );
+  });
+
+  test('bulkMarkUnread rejects a non-numeric count', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(createMockResponse({ marked: '1' }));
 
     await expect(bulkMarkUnread(fetchImpl, [CONVERSATION_ID])).rejects.toThrow(
       'Invalid mark-unread payload.',
@@ -814,7 +823,7 @@ describe('markAllRead', () => {
   test('posts the folder as a query parameter without a body', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 
-    fetchImpl.mockResolvedValueOnce(createMockResponse({ status: 'ok' }));
+    fetchImpl.mockResolvedValueOnce(createMockResponse({ marked: 3 }));
 
     await expect(markAllRead(fetchImpl, 'archived')).resolves.toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledWith(
@@ -823,10 +832,10 @@ describe('markAllRead', () => {
     );
   });
 
-  test('rejects a response without an ok status', async () => {
+  test('rejects a response that is not an object', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 
-    fetchImpl.mockResolvedValueOnce(createMockResponse({ status: 'error' }));
+    fetchImpl.mockResolvedValueOnce(createMockResponse(null));
 
     await expect(markAllRead(fetchImpl, 'inbox')).rejects.toThrow(
       'Invalid conversation action payload.',

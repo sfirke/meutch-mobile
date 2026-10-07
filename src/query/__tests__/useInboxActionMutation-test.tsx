@@ -181,7 +181,8 @@ function setup(
   return { queryClient, authenticatedApiFetch, result, run };
 }
 
-const OK = { status: 'ok' };
+// The hook ignores every action body except mark-unread's count.
+const OK = {};
 
 test('archiving one conversation uses the single route and drops the row', async () => {
   const { queryClient, authenticatedApiFetch, run } = setup({
@@ -295,7 +296,7 @@ test('markUnread resolves with the count and refetches the current folder once',
         conversation_ids: [FIRST_ID, SECOND_ID],
       });
 
-      return { status: 'ok', marked: 2 };
+      return { marked: 2 };
     },
     '/messages?status=inbox&page=1': {
       conversations: [rawConversation(FIRST_ID), rawConversation(SECOND_ID)],

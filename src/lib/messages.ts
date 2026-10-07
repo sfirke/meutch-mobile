@@ -438,9 +438,12 @@ export async function startConversation(
   return parseReplyResponse(await readJsonOrThrow<unknown>(response));
 }
 
-/** The archive and bulk routes answer `{ status: 'ok' }`, plus a count some ignore. */
-function parseOkResponse(value: unknown, message: string): void {
-  if (!isObject(value) || value.status !== 'ok') {
+/**
+ * The archive and bulk routes answer with a small object: `is_archived` or a
+ * count. Success is the HTTP status; only mark-unread reads its count.
+ */
+function parseActionResponse(value: unknown, message: string): void {
+  if (!isObject(value)) {
     throw new Error(message);
   }
 }
@@ -466,7 +469,7 @@ export async function archiveConversation(
   fetchImpl: ApiFetch,
   conversationId: string,
 ): Promise<void> {
-  parseOkResponse(
+  parseActionResponse(
     await postConversationAction(
       fetchImpl,
       `/${encodeURIComponent(conversationId)}/archive`,
@@ -479,7 +482,7 @@ export async function unarchiveConversation(
   fetchImpl: ApiFetch,
   conversationId: string,
 ): Promise<void> {
-  parseOkResponse(
+  parseActionResponse(
     await postConversationAction(
       fetchImpl,
       `/${encodeURIComponent(conversationId)}/unarchive`,
@@ -488,12 +491,12 @@ export async function unarchiveConversation(
   );
 }
 
-/** The backend 400s on an empty id list. */
+/** The backend rejects an empty id list. */
 export async function bulkArchive(
   fetchImpl: ApiFetch,
   conversationIds: string[],
 ): Promise<void> {
-  parseOkResponse(
+  parseActionResponse(
     await postConversationAction(
       fetchImpl,
       '/bulk-archive',
@@ -507,7 +510,7 @@ export async function bulkUnarchive(
   fetchImpl: ApiFetch,
   conversationIds: string[],
 ): Promise<void> {
-  parseOkResponse(
+  parseActionResponse(
     await postConversationAction(
       fetchImpl,
       '/bulk-unarchive',
@@ -521,7 +524,7 @@ export async function bulkMarkRead(
   fetchImpl: ApiFetch,
   conversationIds: string[],
 ): Promise<void> {
-  parseOkResponse(
+  parseActionResponse(
     await postConversationAction(
       fetchImpl,
       '/bulk-mark-read',
@@ -531,8 +534,9 @@ export async function bulkMarkRead(
   );
 }
 
+/** `marked` counts the conversations marked unread. */
 export function parseMarkUnreadResponse(value: unknown): { marked: number } {
-  if (!isObject(value) || value.status !== 'ok' || !isNumber(value.marked)) {
+  if (!isObject(value) || !isNumber(value.marked)) {
     throw new Error(INVALID_MARK_UNREAD);
   }
 
@@ -557,7 +561,7 @@ export async function markAllRead(
   fetchImpl: ApiFetch,
   status: InboxStatus,
 ): Promise<void> {
-  parseOkResponse(
+  parseActionResponse(
     await postConversationAction(
       fetchImpl,
       `/mark-all-read${buildQueryString([['status', status]])}`,

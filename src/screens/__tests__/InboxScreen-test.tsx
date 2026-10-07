@@ -511,7 +511,7 @@ describe('InboxScreen', () => {
     test('archiving one conversation posts its route and removes the row', async () => {
       const authenticatedApiFetch = mockApiFetch({
         [INBOX_PATH]: conversationPage([ada, rae]),
-        'POST /conversations/conversation-1/archive': { status: 'ok' },
+        'POST /conversations/conversation-1/archive': { is_archived: true },
       });
 
       renderInboxScreen(authenticatedApiFetch);
@@ -529,7 +529,7 @@ describe('InboxScreen', () => {
     test('archiving two conversations posts bulk-archive', async () => {
       const authenticatedApiFetch = mockApiFetch({
         [INBOX_PATH]: conversationPage([ada, rae]),
-        'POST /conversations/bulk-archive': { status: 'ok', archived: 2 },
+        'POST /conversations/bulk-archive': { archived: 2 },
       });
 
       renderInboxScreen(authenticatedApiFetch);
@@ -554,7 +554,7 @@ describe('InboxScreen', () => {
       const authenticatedApiFetch = mockApiFetch({
         [INBOX_PATH]: conversationPage([]),
         [ARCHIVED_PATH]: conversationPage([archived]),
-        'POST /conversations/conversation-1/unarchive': { status: 'ok' },
+        'POST /conversations/conversation-1/unarchive': { is_archived: false },
       });
 
       renderInboxScreen(authenticatedApiFetch);
@@ -579,7 +579,7 @@ describe('InboxScreen', () => {
     test('mark read applies to unread rows and clears the dot', async () => {
       const authenticatedApiFetch = mockApiFetch({
         [INBOX_PATH]: conversationPage([ada, rae]),
-        'POST /conversations/bulk-mark-read': { status: 'ok' },
+        'POST /conversations/bulk-mark-read': { marked: 2 },
       });
 
       renderInboxScreen(authenticatedApiFetch);
@@ -615,7 +615,7 @@ describe('InboxScreen', () => {
             inboxRequests === 1 ? [ada] : [{ ...ada, unread_count: 1 }],
           );
         },
-        'POST /conversations/bulk-mark-unread': { status: 'ok', marked: 1 },
+        'POST /conversations/bulk-mark-unread': { marked: 1 },
       });
 
       renderInboxScreen(authenticatedApiFetch);
@@ -639,7 +639,7 @@ describe('InboxScreen', () => {
       const second = { ...rae, unread_count: 0 };
       const authenticatedApiFetch = mockApiFetch({
         [INBOX_PATH]: conversationPage([ada, second]),
-        'POST /conversations/bulk-mark-unread': { status: 'ok', marked: 1 },
+        'POST /conversations/bulk-mark-unread': { marked: 1 },
       });
 
       renderInboxScreen(authenticatedApiFetch);
@@ -666,7 +666,7 @@ describe('InboxScreen', () => {
     test('mark all read posts for the folder and clears every dot', async () => {
       const authenticatedApiFetch = mockApiFetch({
         [INBOX_PATH]: conversationPage([{ ...ada, unread_count: 1 }, rae]),
-        'POST /conversations/mark-all-read?status=inbox': { status: 'ok' },
+        'POST /conversations/mark-all-read?status=inbox': { marked: 2 },
       });
 
       renderInboxScreen(authenticatedApiFetch);

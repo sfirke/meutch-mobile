@@ -135,7 +135,7 @@ Split into two mobile PRs so the first half does not wait on the backend.
 - long-press enters a selection mode with a bottom action bar (archive or unarchive, mark read, mark unread); sort and "Mark all read" sit in a toolbar under the Inbox/Archived switch. No swipe actions.
 - one mutation hook patches the cached folder after each action and marks the other folders stale without refetching them, since the API allows 60 reads a minute
 - mark unread flips only the latest message the member received in each conversation, as on the web; when fewer conversations were marked than selected, the app says that conversations with no received messages cannot be marked unread
-- backend: `POST /conversations/bulk-mark-unread` (returns how many messages were marked) and `POST /conversations/bulk-unarchive`
+- backend: `POST /conversations/bulk-mark-unread` (returns how many conversations were marked) and `POST /conversations/bulk-unarchive`
 
 ### PR 10: My Items And My Activity
 

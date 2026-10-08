@@ -19,12 +19,14 @@ import { QueryStateView } from '../components/QueryStateView';
 import type { ErrorCopyOverrides } from '../lib/errorCopy';
 import { formatRelativeTime } from '../lib/relativeTime';
 import {
+  describeRequestStatus,
   formatRequestDate,
   isRequestExpired,
+  SEEKING_LABELS,
+  VISIBILITY_LABELS,
   type RequestConversation,
-  type RequestSeeking,
+  type RequestDisplayStatus,
   type RequestSummary,
-  type RequestVisibility,
 } from '../lib/requests';
 import { webOnlyNote } from '../lib/webOnly';
 import {
@@ -54,17 +56,6 @@ const ERROR_OVERRIDES: ErrorCopyOverrides = {
   },
 };
 
-const SEEKING_LABELS: Record<RequestSeeking, string> = {
-  loan: 'Seeking a loan',
-  giveaway: 'Seeking a giveaway',
-  either: 'Loan or giveaway',
-};
-
-const VISIBILITY_LABELS: Record<RequestVisibility, string> = {
-  public: 'Public',
-  circles: 'Circles only',
-};
-
 type StatusBanner = {
   label: string;
   color: string;
@@ -74,9 +65,9 @@ type StatusBanner = {
 
 function buildStatusBanner(
   request: RequestSummary,
-  isExpired: boolean,
+  displayStatus: RequestDisplayStatus,
 ): StatusBanner {
-  if (request.status === 'fulfilled') {
+  if (displayStatus === 'fulfilled') {
     const date = request.fulfilled_at
       ? formatRequestDate(request.fulfilled_at)
       : null;
@@ -91,7 +82,7 @@ function buildStatusBanner(
 
   const date = formatRequestDate(request.expires_at);
 
-  if (isExpired) {
+  if (displayStatus === 'expired') {
     return {
       label: 'Expired',
       color: colors.secondary,
@@ -178,7 +169,10 @@ function RequestDetailBody({
   const now = useMemo(() => new Date(), []);
   const isExpired = isRequestExpired(request, now);
   const isOpen = request.status === 'open' && !isExpired;
-  const banner = buildStatusBanner(request, isExpired);
+  const banner = buildStatusBanner(
+    request,
+    describeRequestStatus(request, now),
+  );
   const description = request.description?.trim() || null;
   const subject = useMemo(() => ({ requestId: request.id }), [request.id]);
 

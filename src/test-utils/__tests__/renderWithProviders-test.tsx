@@ -94,6 +94,30 @@ describe('emptyApiFetch', () => {
     });
   });
 
+  test('routes /me/loans and /me/requests to their own empty collections', async () => {
+    const fetch = emptyApiFetch();
+    const pagination = {
+      page: 1,
+      per_page: 20,
+      total: 0,
+      pages: 0,
+      has_next: false,
+      has_prev: false,
+    };
+
+    const loans = await (
+      await fetch('/me/loans?role=borrowing&status=all&page=1')
+    ).json();
+    const requests = await (
+      await fetch('/me/requests?status=active&page=1')
+    ).json();
+    const items = await (await fetch('/me/items?kind=lending&page=1')).json();
+
+    expect(loans).toEqual({ loans: [], pagination });
+    expect(requests).toEqual({ requests: [], pagination });
+    expect(items).toEqual({ items: [], pagination });
+  });
+
   test('still routes everything else in the collection branch to items', async () => {
     const response = await emptyApiFetch()('/items');
     const body = await response.json();

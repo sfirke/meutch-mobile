@@ -4,20 +4,18 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   View,
   type ListRenderItemInfo,
 } from 'react-native';
 
 import { CircleCard } from '../components/CircleCard';
 import { EmptyState } from '../components/EmptyState';
-import { Icon } from '../components/Icon';
 import { PagingFooter } from '../components/PagingFooter';
 import { QueryStateView } from '../components/QueryStateView';
+import { SearchField } from '../components/SearchField';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import type {
@@ -28,7 +26,7 @@ import type {
 import { circleKeys } from '../lib/queryKeys';
 import { webOnlyNote } from '../lib/webOnly';
 import { useCirclesQuery } from '../query/useCirclesQuery';
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, spacing, typography } from '../theme';
 
 export const SEARCH_DEBOUNCE_MS = 350;
 
@@ -183,37 +181,12 @@ export function CirclesScreen({
       </View>
 
       {membership === 'discoverable' ? (
-        <View style={styles.searchRow}>
-          <View style={styles.inputWrapper}>
-            <View style={styles.searchIcon}>
-              <Icon color={colors.inputPlaceholder} name="search" size={16} />
-            </View>
-            <TextInput
-              accessibilityLabel="Search circles"
-              autoCapitalize="none"
-              autoCorrect={false}
-              onChangeText={setSearchText}
-              placeholder="Search circles"
-              placeholderTextColor={colors.inputPlaceholder}
-              returnKeyType="search"
-              style={styles.input}
-              value={searchText}
-            />
-          </View>
-          {searchText.length > 0 ? (
-            <Pressable
-              accessibilityLabel="Clear"
-              accessibilityRole="button"
-              onPress={handleClearSearch}
-              style={({ pressed }) => [
-                styles.clearButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Icon color={colors.primaryDark} name="clear" size={16} />
-            </Pressable>
-          ) : null}
-        </View>
+        <SearchField
+          onChangeText={setSearchText}
+          onClear={handleClearSearch}
+          placeholder="Search circles"
+          value={searchText}
+        />
       ) : null}
 
       {isPlaceholderData && circles.length > 0 ? (
@@ -274,47 +247,14 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
   },
-  clearButton: {
-    paddingHorizontal: spacing[12],
-    paddingVertical: spacing[12],
-  },
   container: {
     backgroundColor: colors.background,
     flex: 1,
-  },
-  input: {
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    color: colors.text,
-    fontSize: typography.body.fontSize,
-    paddingLeft: spacing[14] * 2 + 16,
-    paddingRight: spacing[14],
-    paddingVertical: spacing[12],
-  },
-  inputWrapper: {
-    flex: 1,
-    justifyContent: 'center',
   },
   listContent: {
     gap: spacing[12],
     paddingBottom: spacing[24],
     paddingHorizontal: spacing[16],
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  searchIcon: {
-    left: spacing[14],
-    position: 'absolute',
-    zIndex: 1,
-  },
-  searchRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing[8],
-    paddingHorizontal: spacing[16],
-    paddingVertical: spacing[12],
   },
   searchingLabel: {
     color: colors.secondary,

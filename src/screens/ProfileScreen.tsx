@@ -12,6 +12,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Icon } from '../components/Icon';
 import { LinkedText } from '../components/LinkedText';
+import { NavRow } from '../components/NavRow';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { ProfileLinksSection } from '../components/ProfileLinksSection';
 import { QueryStateView } from '../components/QueryStateView';
@@ -248,16 +249,11 @@ export function ProfileScreen() {
       {/* Account actions sit outside the query so a failed profile load still
           leaves a way into settings and out of the session. */}
       <View style={styles.account}>
-        <Pressable
-          accessibilityLabel="Settings"
-          accessibilityRole="button"
+        <NavRow
+          icon="settings"
+          label="Settings"
           onPress={() => router.push('/profile/settings')}
-          style={({ pressed }) => [styles.settingsRow, pressed && styles.dim]}
-        >
-          <Icon color={colors.secondary} name="settings" />
-          <Text style={styles.settingsLabel}>Settings</Text>
-          <Icon color={colors.secondary} name="chevron" />
-        </Pressable>
+        />
 
         <Pressable
           accessibilityLabel="Sign out"
@@ -403,17 +399,6 @@ const styles = StyleSheet.create({
   sectionLabel: {
     color: colors.secondary,
     ...typography.label,
-  },
-  settingsLabel: {
-    color: colors.text,
-    flex: 1,
-    ...typography.body,
-  },
-  settingsRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing[12],
-    paddingVertical: spacing[12],
   },
   signOutButton: {
     alignItems: 'center',

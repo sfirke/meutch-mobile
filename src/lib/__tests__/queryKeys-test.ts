@@ -2,8 +2,10 @@ import {
   circleKeys,
   feedKeys,
   itemKeys,
+  loanKeys,
   messageKeys,
   profileKeys,
+  requestKeys,
 } from '../queryKeys';
 
 describe('query keys', () => {
@@ -30,6 +32,46 @@ describe('query keys', () => {
       'detail',
       'b2222222-2222-4222-8222-222222222222',
     ]);
+  });
+
+  test('my item keys include the kind and normalize the search query', () => {
+    expect(itemKeys.mine({ kind: 'lending' })).toEqual([
+      'items',
+      'mine',
+      { kind: 'lending', q: null },
+    ]);
+    expect(itemKeys.mine({ kind: 'lending', q: '' })).toEqual(
+      itemKeys.mine({ kind: 'lending' }),
+    );
+    expect(itemKeys.mine({ kind: 'lending', q: '  drill ' })).toEqual(
+      itemKeys.mine({ kind: 'lending', q: 'drill' }),
+    );
+    expect(itemKeys.mine({ kind: 'lending' })).not.toEqual(
+      itemKeys.mine({ kind: 'past_giveaways' }),
+    );
+  });
+
+  test('my request keys differ by status', () => {
+    expect(requestKeys.mine({ status: 'active' })).toEqual([
+      'requests',
+      'mine',
+      { status: 'active' },
+    ]);
+    expect(requestKeys.mine({ status: 'active' })).not.toEqual(
+      requestKeys.mine({ status: 'fulfilled' }),
+    );
+  });
+
+  test('loan keys differ by role and detail is scoped by id', () => {
+    expect(loanKeys.list({ role: 'borrowing' })).toEqual([
+      'loans',
+      'list',
+      { role: 'borrowing' },
+    ]);
+    expect(loanKeys.list({ role: 'borrowing' })).not.toEqual(
+      loanKeys.list({ role: 'lending' }),
+    );
+    expect(loanKeys.detail('x')).toEqual(['loans', 'detail', 'x']);
   });
 
   test('circle keys nest under a shared prefix', () => {
@@ -115,7 +157,25 @@ describe('query keys', () => {
       },
       {
         all: itemKeys.all,
-        keys: [[...itemKeys.list()], [...itemKeys.detail('x')]],
+        keys: [
+          [...itemKeys.list()],
+          [...itemKeys.mine({ kind: 'lending' })],
+          [...itemKeys.detail('x')],
+        ],
+      },
+      {
+        all: requestKeys.all,
+        keys: [
+          [...requestKeys.mine({ status: 'active' })],
+          [...requestKeys.detail('x')],
+        ],
+      },
+      {
+        all: loanKeys.all,
+        keys: [
+          [...loanKeys.list({ role: 'borrowing' })],
+          [...loanKeys.detail('x')],
+        ],
       },
       {
         all: circleKeys.all,

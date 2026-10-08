@@ -383,6 +383,18 @@ describe('profile screen', () => {
     expect(mockedPush).toHaveBeenCalledWith('/profile/settings');
   });
 
+  test.each([
+    ['My items', '/profile/items'],
+    ['My loans', '/profile/loans'],
+    ['My requests', '/profile/requests'],
+  ])('pushes %s to %s', async (label, path) => {
+    renderProfileScreen(mockApiFetch({ 'GET /me/profile': profileRoute() }));
+
+    fireEvent.press(await screen.findByRole('button', { name: label }));
+
+    expect(mockedPush).toHaveBeenCalledWith(path);
+  });
+
   test('sends no write requests while only reading the profile', async () => {
     const authenticatedApiFetch = mockApiFetch({
       'GET /me/profile': profileRoute({ web_links: [blogLink] }),

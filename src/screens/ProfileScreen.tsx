@@ -165,6 +165,7 @@ type ProfileBodyProps = {
 };
 
 function ProfileBody({ profile, isRefreshing, onRefresh }: ProfileBodyProps) {
+  const router = useRouter();
   const memberSince = formatMonthYear(profile.created_at);
 
   return (
@@ -194,6 +195,27 @@ function ProfileBody({ profile, isRefreshing, onRefresh }: ProfileBodyProps) {
           <Text style={styles.note}>{`Member since ${memberSince}`}</Text>
         ) : null}
       </ProfileHeader>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>My activity</Text>
+        <View style={styles.rowList}>
+          <NavRow
+            icon="image"
+            label="My items"
+            onPress={() => router.push('/profile/items')}
+          />
+          <NavRow
+            icon="loan"
+            label="My loans"
+            onPress={() => router.push('/profile/loans')}
+          />
+          <NavRow
+            icon="request"
+            label="My requests"
+            onPress={() => router.push('/profile/requests')}
+          />
+        </View>
+      </View>
 
       <AboutMeSection aboutMe={profile.about_me} />
 
@@ -381,6 +403,12 @@ const styles = StyleSheet.create({
   },
   queryArea: {
     flex: 1,
+  },
+  rowList: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   screen: {
     backgroundColor: colors.background,

@@ -11,6 +11,7 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Icon } from '../components/Icon';
+import { LinkedText } from '../components/LinkedText';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { ProfileLinksSection } from '../components/ProfileLinksSection';
 import { QueryStateView } from '../components/QueryStateView';
@@ -85,9 +86,11 @@ function AboutMeSection({ aboutMe }: AboutMeSectionProps) {
             <Text style={styles.textButtonLabel}>Edit</Text>
           </Pressable>
         </View>
-        <Text style={saved ? styles.aboutText : styles.aboutPrompt}>
-          {saved || ABOUT_ME_PROMPT}
-        </Text>
+        {saved ? (
+          <LinkedText style={styles.aboutText} text={saved} />
+        ) : (
+          <Text style={styles.aboutPrompt}>{ABOUT_ME_PROMPT}</Text>
+        )}
       </View>
     );
   }

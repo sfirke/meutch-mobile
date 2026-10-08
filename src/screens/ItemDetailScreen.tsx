@@ -1,12 +1,13 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useMemo } from 'react';
 import {
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Avatar } from '../components/Avatar';
 import { ErrorState } from '../components/ErrorState';
@@ -16,11 +17,14 @@ import {
   getAvailabilityBadge,
   type AvailabilityBadgeTone,
 } from '../components/itemBadge';
+import { LinkedText } from '../components/LinkedText';
 import { MemberPressable } from '../components/MemberPressable';
+import { MessageComposer } from '../components/MessageComposer';
 import { QueryStateView } from '../components/QueryStateView';
 import { formatCalendarDate } from '../lib/dates';
 import type { ErrorCopyOverrides } from '../lib/errorCopy';
 import type { ItemDetail, ItemViewerState } from '../lib/items';
+import { WEB_SITE } from '../lib/webOnly';
 import { isItemId, useItemDetailQuery } from '../query/useItemDetailQuery';
 import { useSession } from '../session/SessionProvider';
 import { colors, radii, spacing, typography } from '../theme';
@@ -61,12 +65,19 @@ type StatusBanner = {
 };
 
 type Affordance = {
-  /** Rendered disabled: every write action still lives on the website. */
+  /** Rendered disabled: borrow requests still live on the website. */
   actionLabel: string | null;
   notes: string[];
 };
 
 const WEB_ONLY_NOTE = 'For now, use meutch.com.';
+
+const GIVEAWAY_PLACEHOLDER =
+  "Hi! I'm interested in this item. When could I pick it up?";
+const LOAN_PLACEHOLDER =
+  'What do you want to know about the item or lending it?';
+const GIVEAWAY_HINT =
+  'Ask a question or express your interest. The owner can pick anyone who sends them a message.';
 
 /** Matches the backend's `Item.owner_name` fallback for a deleted account. */
 const DELETED_OWNER_NAME = 'Deleted User';
@@ -150,8 +161,8 @@ function describeInterest(count: number): string {
 }
 
 /**
- * Mirrors which primary action the web page offers, rendered disabled: PR 4 is
- * read-only, so nothing here can write.
+ * Mirrors which primary action the web page offers. Messaging the owner is
+ * rendered separately; expressing interest on a giveaway happens through it.
  */
 function describeAffordance(
   item: ItemDetail,
@@ -171,7 +182,7 @@ function describeAffordance(
   if (viewer.is_active_borrower) {
     return {
       actionLabel: null,
-      notes: ['Returns and messages are on meutch.com for now.'],
+      notes: [`Returns are on ${WEB_SITE} for now.`],
     };
   }
 
@@ -202,17 +213,12 @@ function describeAffordance(
 
     if (item.viewer_interest_status === 'active') {
       return {
-        actionLabel: "You've expressed interest",
-        notes: [`The owner picks who receives it. ${WEB_ONLY_NOTE}`],
+        actionLabel: null,
+        notes: ["You've expressed interest. The owner picks who receives it."],
       };
     }
 
-    return {
-      actionLabel: 'Express Interest',
-      notes: [
-        `Expressing interest is coming to the app soon. ${WEB_ONLY_NOTE}`,
-      ],
-    };
+    return { actionLabel: null, notes: [] };
   }
 
   if (!item.available) {
@@ -234,6 +240,7 @@ type ItemDetailBodyProps = {
   isRecipient: boolean;
   isRefreshing: boolean;
   onRefresh: () => void;
+  onOpenThread: (messageId: string) => void;
 };
 
 function ItemDetailBody({
@@ -242,14 +249,20 @@ function ItemDetailBody({
   isRecipient,
   isRefreshing,
   onRefresh,
+  onOpenThread,
 }: ItemDetailBodyProps) {
   const banner = buildStatusBanner(item, viewer, isRecipient);
   const affordance = describeAffordance(item, viewer, isRecipient);
   const description = item.description?.trim() || null;
+  const subject = useMemo(() => ({ itemId: item.id }), [item.id]);
+  // Availability and circles are left to the server, which 400s or 403s.
+  const recipient = viewer.is_owner ? null : item.owner;
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
+      bottomOffset={spacing[16]}
       contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl
           onRefresh={onRefresh}
@@ -297,7 +310,7 @@ function ItemDetailBody({
         </View>
 
         {description ? (
-          <Text style={styles.description}>{description}</Text>
+          <LinkedText style={styles.description} text={description} />
         ) : null}
       </View>
 
@@ -341,37 +354,61 @@ function ItemDetailBody({
         </View>
       ) : null}
 
-      <View style={styles.actionCard} testID="item-affordance">
-        {affordance.actionLabel ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: true }}
-            disabled
-            style={styles.actionButton}
-            testID="item-primary-action"
-          >
-            <Text style={styles.actionButtonLabel}>
-              {affordance.actionLabel}
-            </Text>
-          </Pressable>
-        ) : null}
+      {recipient || affordance.actionLabel || affordance.notes.length > 0 ? (
+        <View style={styles.actionCard} testID="item-affordance">
+          {recipient ? (
+            <MessageComposer
+              errorTestID="item-send-error"
+              hint={item.is_giveaway ? GIVEAWAY_HINT : undefined}
+              onSent={onOpenThread}
+              placeholder={
+                item.is_giveaway ? GIVEAWAY_PLACEHOLDER : LOAN_PLACEHOLDER
+              }
+              recipientName={recipient.first_name}
+              subject={subject}
+              testID="item-composer"
+            />
+          ) : null}
 
-        {affordance.notes.map((note) => (
-          <Text key={note} style={styles.actionNote}>
-            {note}
-          </Text>
-        ))}
-      </View>
-    </ScrollView>
+          {affordance.actionLabel ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: true }}
+              disabled
+              style={styles.actionButton}
+              testID="item-primary-action"
+            >
+              <Text style={styles.actionButtonLabel}>
+                {affordance.actionLabel}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {affordance.notes.map((note) => (
+            <Text key={note} style={styles.actionNote}>
+              {note}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+    </KeyboardAwareScrollView>
   );
 }
 
 export function ItemDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const router = useRouter();
   const { user } = useSession();
   const { data, error, isPending, isFetching, isRefetching, refetch } =
     useItemDetailQuery(rawId);
+
+  const handleOpenThread = useCallback(
+    (messageId: string) => {
+      router.push(`/message/${messageId}`);
+    },
+    [router],
+  );
 
   if (!isItemId(rawId)) {
     return (
@@ -410,6 +447,7 @@ export function ItemDetailScreen() {
             isRecipient={isRecipient}
             isRefreshing={isRefetching}
             item={data.item}
+            onOpenThread={handleOpenThread}
             onRefresh={() => {
               void refetch();
             }}

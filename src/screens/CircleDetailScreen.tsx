@@ -15,6 +15,7 @@ import { describeDistance } from '../components/CircleCard';
 import { ErrorState } from '../components/ErrorState';
 import { Icon, type IconName } from '../components/Icon';
 import { ImagePlaceholder } from '../components/ImagePlaceholder';
+import { LinkedText } from '../components/LinkedText';
 import { MemberRow } from '../components/MemberRow';
 import { PagingFooter } from '../components/PagingFooter';
 import { QueryStateView } from '../components/QueryStateView';
@@ -322,7 +323,7 @@ function CircleDetailBody({
         ) : null}
 
         {description ? (
-          <Text style={styles.description}>{description}</Text>
+          <LinkedText style={styles.description} text={description} />
         ) : null}
 
         <View style={styles.metaRow}>

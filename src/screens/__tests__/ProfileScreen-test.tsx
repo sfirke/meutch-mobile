@@ -447,3 +447,23 @@ describe('profile screen', () => {
     expect(screen.queryByTestId('environment-footer')).toBeNull();
   });
 });
+
+describe('profile screen bio links', () => {
+  test('opens a url in the text in the browser', async () => {
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+
+    renderProfileScreen(
+      mockApiFetch({
+        'GET /me/profile': profileRoute({
+          about_me: 'Blog at https://example.org/path',
+        }),
+      }),
+    );
+
+    fireEvent.press(
+      await screen.findByRole('link', { name: 'https://example.org/path' }),
+    );
+
+    expect(openURL).toHaveBeenCalledWith('https://example.org/path');
+  });
+});

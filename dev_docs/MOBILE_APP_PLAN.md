@@ -28,7 +28,7 @@ Build a single React Native app for Android and iOS that lets Meutch members do 
 The `/api/v1` API already covers nearly the whole web app, including writes (`API_V1_WRITE_ENABLED` defaults to on):
 
 - **Auth:** login, refresh, logout, `me`, register, forgot and reset password, resend confirmation
-- **Reads:** feed, items, my items, requests, circles, conversations and threads, loans, profile, settings, categories, tags
+- **Reads:** feed, items, my items (`kind=lending|active_giveaways|past_giveaways`), my requests (`status=active|fulfilled`), circles, conversations and threads, loans (pending before approved, with `profile_viewable` on each party), profile, settings, categories, tags
 - **Items:** create, edit, delete, image upload, reorder, and delete
 - **Messaging:** start a conversation about an item or request, reply, mark read, archive and unarchive, bulk archive, bulk mark read, mark all read, mark unread, bulk unarchive
 - **Requests:** create, edit, delete, respond with an item, fulfill
@@ -41,7 +41,6 @@ Backend additions the mobile roadmap still needs, each noted on the PR that depe
 
 | Addition | Needed by |
 | --- | --- |
-| `GET /me/requests` (active and recently fulfilled, like the web profile) | PR 10 |
 | list a circle's pending join requests | PR 12 |
 | loan extension requests (borrower asks, owner approves or denies) | PR 14 |
 | circle recommendations and secret-circle lookup by ID | PR 17 |
@@ -139,9 +138,16 @@ Split into two mobile PRs so the first half does not wait on the backend.
 
 ### PR 10: My Items And My Activity
 
-- my listings, with search (`GET /me/items?q=`), split into items for lending and active and past giveaways
-- items I'm borrowing and items I'm lending (`GET /me/loans?role=borrowing|lending`), with loan detail (`GET /loans/<id>`)
-- my requests, active and recently fulfilled. Backend: `GET /me/requests`, mirroring `GET /me/items`
+- "My activity" group on the Profile tab with three rows: `/profile/items`, `/profile/loans`, `/profile/requests`
+- My items: Lending, Giving away, and Given away segments (`GET /me/items?kind=`), search, the Browse grid, paging, pull-to-refresh
+- My loans: Borrowing and Lending segments (`GET /me/loans?role=`), a "Requests" (pending) section above "On loan" (approved), paging, refresh on focus
+- My requests: Active and Fulfilled segments (`GET /me/requests?status=`)
+- loan detail at `/loan/<id>` (`GET /loans/<id>`): status banner with due line, item row, counterpart (tappable when `profile_viewable`), dates, "View conversation", and a role- and status-specific web-only note in place of actions
+- shared `NavRow`, `SearchField`, `LoanRow`, `RequestRow`, and `src/lib/loans.ts`, whose label helpers `LoanBanner` now shares
+- backend ([meutch#554](https://github.com/sfirke/meutch/pull/554), must merge first): the `kind` filter on `/me/items`, `GET /me/requests`, pending-before-approved ordering on `/me/loans`, and `profile_viewable` on its `owner` and `borrower`
+- not included: loan history (completed, denied, canceled), and links to loan detail from the feed or a thread's `LoanBanner`; all write actions stay web-only until PRs 13 to 16
+
+Verification: `npm run verify` (97 suites, 997 tests); backend targeted pytest (169 tests) and pre-commit. Against a local backend on the branch, a seeded member's responses matched the web profile's My Items and Loans & Requests tabs, and the app's parsers and label helpers ran over them. The UI itself was not run (no Android SDK, no Expo web), so screens are covered by Jest screen tests.
 
 ### PR 11: Account And Profile Editing
 
@@ -165,7 +171,7 @@ Split into two mobile PRs so the first half does not wait on the backend.
 
 ### PR 14: Loans
 
-- request to borrow, approve, deny, cancel, owner cancel, mark returned, extend the due date
+- request to borrow, approve, deny, cancel, owner cancel, mark returned, extend the due date; loan detail's web-only notes (added in PR 10) become real actions here
 - loan extension requests: the borrower asks for more time and the owner approves or denies (web #493). Backend: no API endpoints or loan-schema fields exist for this yet.
 
 ### PR 15: Giveaways

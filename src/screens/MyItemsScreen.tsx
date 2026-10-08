@@ -68,6 +68,7 @@ export function MyItemsScreen({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const debouncedSearchText = useDebouncedValue(searchText, searchDebounceMs);
   const searchQuery = debouncedSearchText.trim();
+  const isSearching = searchQuery !== '';
 
   const {
     error,
@@ -192,9 +193,14 @@ export function MyItemsScreen({
       />
 
       {isPlaceholderData && items.length > 0 ? (
-        <View accessibilityLabel="Searching" style={styles.searchingRow}>
+        <View
+          accessibilityLabel={isSearching ? 'Searching' : 'Loading'}
+          style={styles.searchingRow}
+        >
           <ActivityIndicator color={colors.primaryDark} size="small" />
-          <Text style={styles.searchingLabel}>Searching...</Text>
+          <Text style={styles.searchingLabel}>
+            {isSearching ? 'Searching...' : 'Loading...'}
+          </Text>
         </View>
       ) : null}
 

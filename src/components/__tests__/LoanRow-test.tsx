@@ -48,6 +48,22 @@ function buildLoan(overrides: Partial<LoanActivity> = {}): LoanActivity {
 }
 
 describe('LoanRow', () => {
+  it('distinguishes a pending request from an approved loan by label', () => {
+    render(
+      <LoanRow
+        loan={buildLoan({ status: 'pending', due_state: null })}
+        onPress={jest.fn()}
+        role="borrowing"
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Folding Ladder, From Ana Example, Loan request pending',
+      }),
+    ).toBeTruthy();
+  });
+
   it('shows the owner when borrowing', () => {
     render(<LoanRow loan={buildLoan()} role="borrowing" />);
 
@@ -113,7 +129,9 @@ describe('LoanRow', () => {
     render(<LoanRow loan={loan} onPress={onPress} role="borrowing" />);
 
     fireEvent.press(
-      screen.getByRole('button', { name: 'Folding Ladder, From Ana Example' }),
+      screen.getByRole('button', {
+        name: 'Folding Ladder, From Ana Example, Due in 3 days',
+      }),
     );
 
     expect(onPress).toHaveBeenCalledWith(loan);

@@ -89,7 +89,11 @@ describe('RequestRow', () => {
     const onPress = jest.fn();
 
     render(<RequestRow now={NOW} onPress={onPress} request={request} />);
-    fireEvent.press(screen.getByRole('button', { name: request.title }));
+    fireEvent.press(
+      screen.getByRole('button', {
+        name: 'Looking for a ladder, Expires Jun 3, 2026',
+      }),
+    );
 
     expect(onPress).toHaveBeenCalledWith(request);
   });

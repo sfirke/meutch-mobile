@@ -71,7 +71,9 @@ export function RequestRow({ request, now, onPress }: RequestRowProps) {
   if (onPress) {
     return (
       <Pressable
-        accessibilityLabel={request.title}
+        accessibilityLabel={
+          dateLine ? `${request.title}, ${dateLine}` : request.title
+        }
         accessibilityRole="button"
         onPress={() => onPress(request)}
         style={styles.row}

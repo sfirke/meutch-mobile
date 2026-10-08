@@ -174,7 +174,11 @@ describe('MyLoansScreen', () => {
 
     fireEvent.press(screen.getByText('Lending'));
 
+    expect(screen.queryByText('Cordless drill')).toBeNull();
+    expect(screen.queryByText('To Morgan Member')).toBeNull();
+
     expect(await screen.findByText('Tile saw')).toBeTruthy();
+    expect(screen.queryByText('To Morgan Member')).toBeNull();
     expect(screen.getByText('To Ada Example')).toBeTruthy();
     expect(authenticatedApiFetch.mock.calls[1][0]).toBe(LENDING_PAGE_1);
   });
@@ -213,8 +217,13 @@ describe('MyLoansScreen', () => {
   });
 
   test('shows the empty copy for each role', async () => {
-    const authenticatedApiFetch = jest.fn(async (_path: string) =>
-      loanPage([]),
+    let resolveLending: (value: Response) => void = () => {};
+    const authenticatedApiFetch = jest.fn((path: string) =>
+      path === LENDING_PAGE_1
+        ? new Promise<Response>((resolve) => {
+            resolveLending = resolve;
+          })
+        : Promise.resolve(loanPage([])),
     ) as jest.MockedFunction<ApiFetch>;
 
     const { queryClient } = renderMyLoansScreen(authenticatedApiFetch);
@@ -228,19 +237,18 @@ describe('MyLoansScreen', () => {
 
     fireEvent.press(screen.getByText('Lending'));
 
+    expect(await screen.findByLabelText('Loading loans')).toBeTruthy();
+    expect(screen.queryByText('Nothing borrowed right now')).toBeNull();
+    expect(screen.queryByText('Nothing lent out right now')).toBeNull();
+
+    resolveLending(loanPage([]));
+
     expect(await screen.findByText('Nothing lent out right now')).toBeTruthy();
     expect(
       screen.getByText(
         "Requests for your items, and items you've lent, show up here.",
       ),
     ).toBeTruthy();
-    // The copy follows the segment before the lending fetch settles.
-    await waitFor(() =>
-      expect(authenticatedApiFetch).toHaveBeenCalledWith(
-        LENDING_PAGE_1,
-        expect.anything(),
-      ),
-    );
     await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   });
 
@@ -298,7 +306,7 @@ describe('MyLoansScreen', () => {
 
     fireEvent.press(
       await screen.findByRole('button', {
-        name: 'Cordless drill, From Ada Example',
+        name: /^Cordless drill, From Ada Example, /,
       }),
     );
 

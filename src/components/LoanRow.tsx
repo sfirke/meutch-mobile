@@ -8,18 +8,17 @@ import {
   type LoanActivity,
   type LoanRole,
 } from '../lib/loans';
+import { DELETED_USER_NAME } from '../lib/parse';
 import { colors, radii, spacing, typography } from '../theme';
 import { Icon } from './Icon';
 import { ImagePlaceholder } from './ImagePlaceholder';
+import { loanToneColors } from './loanTone';
 
 export type LoanRowProps = {
   loan: LoanActivity;
   role: LoanRole;
   onPress?: (loan: LoanActivity) => void;
 };
-
-/** Matches item detail's fallback for a deleted account. */
-const DELETED_USER_NAME = 'Deleted User';
 
 // My loans row: item thumbnail, name, who the loan is with, the date range,
 // and a status or due chip.
@@ -38,7 +37,7 @@ export function LoanRow({ loan, role, onPress }: LoanRowProps) {
         color:
           loan.due_state === 'overdue' ? colors.errorText : colors.secondary,
       }
-    : { label: status.label, color: status.tone };
+    : { label: status.label, color: loanToneColors[status.tone] };
 
   const content = (
     <>
@@ -84,7 +83,7 @@ export function LoanRow({ loan, role, onPress }: LoanRowProps) {
   if (onPress) {
     return (
       <Pressable
-        accessibilityLabel={`${loan.item.name}, ${counterpart}`}
+        accessibilityLabel={`${loan.item.name}, ${counterpart}, ${chip.label}`}
         accessibilityRole="button"
         onPress={() => onPress(loan)}
         style={styles.row}

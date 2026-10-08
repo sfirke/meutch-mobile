@@ -16,7 +16,6 @@ import {
   type QueryParam,
   type UserSummary,
 } from './parse';
-import { colors } from '../theme';
 
 export const LOAN_ROLES = ['borrowing', 'lending'] as const;
 
@@ -28,6 +27,8 @@ export const LOAN_DUE_STATES = [
   'due_soon',
   'on_time',
 ] as const;
+
+export type LoanTone = 'warning' | 'success' | 'neutral';
 
 export type LoanDueState = (typeof LOAN_DUE_STATES)[number];
 
@@ -87,19 +88,19 @@ function capitalize(value: string): string {
 
 export function describeLoanStatus(loan: { status: LoanStatus | null }): {
   label: string;
-  tone: string;
+  tone: LoanTone;
 } {
   if (loan.status === 'pending') {
-    return { label: 'Loan request pending', tone: colors.warning };
+    return { label: 'Loan request pending', tone: 'warning' };
   }
 
   if (loan.status === 'approved') {
-    return { label: 'Loan approved', tone: colors.success };
+    return { label: 'Loan approved', tone: 'success' };
   }
 
   return {
     label: loan.status ? capitalize(loan.status) : 'Loan',
-    tone: colors.border,
+    tone: 'neutral',
   };
 }
 

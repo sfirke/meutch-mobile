@@ -6,6 +6,7 @@ import type { LoanSummary } from '../lib/parse';
 import { webOnlyNote } from '../lib/webOnly';
 import { colors, radii, spacing, typography } from '../theme';
 import { Icon } from './Icon';
+import { loanToneColors } from './loanTone';
 
 export type LoanBannerProps = {
   loan: LoanSummary;
@@ -20,10 +21,14 @@ export function LoanBanner({ loan }: LoanBannerProps) {
   const endDate = formatCalendarDate(loan.end_date);
   const datesLine = startDate && endDate ? `${startDate} to ${endDate}` : null;
   const { label, tone } = describeLoanStatus(loan);
+  const toneColor = loanToneColors[tone];
 
   return (
-    <View style={[styles.banner, { borderColor: tone }]} testID="loan-banner">
-      <Icon color={tone} name="loan" size={18} />
+    <View
+      style={[styles.banner, { borderColor: toneColor }]}
+      testID="loan-banner"
+    >
+      <Icon color={toneColor} name="loan" size={18} />
       <View style={styles.copy}>
         <Text style={styles.label}>{label}</Text>
         {datesLine ? <Text style={styles.dates}>{datesLine}</Text> : null}

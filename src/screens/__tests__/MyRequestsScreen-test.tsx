@@ -140,7 +140,10 @@ describe('MyRequestsScreen', () => {
 
     fireEvent.press(screen.getByText('Fulfilled'));
 
+    expect(screen.queryByText('Looking for a ladder')).toBeNull();
+
     expect(await screen.findByText('Wanted a tent')).toBeTruthy();
+    expect(screen.queryByText('Looking for a ladder')).toBeNull();
     expect(authenticatedApiFetch.mock.calls.map(([path]) => path)).toContain(
       '/me/requests?status=fulfilled&page=1',
     );
@@ -225,7 +228,7 @@ describe('MyRequestsScreen', () => {
 
     renderScreen(authenticatedApiFetch);
 
-    fireEvent.press(await screen.findByLabelText('Looking for a ladder'));
+    fireEvent.press(await screen.findByLabelText(/^Looking for a ladder, /));
 
     expect(push).toHaveBeenCalledWith(`/request/${REQUEST_ID}`);
   });

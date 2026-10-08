@@ -9,7 +9,6 @@ import {
   parseLoanListPage,
   type LoanActivity,
 } from '../loans';
-import { colors } from '../../theme';
 
 function createMockResponse(body: unknown, status = 200): Response {
   return {
@@ -177,10 +176,10 @@ describe('parseLoanActivity', () => {
 
 describe('describeLoanStatus', () => {
   it.each([
-    ['pending', 'Loan request pending', colors.warning],
-    ['approved', 'Loan approved', colors.success],
-    ['completed', 'Completed', colors.border],
-    [null, 'Loan', colors.border],
+    ['pending', 'Loan request pending', 'warning'],
+    ['approved', 'Loan approved', 'success'],
+    ['completed', 'Completed', 'neutral'],
+    [null, 'Loan', 'neutral'],
   ] as const)('describes %s', (status, label, tone) => {
     expect(describeLoanStatus({ status })).toEqual({ label, tone });
   });

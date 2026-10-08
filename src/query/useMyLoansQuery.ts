@@ -1,4 +1,4 @@
-import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 
 import {
   fetchMyLoans,
@@ -27,8 +27,6 @@ export function useMyLoansQuery(role: LoanRole) {
     initialPageParam: 1,
     getNextPageParam: (lastPage: LoanListPage): number | undefined =>
       lastPage.pagination.has_next ? lastPage.pagination.page + 1 : undefined,
-    // Keeps the previous list on screen while the next one loads.
-    placeholderData: keepPreviousData,
   });
 
   const loans: LoanActivity[] = [];

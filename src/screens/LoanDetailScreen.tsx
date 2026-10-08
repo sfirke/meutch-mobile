@@ -14,6 +14,7 @@ import { Avatar } from '../components/Avatar';
 import { ErrorState } from '../components/ErrorState';
 import { Icon, type IconName } from '../components/Icon';
 import { ImagePlaceholder } from '../components/ImagePlaceholder';
+import { loanToneColors } from '../components/loanTone';
 import { MemberPressable } from '../components/MemberPressable';
 import { QueryStateView } from '../components/QueryStateView';
 import { formatCalendarDate } from '../lib/dates';
@@ -23,7 +24,7 @@ import {
   describeLoanStatus,
   type LoanDetail,
 } from '../lib/loans';
-import type { LoanStatus } from '../lib/parse';
+import { DELETED_USER_NAME, type LoanStatus } from '../lib/parse';
 import { formatRelativeTime } from '../lib/relativeTime';
 import { webOnlyNote } from '../lib/webOnly';
 import { isLoanId, useLoanDetailQuery } from '../query/useLoanDetailQuery';
@@ -31,9 +32,6 @@ import { useSession } from '../session/SessionProvider';
 import { colors, radii, spacing, typography } from '../theme';
 
 const DEFAULT_TITLE = 'Loan';
-
-/** Matches item detail's fallback for a deleted account. */
-const DELETED_USER_NAME = 'Deleted User';
 
 const INVALID_LOAN_COPY = {
   title: "This loan isn't available.",
@@ -94,6 +92,7 @@ function LoanDetailBody({
   const router = useRouter();
   const now = useMemo(() => new Date(), []);
   const status = describeLoanStatus(loan);
+  const toneColor = loanToneColors[status.tone];
   const due = describeLoanDue(loan);
   const counterpart = isBorrower ? loan.owner : loan.borrower;
   const start = formatCalendarDate(loan.start_date);
@@ -117,10 +116,10 @@ function LoanDetailBody({
     >
       <View style={styles.section}>
         <View
-          style={[styles.banner, { borderColor: status.tone }]}
+          style={[styles.banner, { borderColor: toneColor }]}
           testID="loan-status-banner"
         >
-          <Icon color={status.tone} name={statusIcon(loan.status)} size={18} />
+          <Icon color={toneColor} name={statusIcon(loan.status)} size={18} />
           <View style={styles.bannerCopy}>
             <Text style={styles.bannerLabel}>{status.label}</Text>
             {due ? <Text style={styles.note}>{due}</Text> : null}

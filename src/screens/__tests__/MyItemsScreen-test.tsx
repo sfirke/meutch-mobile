@@ -180,6 +180,57 @@ describe('<MyItemsScreen />', () => {
     ]);
   });
 
+  test('says Loading, not Searching, on a segment switch with no search', async () => {
+    let resolveGiveaways!: (response: Response) => void;
+    routeItems((path) =>
+      path.includes('kind=active_giveaways')
+        ? new Promise<Response>((resolve) => {
+            resolveGiveaways = resolve;
+          })
+        : jsonResponse(buildItemsPage([drill])),
+    );
+
+    renderWithProviders(<MyItemsScreen />);
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+
+    fireEvent.press(screen.getByRole('tab', { name: 'Giving away' }));
+
+    expect(await screen.findByText('Loading...')).toBeTruthy();
+    expect(screen.queryByText('Searching...')).toBeNull();
+
+    await act(async () => {
+      resolveGiveaways(jsonResponse(buildItemsPage([lamp])));
+    });
+
+    expect(await screen.findByText('Desk lamp')).toBeTruthy();
+  });
+
+  test('says Searching while a search request is in flight', async () => {
+    let resolveSearch!: (response: Response) => void;
+    routeItems((path) =>
+      path.includes('q=')
+        ? new Promise<Response>((resolve) => {
+            resolveSearch = resolve;
+          })
+        : jsonResponse(buildItemsPage([drill])),
+    );
+
+    renderWithProviders(<MyItemsScreen />);
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+
+    typeSearch('lamp');
+    await flushDebounce();
+
+    expect(await screen.findByText('Searching...')).toBeTruthy();
+    expect(screen.queryByText('Loading...')).toBeNull();
+
+    await act(async () => {
+      resolveSearch(jsonResponse(buildItemsPage([lamp])));
+    });
+
+    expect(await screen.findByText('Desk lamp')).toBeTruthy();
+  });
+
   test('sends q only after the debounce', async () => {
     routeItems((path) =>
       path.includes('q=')

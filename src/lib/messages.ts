@@ -20,6 +20,10 @@ export const INBOX_STATUSES = ['inbox', 'archived'] as const;
 
 export type InboxStatus = (typeof INBOX_STATUSES)[number];
 
+export const INBOX_SORTS = ['newest', 'oldest', 'unread', 'name_asc'] as const;
+
+export type InboxSort = (typeof INBOX_SORTS)[number];
+
 export type MessageSummary = {
   id: string;
   body: string;
@@ -101,6 +105,7 @@ export type MarkThreadReadResponse = {
 export type FetchConversationsOptions = {
   status: InboxStatus;
   page: number;
+  sort?: InboxSort;
   /** The backend rejects `per_page` above 50 with a 422; it does not clamp. */
   perPage?: number;
   signal?: AbortSignal;
@@ -116,6 +121,8 @@ const INVALID_CONVERSATIONS = 'Invalid conversations payload.';
 const INVALID_THREAD = 'Invalid conversation thread payload.';
 const INVALID_REPLY = 'Invalid reply payload.';
 const INVALID_MARK_READ = 'Invalid mark-read payload.';
+const INVALID_CONVERSATION_ACTION = 'Invalid conversation action payload.';
+const INVALID_MARK_UNREAD = 'Invalid mark-unread payload.';
 
 export function parseMessageSummary(value: unknown): MessageSummary {
   if (!isObject(value)) {
@@ -347,6 +354,10 @@ export async function fetchConversations(
     ['page', String(options.page)],
   ];
 
+  if (options.sort !== undefined) {
+    params.push(['sort', options.sort]);
+  }
+
   if (options.perPage !== undefined) {
     params.push(['per_page', String(options.perPage)]);
   }
@@ -425,4 +436,136 @@ export async function startConversation(
   );
 
   return parseReplyResponse(await readJsonOrThrow<unknown>(response));
+}
+
+/**
+ * The archive and bulk routes answer with a small object: `is_archived` or a
+ * count. Success is the HTTP status; only mark-unread reads its count.
+ */
+function parseActionResponse(value: unknown, message: string): void {
+  if (!isObject(value)) {
+    throw new Error(message);
+  }
+}
+
+async function postConversationAction(
+  fetchImpl: ApiFetch,
+  path: string,
+  init: RequestInit = { method: 'POST' },
+): Promise<unknown> {
+  const response = await fetchImpl(`/conversations${path}`, init);
+
+  return readJsonOrThrow<unknown>(response);
+}
+
+function bulkRequestInit(conversationIds: string[]): RequestInit {
+  return buildJsonRequestInit(
+    { conversation_ids: conversationIds },
+    { method: 'POST' },
+  );
+}
+
+export async function archiveConversation(
+  fetchImpl: ApiFetch,
+  conversationId: string,
+): Promise<void> {
+  parseActionResponse(
+    await postConversationAction(
+      fetchImpl,
+      `/${encodeURIComponent(conversationId)}/archive`,
+    ),
+    INVALID_CONVERSATION_ACTION,
+  );
+}
+
+export async function unarchiveConversation(
+  fetchImpl: ApiFetch,
+  conversationId: string,
+): Promise<void> {
+  parseActionResponse(
+    await postConversationAction(
+      fetchImpl,
+      `/${encodeURIComponent(conversationId)}/unarchive`,
+    ),
+    INVALID_CONVERSATION_ACTION,
+  );
+}
+
+/** The backend rejects an empty id list. */
+export async function bulkArchive(
+  fetchImpl: ApiFetch,
+  conversationIds: string[],
+): Promise<void> {
+  parseActionResponse(
+    await postConversationAction(
+      fetchImpl,
+      '/bulk-archive',
+      bulkRequestInit(conversationIds),
+    ),
+    INVALID_CONVERSATION_ACTION,
+  );
+}
+
+export async function bulkUnarchive(
+  fetchImpl: ApiFetch,
+  conversationIds: string[],
+): Promise<void> {
+  parseActionResponse(
+    await postConversationAction(
+      fetchImpl,
+      '/bulk-unarchive',
+      bulkRequestInit(conversationIds),
+    ),
+    INVALID_CONVERSATION_ACTION,
+  );
+}
+
+export async function bulkMarkRead(
+  fetchImpl: ApiFetch,
+  conversationIds: string[],
+): Promise<void> {
+  parseActionResponse(
+    await postConversationAction(
+      fetchImpl,
+      '/bulk-mark-read',
+      bulkRequestInit(conversationIds),
+    ),
+    INVALID_CONVERSATION_ACTION,
+  );
+}
+
+/** `marked` counts the conversations marked unread. */
+export function parseMarkUnreadResponse(value: unknown): { marked: number } {
+  if (!isObject(value) || !isNumber(value.marked)) {
+    throw new Error(INVALID_MARK_UNREAD);
+  }
+
+  return { marked: value.marked };
+}
+
+export async function bulkMarkUnread(
+  fetchImpl: ApiFetch,
+  conversationIds: string[],
+): Promise<{ marked: number }> {
+  return parseMarkUnreadResponse(
+    await postConversationAction(
+      fetchImpl,
+      '/bulk-mark-unread',
+      bulkRequestInit(conversationIds),
+    ),
+  );
+}
+
+/** Marks every conversation in one folder read. */
+export async function markAllRead(
+  fetchImpl: ApiFetch,
+  status: InboxStatus,
+): Promise<void> {
+  parseActionResponse(
+    await postConversationAction(
+      fetchImpl,
+      `/mark-all-read${buildQueryString([['status', status]])}`,
+    ),
+    INVALID_CONVERSATION_ACTION,
+  );
 }

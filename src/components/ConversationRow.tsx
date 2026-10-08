@@ -11,6 +11,10 @@ export type ConversationRowProps = {
   currentUserId: string;
   now: Date;
   onPress?: (conversation: ConversationSummary) => void;
+  onLongPress?: (conversation: ConversationSummary) => void;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (conversation: ConversationSummary) => void;
 };
 
 /** Matches item detail's fallback for a deleted account. */
@@ -45,6 +49,10 @@ export function ConversationRow({
   currentUserId,
   now,
   onPress,
+  onLongPress,
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
 }: ConversationRowProps) {
   const { latest_message: latestMessage, other_user: otherUser } = conversation;
   const unread = conversation.unread_count > 0;
@@ -56,10 +64,23 @@ export function ConversationRow({
   const relativeTime = formatRelativeTime(latestMessage.timestamp, now);
   const chip = getContextChip(conversation);
   const accessibilityLabel = unread ? `${name}, unread` : name;
-  const isTappable = otherUser !== null && onPress !== undefined;
+  const isTappable = selectionMode
+    ? onToggleSelect !== undefined
+    : (otherUser !== null && onPress !== undefined) ||
+      onLongPress !== undefined;
 
   const content = (
     <>
+      {selectionMode ? (
+        <View
+          style={[styles.checkbox, selected && styles.checkboxSelected]}
+          testID="conversation-checkbox"
+        >
+          {selected ? (
+            <Icon color={colors.onPrimaryText} name="check" size={12} />
+          ) : null}
+        </View>
+      ) : null}
       <Avatar size={44} user={otherUser} />
       <View style={styles.body}>
         <View style={styles.headerRow}>
@@ -102,8 +123,28 @@ export function ConversationRow({
     return (
       <Pressable
         accessibilityLabel={accessibilityLabel}
-        accessibilityRole="button"
-        onPress={() => onPress(conversation)}
+        accessibilityActions={
+          onToggleSelect ? [{ name: 'select', label: 'Select' }] : undefined
+        }
+        accessibilityRole={selectionMode ? 'checkbox' : 'button'}
+        accessibilityState={selectionMode ? { selected } : undefined}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === 'select') {
+            onToggleSelect?.(conversation);
+          }
+        }}
+        onLongPress={
+          onLongPress && !selectionMode
+            ? () => onLongPress(conversation)
+            : undefined
+        }
+        onPress={() => {
+          if (selectionMode) {
+            onToggleSelect?.(conversation);
+          } else if (otherUser !== null) {
+            onPress?.(conversation);
+          }
+        }}
         style={styles.row}
       >
         {content}
@@ -122,6 +163,19 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     gap: spacing[4],
+  },
+  checkbox: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  checkboxSelected: {
+    backgroundColor: colors.primaryDark,
+    borderColor: colors.primaryDark,
   },
   chip: {
     alignItems: 'center',

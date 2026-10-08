@@ -1,10 +1,20 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  waitForElementToBeRemoved,
+  within,
+} from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
+import { BackHandler } from 'react-native';
 
 import type { ApiFetch } from '../../lib/api';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import {
+  getRequestBody,
   jsonResponse,
+  mockApiFetch,
   mockSession,
   renderWithProviders,
 } from '../../test-utils/renderWithProviders';
@@ -111,16 +121,6 @@ function renderInboxScreen(
   return renderWithProviders(<InboxScreen />);
 }
 
-function assertOnlyReads(
-  authenticatedApiFetch: jest.MockedFunction<ApiFetch>,
-): void {
-  for (const [, init] of authenticatedApiFetch.mock.calls) {
-    const method = init?.method;
-
-    expect(method === undefined || method === 'GET').toBe(true);
-  }
-}
-
 beforeEach(() => {
   jest.clearAllMocks();
   jest.mocked(useRouter).mockReturnValue({
@@ -224,9 +224,7 @@ describe('InboxScreen', () => {
 
     expect(await screen.findByText('Nothing archived')).toBeTruthy();
     expect(
-      screen.getByText(
-        'Archived conversations will show up here. Archive conversations on meutch.com.',
-      ),
+      screen.getByText('Archived conversations will show up here.'),
     ).toBeTruthy();
   });
 
@@ -334,7 +332,7 @@ describe('InboxScreen', () => {
       throw new Error(`Unexpected request: ${path}`);
     }) as jest.MockedFunction<ApiFetch>;
 
-    renderInboxScreen(authenticatedApiFetch);
+    const { queryClient } = renderInboxScreen(authenticatedApiFetch);
 
     expect(await screen.findByText('Ada Example')).toBeTruthy();
 
@@ -353,6 +351,8 @@ describe('InboxScreen', () => {
     expect(authenticatedApiFetch.mock.calls[2][0]).toBe(
       '/messages?status=inbox&page=1',
     );
+    // Let the refetch settle so the list's re-render stays inside the test.
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   });
 
   test('switching to Archived requests the archived folder', async () => {
@@ -399,54 +399,341 @@ describe('InboxScreen', () => {
     expect(push).toHaveBeenCalledWith(`/message/${MESSAGE_ID}`);
   });
 
-  test('a row whose other participant was deleted is not tappable', async () => {
+  test('tapping a row whose other participant was deleted does not navigate', async () => {
     const authenticatedApiFetch = jest.fn(async (_path: string) =>
       conversationPage([conversation({ other_user: null })]),
     ) as jest.MockedFunction<ApiFetch>;
 
     renderInboxScreen(authenticatedApiFetch);
 
-    expect(await screen.findByText('Deleted User')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Deleted User' })).toBeNull();
+    fireEvent.press(await screen.findByText('Deleted User'));
+
     expect(push).not.toHaveBeenCalled();
   });
 
-  test('never sends a non-GET request', async () => {
-    const authenticatedApiFetch = jest.fn(async (path: string) => {
-      if (path === '/messages?status=inbox&page=1') {
-        return conversationPage([conversation()], {
-          page: 1,
-          has_next: true,
-        });
-      }
+  describe('managing conversations', () => {
+    const INBOX_PATH = '/messages?status=inbox&page=1';
+    const ARCHIVED_PATH = '/messages?status=archived&page=1';
 
-      return conversationPage([], { page: 2, has_next: false });
-    }) as jest.MockedFunction<ApiFetch>;
+    const ada = conversation();
+    const rae = conversation({
+      conversation_id: 'conversation-2',
+      other_user: secondUser,
+      unread_count: 2,
+      latest_message: message({
+        id: SECOND_MESSAGE_ID,
+        body: 'Thanks, picking it up tomorrow.',
+        sender: secondUser,
+      }),
+    });
 
-    renderInboxScreen(authenticatedApiFetch);
+    function postsTo(
+      authenticatedApiFetch: jest.Mock<
+        ReturnType<ApiFetch>,
+        Parameters<ApiFetch>
+      >,
+      path: string,
+    ) {
+      return authenticatedApiFetch.mock.calls.filter(
+        ([callPath, init]) => callPath === path && init?.method === 'POST',
+      );
+    }
 
-    expect(await screen.findByText('Ada Example')).toBeTruthy();
+    async function longPress(name: string) {
+      fireEvent(await screen.findByText(name), 'longPress');
+    }
 
-    const list = screen.getByTestId('inbox-list');
-    fireEvent(list, 'endReached');
-    await waitFor(
-      () => expect(authenticatedApiFetch).toHaveBeenCalledTimes(2),
-      { timeout: 3000 },
-    );
+    test('long-press selects a row, tapping toggles another, close exits', async () => {
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: conversationPage([ada, rae]),
+      });
 
-    fireEvent(list, 'refresh');
-    fireEvent.press(screen.getByText('Archived'));
+      renderInboxScreen(authenticatedApiFetch);
+      await longPress('Ada Example');
 
-    await waitFor(
-      () =>
+      expect(screen.getByText('1 selected')).toBeTruthy();
+      expect(screen.getAllByTestId('conversation-checkbox')).toHaveLength(2);
+
+      fireEvent.press(screen.getByText('Rae Example'));
+
+      expect(screen.getByText('2 selected')).toBeTruthy();
+      expect(push).not.toHaveBeenCalled();
+
+      fireEvent.press(screen.getByText('Rae Example'));
+      expect(screen.getByText('1 selected')).toBeTruthy();
+
+      fireEvent.press(screen.getByTestId('selection-close'));
+
+      expect(screen.queryByText('1 selected')).toBeNull();
+      expect(screen.queryByTestId('conversation-checkbox')).toBeNull();
+    });
+
+    test('switching folders clears the selection', async () => {
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: conversationPage([ada]),
+        [ARCHIVED_PATH]: conversationPage([]),
+      });
+
+      renderInboxScreen(authenticatedApiFetch);
+      await longPress('Ada Example');
+      expect(screen.getByText('1 selected')).toBeTruthy();
+
+      fireEvent.press(screen.getByText('Archived'));
+
+      expect(await screen.findByText('Nothing archived')).toBeTruthy();
+      expect(screen.queryByText('1 selected')).toBeNull();
+    });
+
+    test('hardware back exits selection instead of leaving', async () => {
+      const addListener = jest.spyOn(BackHandler, 'addEventListener');
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: conversationPage([ada]),
+      });
+
+      renderInboxScreen(authenticatedApiFetch);
+      await longPress('Ada Example');
+
+      const [eventName, handler] = addListener.mock.calls.at(-1) ?? [];
+
+      expect(eventName).toBe('hardwareBackPress');
+
+      let consumed: boolean | null | undefined;
+      act(() => {
+        consumed = handler?.({} as never);
+      });
+
+      expect(consumed).toBe(true);
+      expect(screen.queryByText('1 selected')).toBeNull();
+
+      addListener.mockRestore();
+    });
+
+    test('archiving one conversation posts its route and removes the row', async () => {
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: conversationPage([ada, rae]),
+        'POST /conversations/conversation-1/archive': { is_archived: true },
+      });
+
+      renderInboxScreen(authenticatedApiFetch);
+      await longPress('Ada Example');
+      fireEvent.press(screen.getByTestId('selection-action-archive'));
+
+      await waitForElementToBeRemoved(() => screen.queryByText('Ada Example'));
+      expect(screen.getByText('Rae Example')).toBeTruthy();
+      expect(screen.queryByText('1 selected')).toBeNull();
+      expect(
+        postsTo(authenticatedApiFetch, '/conversations/conversation-1/archive'),
+      ).toHaveLength(1);
+    });
+
+    test('archiving two conversations posts bulk-archive', async () => {
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: conversationPage([ada, rae]),
+        'POST /conversations/bulk-archive': { archived: 2 },
+      });
+
+      renderInboxScreen(authenticatedApiFetch);
+      await longPress('Ada Example');
+      fireEvent.press(screen.getByText('Rae Example'));
+      fireEvent.press(screen.getByTestId('selection-action-archive'));
+
+      expect(await screen.findByText('No messages yet')).toBeTruthy();
+
+      const [[, init]] = postsTo(
+        authenticatedApiFetch,
+        '/conversations/bulk-archive',
+      );
+
+      expect(getRequestBody(init)).toEqual({
+        conversation_ids: ['conversation-1', 'conversation-2'],
+      });
+    });
+
+    test('unarchiving on the archived folder posts the unarchive route', async () => {
+      const archived = conversation({ is_archived: true });
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: conversationPage([]),
+        [ARCHIVED_PATH]: conversationPage([archived]),
+        'POST /conversations/conversation-1/unarchive': { is_archived: false },
+      });
+
+      renderInboxScreen(authenticatedApiFetch);
+      expect(await screen.findByText('No messages yet')).toBeTruthy();
+
+      fireEvent.press(screen.getByText('Archived'));
+      await longPress('Ada Example');
+
+      expect(screen.queryByTestId('selection-action-archive')).toBeNull();
+
+      fireEvent.press(screen.getByTestId('selection-action-unarchive'));
+
+      expect(await screen.findByText('Nothing archived')).toBeTruthy();
+      expect(
+        postsTo(
+          authenticatedApiFetch,
+          '/conversations/conversation-1/unarchive',
+        ),
+      ).toHaveLength(1);
+    });
+
+    test('mark read applies to unread rows and clears the dot', async () => {
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: conversationPage([ada, rae]),
+        'POST /conversations/bulk-mark-read': { marked: 2 },
+      });
+
+      renderInboxScreen(authenticatedApiFetch);
+      await longPress('Ada Example');
+
+      // Ada is already read.
+      expect(screen.getByTestId('selection-action-mark-read')).toBeDisabled();
+
+      fireEvent.press(screen.getByText('Rae Example'));
+      fireEvent.press(screen.getByTestId('selection-action-mark-read'));
+
+      await waitForElementToBeRemoved(() =>
+        screen.queryAllByTestId('conversation-unread-dot'),
+      );
+
+      const [[, init]] = postsTo(
+        authenticatedApiFetch,
+        '/conversations/bulk-mark-read',
+      );
+
+      expect(getRequestBody(init)).toEqual({
+        conversation_ids: ['conversation-1', 'conversation-2'],
+      });
+    });
+
+    test('mark unread posts bulk-mark-unread and refetches the folder', async () => {
+      let inboxRequests = 0;
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: () => {
+          inboxRequests += 1;
+
+          return conversationPage(
+            inboxRequests === 1 ? [ada] : [{ ...ada, unread_count: 1 }],
+          );
+        },
+        'POST /conversations/bulk-mark-unread': { marked: 1 },
+      });
+
+      renderInboxScreen(authenticatedApiFetch);
+      await longPress('Ada Example');
+
+      expect(
+        screen.getByTestId('selection-action-mark-unread'),
+      ).not.toBeDisabled();
+
+      fireEvent.press(screen.getByTestId('selection-action-mark-unread'));
+
+      expect(await screen.findByTestId('conversation-unread-dot')).toBeTruthy();
+      expect(inboxRequests).toBe(2);
+      expect(
+        postsTo(authenticatedApiFetch, '/conversations/bulk-mark-unread'),
+      ).toHaveLength(1);
+      expect(screen.queryByTestId('inbox-notice')).toBeNull();
+    });
+
+    test('a partial mark unread shows a notice', async () => {
+      const second = { ...rae, unread_count: 0 };
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: conversationPage([ada, second]),
+        'POST /conversations/bulk-mark-unread': { marked: 1 },
+      });
+
+      renderInboxScreen(authenticatedApiFetch);
+      await longPress('Ada Example');
+      fireEvent.press(screen.getByText('Rae Example'));
+      fireEvent.press(screen.getByTestId('selection-action-mark-unread'));
+
+      const notice = await screen.findByTestId('inbox-notice');
+
+      expect(
+        within(notice).getByText(
+          "Conversations with no received messages can't be marked unread.",
+        ),
+      ).toBeTruthy();
+      await waitFor(() =>
         expect(
-          authenticatedApiFetch.mock.calls.some(
-            ([path]) => path === '/messages?status=archived&page=1',
+          authenticatedApiFetch.mock.calls.filter(
+            ([path]) => path === INBOX_PATH,
           ),
-        ).toBe(true),
-      { timeout: 3000 },
-    );
+        ).toHaveLength(2),
+      );
+    });
 
-    assertOnlyReads(authenticatedApiFetch);
+    test('mark all read posts for the folder and clears every dot', async () => {
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: conversationPage([{ ...ada, unread_count: 1 }, rae]),
+        'POST /conversations/mark-all-read?status=inbox': { marked: 2 },
+      });
+
+      renderInboxScreen(authenticatedApiFetch);
+      expect(
+        await screen.findAllByTestId('conversation-unread-dot'),
+      ).toHaveLength(2);
+
+      fireEvent.press(screen.getByTestId('inbox-mark-all-read'));
+
+      await waitForElementToBeRemoved(() =>
+        screen.queryAllByTestId('conversation-unread-dot'),
+      );
+      expect(screen.getByTestId('inbox-mark-all-read')).toBeDisabled();
+      expect(
+        postsTo(
+          authenticatedApiFetch,
+          '/conversations/mark-all-read?status=inbox',
+        ),
+      ).toHaveLength(1);
+    });
+
+    test('mark all read is disabled when nothing is unread', async () => {
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: conversationPage([ada]),
+      });
+
+      renderInboxScreen(authenticatedApiFetch);
+      expect(await screen.findByText('Ada Example')).toBeTruthy();
+
+      expect(screen.getByTestId('inbox-mark-all-read')).toBeDisabled();
+    });
+
+    test('choosing Oldest refetches with sort=oldest', async () => {
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: conversationPage([ada]),
+        '/messages?status=inbox&page=1&sort=oldest': conversationPage([rae]),
+      });
+
+      renderInboxScreen(authenticatedApiFetch);
+      expect(await screen.findByText('Ada Example')).toBeTruthy();
+
+      fireEvent.press(screen.getByTestId('inbox-sort-button'));
+      fireEvent.press(screen.getByTestId('option-oldest'));
+
+      expect(await screen.findByText('Rae Example')).toBeTruthy();
+      expect(screen.getByText('Sort: Oldest')).toBeTruthy();
+      expect(authenticatedApiFetch.mock.calls.at(-1)?.[0]).toBe(
+        '/messages?status=inbox&page=1&sort=oldest',
+      );
+    });
+
+    test('a failed action shows the error banner and keeps the selection', async () => {
+      const authenticatedApiFetch = mockApiFetch({
+        [INBOX_PATH]: conversationPage([ada]),
+        'POST /conversations/conversation-1/archive': jsonResponse(
+          { error: { code: 'INTERNAL_ERROR', message: 'Boom' } },
+          500,
+        ),
+      });
+
+      renderInboxScreen(authenticatedApiFetch);
+      await longPress('Ada Example');
+      fireEvent.press(screen.getByTestId('selection-action-archive'));
+
+      expect(await screen.findByText('Something went wrong')).toBeTruthy();
+      expect(screen.getByText('Ada Example')).toBeTruthy();
+      expect(screen.getByText('1 selected')).toBeTruthy();
+    });
   });
 });

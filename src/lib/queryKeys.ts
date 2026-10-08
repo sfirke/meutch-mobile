@@ -1,7 +1,7 @@
 import type { CircleMembership } from './circles';
 import type { FeedTypeFilter } from './feed';
 import { normalizeSearchQuery } from './items';
-import type { InboxStatus } from './messages';
+import type { InboxSort, InboxStatus } from './messages';
 
 export type FeedListFilters = {
   types?: FeedTypeFilter[];
@@ -13,6 +13,7 @@ export type ItemListFilters = {
 
 export type InboxListFilters = {
   status: InboxStatus;
+  sort?: InboxSort;
 };
 
 export type CircleListFilters = {
@@ -54,8 +55,13 @@ export const requestKeys = {
 
 export const messageKeys = {
   all: ['messages'] as const,
+  // An omitted sort shares the cache entry with the backend's default.
   inbox: (filters: InboxListFilters) =>
-    [...messageKeys.all, 'inbox', { status: filters.status }] as const,
+    [
+      ...messageKeys.all,
+      'inbox',
+      { status: filters.status, sort: filters.sort ?? 'newest' },
+    ] as const,
   thread: (messageId: string) =>
     [...messageKeys.all, 'thread', messageId] as const,
 };

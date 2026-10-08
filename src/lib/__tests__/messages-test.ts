@@ -1,11 +1,18 @@
 import type { ApiFetch } from '../api';
 import { isApiError } from '../api';
 import {
+  archiveConversation,
+  bulkArchive,
+  bulkMarkRead,
+  bulkMarkUnread,
+  bulkUnarchive,
   fetchConversations,
   fetchMessageThread,
+  markAllRead,
   markThreadRead,
   replyToMessage,
   startConversation,
+  unarchiveConversation,
 } from '../messages';
 
 function createMockResponse(body: unknown, status = 200): Response {
@@ -181,6 +188,25 @@ describe('fetchConversations', () => {
 
     expect(getRequestPath(fetchImpl)).toBe(
       '/messages?status=archived&page=1&per_page=50',
+    );
+  });
+
+  test('sends the sort only when asked', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ conversations: [], pagination }),
+    );
+
+    await fetchConversations(fetchImpl, {
+      status: 'inbox',
+      page: 1,
+      sort: 'name_asc',
+      perPage: 20,
+    });
+
+    expect(getRequestPath(fetchImpl)).toBe(
+      '/messages?status=inbox&page=1&sort=name_asc&per_page=20',
     );
   });
 
@@ -674,6 +700,145 @@ describe('startConversation', () => {
 
     expect(getRequestInit(fetchImpl)?.body).toBe(
       JSON.stringify({ item_id: ITEM_ID, body: 'Still free?' }),
+    );
+  });
+});
+
+describe('conversation archive actions', () => {
+  test.each([
+    ['archiveConversation', archiveConversation, 'archive'],
+    ['unarchiveConversation', unarchiveConversation, 'unarchive'],
+  ] as const)('%s posts without a body', async (_name, action, suffix) => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ is_archived: suffix === 'archive' }),
+    );
+
+    await expect(action(fetchImpl, CONVERSATION_ID)).resolves.toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledWith(
+      `/conversations/${CONVERSATION_ID}/${suffix}`,
+      { method: 'POST' },
+    );
+  });
+
+  test('encodes the conversation id', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(createMockResponse({ is_archived: true }));
+
+    await archiveConversation(fetchImpl, 'a/b');
+
+    expect(getRequestPath(fetchImpl)).toBe('/conversations/a%2Fb/archive');
+  });
+
+  test('rejects a response that is not an object', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(createMockResponse(null));
+
+    await expect(
+      unarchiveConversation(fetchImpl, CONVERSATION_ID),
+    ).rejects.toThrow('Invalid conversation action payload.');
+  });
+});
+
+describe('bulk conversation actions', () => {
+  test.each([
+    ['bulkArchive', bulkArchive, 'bulk-archive', { archived: 2 }],
+    ['bulkUnarchive', bulkUnarchive, 'bulk-unarchive', { unarchived: 2 }],
+    ['bulkMarkRead', bulkMarkRead, 'bulk-mark-read', { marked: 2 }],
+  ] as const)(
+    '%s posts the ids as JSON',
+    async (_name, action, path, count) => {
+      const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+      fetchImpl.mockResolvedValueOnce(createMockResponse(count));
+
+      await expect(
+        action(fetchImpl, [CONVERSATION_ID, MESSAGE_ID]),
+      ).resolves.toBeUndefined();
+
+      const init = getRequestInit(fetchImpl);
+
+      expect(getRequestPath(fetchImpl)).toBe(`/conversations/${path}`);
+      expect(init?.method).toBe('POST');
+      expect(init?.body).toBe(
+        JSON.stringify({ conversation_ids: [CONVERSATION_ID, MESSAGE_ID] }),
+      );
+    },
+  );
+
+  test('rejects a bulk response that is not an object', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(createMockResponse(null));
+
+    await expect(bulkArchive(fetchImpl, [CONVERSATION_ID])).rejects.toThrow(
+      'Invalid conversation action payload.',
+    );
+  });
+
+  test('bulkMarkUnread posts the ids and parses the count', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(createMockResponse({ marked: 1 }));
+
+    const result = await bulkMarkUnread(fetchImpl, [CONVERSATION_ID]);
+    const init = getRequestInit(fetchImpl);
+
+    expect(getRequestPath(fetchImpl)).toBe('/conversations/bulk-mark-unread');
+    expect(init?.method).toBe('POST');
+    expect(init?.body).toBe(
+      JSON.stringify({ conversation_ids: [CONVERSATION_ID] }),
+    );
+    expect(result).toEqual({ marked: 1 });
+  });
+
+  // Backends that predate the standardized responses also send `status`.
+  test('bulkMarkUnread accepts the older response with a status field', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ status: 'ok', marked: 1 }),
+    );
+
+    await expect(bulkMarkUnread(fetchImpl, [CONVERSATION_ID])).resolves.toEqual(
+      { marked: 1 },
+    );
+  });
+
+  test('bulkMarkUnread rejects a non-numeric count', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(createMockResponse({ marked: '1' }));
+
+    await expect(bulkMarkUnread(fetchImpl, [CONVERSATION_ID])).rejects.toThrow(
+      'Invalid mark-unread payload.',
+    );
+  });
+});
+
+describe('markAllRead', () => {
+  test('posts the folder as a query parameter without a body', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(createMockResponse({ marked: 3 }));
+
+    await expect(markAllRead(fetchImpl, 'archived')).resolves.toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledWith(
+      '/conversations/mark-all-read?status=archived',
+      { method: 'POST' },
+    );
+  });
+
+  test('rejects a response that is not an object', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(createMockResponse(null));
+
+    await expect(markAllRead(fetchImpl, 'inbox')).rejects.toThrow(
+      'Invalid conversation action payload.',
     );
   });
 });

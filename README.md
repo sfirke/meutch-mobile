@@ -31,6 +31,8 @@ app/                      routes only — every file here becomes a route, so no
   item/[id].tsx           /item/<uuid>
   message/[id].tsx        /message/<uuid>
   circle/[id].tsx         /circle/<uuid>
+  request/[id].tsx        /request/<uuid>
+  user/[id].tsx           /user/<uuid>
   profile/settings.tsx    /profile/settings
 src/screens/              screen implementations (most route files re-export these) + __tests__/
 src/components/           shared presentational components

@@ -1,7 +1,8 @@
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  BackHandler,
   FlatList,
   StyleSheet,
   Text,
@@ -10,17 +11,23 @@ import {
 } from 'react-native';
 
 import { ConversationRow } from '../components/ConversationRow';
+import { InboxToolbar } from '../components/InboxToolbar';
 import { PagingFooter } from '../components/PagingFooter';
 import { QueryStateView } from '../components/QueryStateView';
 import { SegmentedControl } from '../components/SegmentedControl';
+import { SelectionBar, type SelectionAction } from '../components/SelectionBar';
 import { describeError } from '../lib/errorCopy';
 import type {
   ConversationPage,
   ConversationSummary,
+  InboxSort,
   InboxStatus,
 } from '../lib/messages';
 import { messageKeys } from '../lib/queryKeys';
-import { webOnlyNote } from '../lib/webOnly';
+import {
+  useInboxActionMutation,
+  type InboxActionVariables,
+} from '../query/useInboxActionMutation';
 import { useInboxQuery } from '../query/useInboxQuery';
 import { useRefreshOnFocus } from '../query/useRefreshOnFocus';
 import { useSession } from '../session/SessionProvider';
@@ -31,8 +38,6 @@ const SEGMENTS: { value: InboxStatus; label: string }[] = [
   { value: 'archived', label: 'Archived' },
 ];
 
-// Archiving is a website action for now, so the archived empty state says so
-// rather than offering a control the app cannot honour.
 const EMPTY_COPY: Record<InboxStatus, { title: string; message: string }> = {
   inbox: {
     title: 'No messages yet',
@@ -40,9 +45,12 @@ const EMPTY_COPY: Record<InboxStatus, { title: string; message: string }> = {
   },
   archived: {
     title: 'Nothing archived',
-    message: `Archived conversations will show up here. ${webOnlyNote('Archive conversations')}`,
+    message: 'Archived conversations will show up here.',
   },
 };
+
+const PARTIAL_UNREAD_NOTICE =
+  "Conversations with no received messages can't be marked unread.";
 
 function keyExtractor(conversation: ConversationSummary): string {
   return conversation.conversation_id;
@@ -53,7 +61,11 @@ export function InboxScreen() {
   const queryClient = useQueryClient();
   const { user } = useSession();
   const [status, setStatus] = useState<InboxStatus>('inbox');
+  const [sort, setSort] = useState<InboxSort>('newest');
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [notice, setNotice] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const isSelecting = selected.size > 0;
 
   const {
     conversations,
@@ -66,8 +78,13 @@ export function InboxScreen() {
     isPending,
     isRefetchError,
     refetch,
-  } = useInboxQuery(status);
-  const inboxKey = useMemo(() => messageKeys.inbox({ status }), [status]);
+  } = useInboxQuery(status, sort);
+  const inboxKey = useMemo(
+    () => messageKeys.inbox({ status, sort }),
+    [status, sort],
+  );
+  const mutation = useInboxActionMutation({ status, sort });
+  const { mutate, reset: resetMutation, isPending: isActing } = mutation;
 
   useRefreshOnFocus(inboxKey);
 
@@ -84,16 +101,152 @@ export function InboxScreen() {
     [router],
   );
 
+  const clearSelection = useCallback(() => setSelected(new Set()), []);
+
+  const handleStatusChange = useCallback(
+    (next: InboxStatus) => {
+      setStatus(next);
+      clearSelection();
+      setNotice(null);
+      resetMutation();
+    },
+    [clearSelection, resetMutation],
+  );
+
+  const handleLongPress = useCallback((conversation: ConversationSummary) => {
+    setSelected(new Set([conversation.conversation_id]));
+    setNotice(null);
+  }, []);
+
+  const handleToggleSelect = useCallback(
+    (conversation: ConversationSummary) => {
+      setSelected((current) => {
+        const next = new Set(current);
+
+        if (!next.delete(conversation.conversation_id)) {
+          next.add(conversation.conversation_id);
+        }
+
+        return next;
+      });
+      setNotice(null);
+    },
+    [],
+  );
+
+  // Hardware back leaves selection mode rather than the screen.
+  useEffect(() => {
+    if (!isSelecting) {
+      return;
+    }
+
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        clearSelection();
+        return true;
+      },
+    );
+
+    return () => subscription.remove();
+  }, [clearSelection, isSelecting]);
+
+  // Selection clears on success and stays on failure so the user can retry.
+  const runAction = useCallback(
+    (variables: InboxActionVariables) => {
+      setNotice(null);
+      mutate(variables, {
+        onSuccess: (result) => {
+          clearSelection();
+
+          if (
+            variables.action === 'markUnread' &&
+            result.marked !== undefined &&
+            result.marked < variables.conversationIds.length
+          ) {
+            setNotice(PARTIAL_UNREAD_NOTICE);
+          }
+        },
+      });
+    },
+    [clearSelection, mutate],
+  );
+
+  const selectedRows = useMemo(
+    () =>
+      conversations.filter((conversation) =>
+        selected.has(conversation.conversation_id),
+      ),
+    [conversations, selected],
+  );
+
+  const selectionActions = useMemo((): SelectionAction[] => {
+    const conversationIds = [...selected];
+    const hasUnread = selectedRows.some((row) => row.unread_count > 0);
+    const hasRead = selectedRows.some((row) => row.unread_count === 0);
+
+    const folderAction: SelectionAction =
+      status === 'inbox'
+        ? {
+            key: 'archive',
+            label: 'Archive',
+            icon: 'archive',
+            onPress: () => runAction({ action: 'archive', conversationIds }),
+          }
+        : {
+            key: 'unarchive',
+            label: 'Unarchive',
+            icon: 'inbox',
+            onPress: () => runAction({ action: 'unarchive', conversationIds }),
+          };
+
+    // Both read actions always render, so the bar does not shift as the
+    // selection changes; the one that does not apply is disabled.
+    return [
+      { ...folderAction, disabled: isActing },
+      {
+        key: 'mark-read',
+        label: 'Mark read',
+        icon: 'read',
+        onPress: () => runAction({ action: 'markRead', conversationIds }),
+        disabled: isActing || !hasUnread,
+      },
+      {
+        key: 'mark-unread',
+        label: 'Mark unread',
+        icon: 'unread',
+        onPress: () => runAction({ action: 'markUnread', conversationIds }),
+        disabled: isActing || !hasRead,
+      },
+    ];
+  }, [isActing, runAction, selected, selectedRows, status]);
+
+  const hasUnreadLoaded = conversations.some(
+    (conversation) => conversation.unread_count > 0,
+  );
+
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<ConversationSummary>) => (
       <ConversationRow
         conversation={item}
         currentUserId={currentUserId}
         now={now}
+        onLongPress={handleLongPress}
         onPress={handlePressConversation}
+        onToggleSelect={handleToggleSelect}
+        selected={selected.has(item.conversation_id)}
+        selectionMode={isSelecting}
       />
     ),
-    [currentUserId, handlePressConversation, now],
+    [
+      currentUserId,
+      handleLongPress,
+      handlePressConversation,
+      handleToggleSelect,
+      isSelecting,
+      now,
+      selected,
+    ],
   );
 
   const handleEndReached = useCallback(() => {
@@ -112,7 +265,7 @@ export function InboxScreen() {
     // A plain refetch() re-requests every loaded page; trim to the first page
     // so pull-to-refresh costs one request, not N.
     queryClient.setQueryData<InfiniteData<ConversationPage, number>>(
-      messageKeys.inbox({ status }),
+      messageKeys.inbox({ status, sort }),
       (data) =>
         data
           ? {
@@ -124,18 +277,28 @@ export function InboxScreen() {
 
     await refetch();
     setIsRefreshing(false);
-  }, [queryClient, refetch, status]);
+  }, [queryClient, refetch, sort, status]);
+
+  // Pull-to-refresh is off while selecting.
+  const onRefresh = isSelecting ? undefined : () => void handleRefresh();
+  const bannerError = mutation.error ?? (isRefetchError ? error : null);
 
   return (
     <View style={styles.container}>
       <View style={styles.segments}>
         <SegmentedControl
           accessibilityLabel="Message folders"
-          onChange={setStatus}
+          onChange={handleStatusChange}
           options={SEGMENTS}
           value={status}
         />
       </View>
+      <InboxToolbar
+        markAllReadDisabled={!hasUnreadLoaded || isActing}
+        onMarkAllRead={() => runAction({ action: 'markAllRead' })}
+        onSortChange={setSort}
+        sort={sort}
+      />
 
       <View style={styles.body}>
         <QueryStateView
@@ -143,16 +306,22 @@ export function InboxScreen() {
           error={error}
           isEmpty={conversations.length === 0}
           isPending={isPending}
-          isRefreshing={isRefreshing}
+          isRefreshing={isRefreshing && !isSelecting}
           isRetrying={isFetching}
           loadingLabel="Loading messages"
-          onRefresh={() => void handleRefresh()}
+          onRefresh={onRefresh}
           onRetry={() => void refetch()}
         >
-          {isRefetchError ? (
+          {bannerError ? (
             <View style={styles.banner}>
               <Text style={styles.bannerText}>
-                {describeError(error).title}
+                {describeError(bannerError).title}
+              </Text>
+            </View>
+          ) : notice ? (
+            <View style={[styles.banner, styles.notice]} testID="inbox-notice">
+              <Text style={[styles.bannerText, styles.noticeText]}>
+                {notice}
               </Text>
             </View>
           ) : null}
@@ -169,13 +338,20 @@ export function InboxScreen() {
             }
             onEndReached={handleEndReached}
             onEndReachedThreshold={0.5}
-            onRefresh={() => void handleRefresh()}
-            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            refreshing={isRefreshing && !isSelecting}
             renderItem={renderItem}
             testID="inbox-list"
           />
         </QueryStateView>
       </View>
+      {isSelecting ? (
+        <SelectionBar
+          actions={selectionActions}
+          count={selected.size}
+          onClose={clearSelection}
+        />
+      ) : null}
     </View>
   );
 }
@@ -202,6 +378,13 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     flex: 1,
+  },
+  notice: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  noticeText: {
+    color: colors.text,
   },
   segments: {
     paddingHorizontal: spacing[16],

@@ -1,11 +1,10 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -13,13 +12,11 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Avatar } from '../components/Avatar';
 import { ErrorState } from '../components/ErrorState';
 import { Icon, type IconName } from '../components/Icon';
+import { LinkedText } from '../components/LinkedText';
 import { MemberPressable } from '../components/MemberPressable';
+import { MessageComposer } from '../components/MessageComposer';
 import { QueryStateView } from '../components/QueryStateView';
-import {
-  describeError,
-  readFieldError,
-  type ErrorCopyOverrides,
-} from '../lib/errorCopy';
+import type { ErrorCopyOverrides } from '../lib/errorCopy';
 import { formatRelativeTime } from '../lib/relativeTime';
 import {
   formatRequestDate,
@@ -34,7 +31,6 @@ import {
   isRequestId,
   useRequestDetailQuery,
 } from '../query/useRequestDetailQuery';
-import { useStartConversationMutation } from '../query/useStartConversationMutation';
 import { useSession } from '../session/SessionProvider';
 import { colors, radii, spacing, typography } from '../theme';
 
@@ -57,8 +53,6 @@ const ERROR_OVERRIDES: ErrorCopyOverrides = {
     canRetry: false,
   },
 };
-
-const MAX_BODY_LENGTH = 1000;
 
 const SEEKING_LABELS: Record<RequestSeeking, string> = {
   loan: 'Seeking a loan',
@@ -112,81 +106,6 @@ function buildStatusBanner(
     icon: 'request',
     detail: date ? `Expires ${date}.` : null,
   };
-}
-
-type MessageComposerProps = {
-  recipientName: string;
-  requestId: string;
-  onSent: (messageId: string) => void;
-};
-
-function MessageComposer({
-  recipientName,
-  requestId,
-  onSent,
-}: MessageComposerProps) {
-  const subject = useMemo(() => ({ requestId }), [requestId]);
-  const send = useStartConversationMutation(subject);
-  const [draft, setDraft] = useState('');
-  const canSend = draft.trim().length > 0 && !send.isPending;
-  const failure = send.error ? describeError(send.error) : null;
-  const failureMessage = readFieldError(send.error, 'body') ?? failure?.message;
-
-  const handleSend = () => {
-    const body = draft.trim();
-
-    if (body.length === 0) {
-      return;
-    }
-
-    send.mutate(body, {
-      onSuccess: (message) => {
-        setDraft('');
-        onSent(message.id);
-      },
-    });
-  };
-
-  return (
-    <View style={styles.composer} testID="request-composer">
-      <Text style={styles.sectionLabel}>Message {recipientName}</Text>
-
-      {failure ? (
-        <View style={styles.sendError} testID="request-send-error">
-          <Text style={styles.sendErrorTitle}>{failure.title}</Text>
-          <Text style={styles.sendErrorMessage}>{failureMessage}</Text>
-        </View>
-      ) : null}
-
-      <TextInput
-        accessibilityLabel="Message"
-        maxLength={MAX_BODY_LENGTH}
-        multiline
-        onChangeText={setDraft}
-        placeholder="Offer help or ask a question"
-        placeholderTextColor={colors.inputPlaceholder}
-        style={styles.input}
-        value={draft}
-      />
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !canSend }}
-        disabled={!canSend}
-        onPress={handleSend}
-        style={({ pressed }) => [
-          styles.sendButton,
-          !canSend && styles.sendButtonDisabled,
-          pressed && styles.pressed,
-        ]}
-      >
-        <Icon color={colors.onPrimaryText} name="send" size={14} />
-        <Text style={styles.sendButtonLabel}>
-          {send.isPending ? 'Sending…' : 'Send message'}
-        </Text>
-      </Pressable>
-    </View>
-  );
 }
 
 type ConversationListProps = {
@@ -261,6 +180,7 @@ function RequestDetailBody({
   const isOpen = request.status === 'open' && !isExpired;
   const banner = buildStatusBanner(request, isExpired);
   const description = request.description?.trim() || null;
+  const subject = useMemo(() => ({ requestId: request.id }), [request.id]);
 
   return (
     <KeyboardAwareScrollView
@@ -298,7 +218,7 @@ function RequestDetailBody({
         </View>
 
         {description ? (
-          <Text style={styles.description}>{description}</Text>
+          <LinkedText style={styles.description} text={description} />
         ) : null}
 
         <View style={styles.chipRow}>
@@ -359,9 +279,12 @@ function RequestDetailBody({
       ) : isOpen ? (
         <View style={styles.actionCard}>
           <MessageComposer
+            errorTestID="request-send-error"
             onSent={onOpenThread}
+            placeholder="Offer help or ask a question"
             recipientName={request.user.first_name}
-            requestId={request.id}
+            subject={subject}
+            testID="request-composer"
           />
           <Text style={styles.note}>
             {webOnlyNote('Offer one of your items')}
@@ -480,9 +403,6 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     ...typography.itemMeta,
   },
-  composer: {
-    gap: spacing[8],
-  },
   content: {
     paddingBottom: spacing[24],
   },
@@ -517,19 +437,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     ...typography.body,
   },
-  input: {
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    color: colors.text,
-    fontSize: typography.body.fontSize,
-    maxHeight: 160,
-    minHeight: 88,
-    paddingHorizontal: spacing[14],
-    paddingVertical: spacing[10],
-    textAlignVertical: 'top',
-  },
   note: {
     color: colors.secondary,
     ...typography.itemMeta,
@@ -563,40 +470,6 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: colors.secondary,
-    ...typography.label,
-  },
-  sendButton: {
-    alignItems: 'center',
-    backgroundColor: colors.primaryDark,
-    borderRadius: radii.sm,
-    flexDirection: 'row',
-    gap: spacing[8],
-    justifyContent: 'center',
-    paddingHorizontal: spacing[16],
-    paddingVertical: spacing[12],
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-  sendButtonLabel: {
-    color: colors.onPrimaryText,
-    ...typography.buttonLarge,
-  },
-  sendError: {
-    backgroundColor: colors.errorSurface,
-    borderColor: colors.warning,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    gap: spacing[4],
-    paddingHorizontal: spacing[14],
-    paddingVertical: spacing[10],
-  },
-  sendErrorMessage: {
-    color: colors.errorText,
-    ...typography.itemMeta,
-  },
-  sendErrorTitle: {
-    color: colors.errorLabel,
     ...typography.label,
   },
   title: {

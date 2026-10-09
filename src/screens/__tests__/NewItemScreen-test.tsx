@@ -5,7 +5,9 @@ import {
   waitFor,
   within,
 } from '@testing-library/react-native';
+import * as ImagePicker from 'expo-image-picker';
 
+import { UPLOAD_REQUEST_TIMEOUT_MS } from '../../lib/api';
 import { createCreationToken } from '../../lib/creationToken';
 import type { ItemDetail } from '../../lib/items';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
@@ -136,6 +138,12 @@ function leave() {
   return event;
 }
 
+function postInits(apiFetch: ReturnType<typeof mockApiFetch>) {
+  return apiFetch.mock.calls
+    .filter(([path, init]) => path === '/items' && init?.method === 'POST')
+    .map(([, init]) => init as RequestInit & { timeoutMs?: number });
+}
+
 function postBodies(apiFetch: ReturnType<typeof mockApiFetch>) {
   return apiFetch.mock.calls
     .filter(([path, init]) => path === '/items' && init?.method === 'POST')
@@ -167,6 +175,40 @@ describe('new item screen', () => {
         creation_token: jest.mocked(createCreationToken).mock.results[0].value,
       },
     ]);
+    expect(postInits(apiFetch)[0].timeoutMs).toBeUndefined();
+  });
+
+  test('creates with a picked photo as one multipart upload', async () => {
+    jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValueOnce({
+      canceled: false,
+      assets: [{ uri: 'file:///drill.jpg', width: 100, height: 100 }],
+    } as ImagePicker.ImagePickerResult);
+    const apiFetch = renderScreen({ 'POST /items': CREATED_RESPONSE });
+
+    await fillForm();
+    fireEvent.press(screen.getByLabelText('Add photo'));
+    fireEvent.press(screen.getByText('Choose from library'));
+    await waitFor(() =>
+      expect(screen.getByTestId('photo-count')).toHaveTextContent(
+        '1 of 8 photos',
+      ),
+    );
+    fireEvent.press(screen.getByRole('button', { name: 'List item' }));
+
+    await waitFor(() =>
+      expect(mockReplace).toHaveBeenCalledWith(`/item/${NEW_ID}`),
+    );
+    const inits = postInits(apiFetch);
+    expect(inits).toHaveLength(1);
+    expect(inits[0].body).toBeInstanceOf(FormData);
+    expect(inits[0].timeoutMs).toBe(UPLOAD_REQUEST_TIMEOUT_MS);
+    const fields = (getRequestBody(inits[0]) as [string, unknown][]).map(
+      ([name]) => name,
+    );
+    expect(fields).toEqual(
+      expect.arrayContaining(['name', 'creation_token', 'images']),
+    );
+    expect(fields).not.toContain('image_order');
   });
 
   test('reuses the creation token when retrying a failed create', async () => {

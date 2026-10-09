@@ -2,6 +2,12 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
+import { UPLOAD_ERROR_OVERRIDES } from '../lib/errorCopy';
+import {
+  hasPhotoChanges,
+  type PhotoChanges,
+  type PhotoDraft,
+} from '../lib/itemPhotos';
 import type { GiveawayVisibility, ItemWriteInput } from '../lib/items';
 import { buildGeneralMessage, readValidationErrors } from '../lib/validation';
 import { useCategoriesQuery } from '../query/useCategoriesQuery';
@@ -11,6 +17,7 @@ import { colors, radii, spacing, typography } from '../theme';
 import { FieldError } from './FieldError';
 import { Icon } from './Icon';
 import { OptionSheet } from './OptionSheet';
+import { PhotoGrid } from './PhotoGrid';
 import { SegmentedControl } from './SegmentedControl';
 import { TagInput } from './TagInput';
 
@@ -34,7 +41,9 @@ export type ItemFormValues = ItemWriteInput;
 export type ItemFormProps = {
   /** Edit prefills; create omits. */
   initialValues?: Partial<ItemFormValues>;
-  onSubmit: (input: ItemWriteInput) => void;
+  /** Existing photos in position order; read once on mount. */
+  initialPhotos?: PhotoDraft[];
+  onSubmit: (input: ItemWriteInput, photos: PhotoChanges) => void;
   pending: boolean;
   error: unknown;
   /** Called when the user edits after an error. */
@@ -96,6 +105,16 @@ function isSameInput(a: ItemWriteInput, b: ItemWriteInput): boolean {
     a.giveaway_visibility === b.giveaway_visibility &&
     a.tags.length === b.tags.length &&
     a.tags.every((tag, index) => tag === b.tags[index])
+  );
+}
+
+export function hasNewPhotos(changes: PhotoChanges): boolean {
+  return changes.photos.some((photo) => photo.kind === 'new');
+}
+
+function existingIds(photos: PhotoDraft[]): string[] {
+  return photos.flatMap((photo) =>
+    photo.kind === 'existing' ? [photo.id] : [],
   );
 }
 
@@ -189,6 +208,7 @@ function CategoryField({ categoryId, disabled, onChange }: CategoryFieldProps) {
 
 export function ItemForm({
   initialValues,
+  initialPhotos,
   onSubmit,
   pending,
   error,
@@ -199,11 +219,18 @@ export function ItemForm({
 }: ItemFormProps) {
   const [initial] = useState(() => toInput(toFormState(initialValues)));
   const [form, setForm] = useState(() => toFormState(initialValues));
+  const [initialIds] = useState(() => existingIds(initialPhotos ?? []));
+  const [photos, setPhotos] = useState<PhotoDraft[]>(() => initialPhotos ?? []);
+  const [deletedImageIds, setDeletedImageIds] = useState<string[]>([]);
+  // Whether the last submit uploaded photos; picks the pending and error copy.
+  const [submittedNewPhotos, setSubmittedNewPhotos] = useState(false);
   const tags = useTagsQuery();
   const profile = useProfileQuery();
 
   const input = toInput(form);
-  const dirty = !isSameInput(input, initial);
+  const photoChanges: PhotoChanges = { photos, deletedImageIds };
+  const dirty =
+    !isSameInput(input, initial) || hasPhotoChanges(photoChanges, initialIds);
 
   const reportedDirty = useRef(false);
   useEffect(() => {
@@ -220,8 +247,24 @@ export function ItemForm({
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  const changePhotos = (next: PhotoDraft[]) => {
+    if (error) {
+      onClearError?.();
+    }
+    setPhotos(next);
+  };
+
+  const submit = () => {
+    setSubmittedNewPhotos(hasNewPhotos(photoChanges));
+    onSubmit(input, photoChanges);
+  };
+
   const validation = readValidationErrors(error, ITEM_FIELDS);
-  const generalMessage = buildGeneralMessage(error, validation);
+  const generalMessage = buildGeneralMessage(
+    error,
+    validation,
+    submittedNewPhotos ? UPLOAD_ERROR_OVERRIDES : undefined,
+  );
   const submittable = input.name !== '' && input.category_id !== '';
   const submitDisabled = pending || !submittable;
   const showLocationHint =
@@ -236,6 +279,18 @@ export function ItemForm({
       keyboardShouldPersistTaps="handled"
       testID={testID}
     >
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Photos</Text>
+        <PhotoGrid
+          disabled={pending}
+          onChange={changePhotos}
+          onRemoveExisting={(id) =>
+            setDeletedImageIds((current) => [...current, id])
+          }
+          photos={photos}
+        />
+      </View>
+
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Name</Text>
         <TextInput
@@ -348,7 +403,7 @@ export function ItemForm({
           accessibilityRole="button"
           accessibilityState={{ disabled: submitDisabled }}
           disabled={submitDisabled}
-          onPress={() => onSubmit(input)}
+          onPress={submit}
           style={({ pressed }) => [
             styles.submitButton,
             (submitDisabled || pressed) && styles.disabled,
@@ -356,7 +411,11 @@ export function ItemForm({
           testID="item-submit"
         >
           <Text style={styles.submitLabel}>
-            {pending ? 'Saving...' : submitLabel}
+            {pending
+              ? submittedNewPhotos
+                ? 'Uploading photos...'
+                : 'Saving...'
+              : submitLabel}
           </Text>
         </Pressable>
       </View>

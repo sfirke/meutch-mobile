@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { useLocalSearchParams } from 'expo-router';
 
-import type { ApiFetch } from '../../lib/api';
+import { UPLOAD_REQUEST_TIMEOUT_MS, type ApiFetch } from '../../lib/api';
 import type { ItemDetail } from '../../lib/items';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import {
@@ -57,7 +57,20 @@ const item: ItemDetail = {
   },
   category: CATEGORY,
   tags: [{ id: 'd4444444-4444-4444-8444-444444444444', name: 'power' }],
-  images: [],
+  images: [
+    {
+      id: 'e5555555-5555-4555-8555-555555555555',
+      url: 'https://example.com/drill-1.jpg',
+      position: 0,
+      created_at: '2026-05-26T18:30:00+00:00',
+    },
+    {
+      id: 'f6666666-6666-4666-8666-666666666666',
+      url: 'https://example.com/drill-2.jpg',
+      position: 1,
+      created_at: '2026-05-26T18:30:00+00:00',
+    },
+  ],
   claimed_by: null,
   current_loan: null,
   viewer_interest_status: null,
@@ -91,6 +104,14 @@ function renderScreen(
   renderWithProviders(<EditItemScreen />);
 
   return apiFetch;
+}
+
+type PatchInit = RequestInit & { timeoutMs?: number };
+
+function findPatch(apiFetch: jest.Mock): [string, PatchInit] {
+  return apiFetch.mock.calls.find(
+    ([, init]: [string, RequestInit?]) => init?.method === 'PATCH',
+  ) as [string, PatchInit];
 }
 
 async function settle() {
@@ -137,6 +158,9 @@ describe('edit item screen', () => {
       screen.getByRole('button', { name: 'Category: Tools' }),
     ).toBeTruthy();
     expect(screen.getByText('power')).toBeTruthy();
+    expect(screen.getByTestId('photo-count')).toHaveTextContent(
+      '2 of 8 photos',
+    );
   });
 
   test('saves the changes and goes back', async () => {
@@ -149,10 +173,10 @@ describe('edit item screen', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Save changes' }));
 
     await waitFor(() => expect(mockBack).toHaveBeenCalled());
-    const patch = apiFetch.mock.calls.find(
-      ([, init]: [string, RequestInit?]) => init?.method === 'PATCH',
-    ) as [string, RequestInit];
+    const patch = findPatch(apiFetch);
     expect(patch[0]).toBe(`/items/${ITEM_ID}`);
+    expect(typeof patch[1].body).toBe('string');
+    expect(patch[1].timeoutMs).toBeUndefined();
     expect(getRequestBody(patch[1])).toEqual({
       name: 'Hammer drill',
       description: 'Charger included.',
@@ -161,6 +185,31 @@ describe('edit item screen', () => {
       is_giveaway: false,
       giveaway_visibility: null,
     });
+  });
+
+  test('removing a photo sends one multipart PATCH', async () => {
+    const [removed, kept] = item.images;
+    const apiFetch = renderScreen({
+      [`PATCH /items/${ITEM_ID}`]: detailResponse(),
+    }) as jest.Mock;
+    await settle();
+
+    fireEvent.press(screen.getByLabelText('Remove photo 1'));
+    fireEvent.press(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => expect(mockBack).toHaveBeenCalled());
+    const patch = findPatch(apiFetch);
+    expect(patch[0]).toBe(`/items/${ITEM_ID}`);
+    expect(patch[1].body).toBeInstanceOf(FormData);
+    expect(patch[1].timeoutMs).toBe(UPLOAD_REQUEST_TIMEOUT_MS);
+    const entries = getRequestBody(patch[1]) as [string, unknown][];
+    expect(entries.filter(([name]) => name === 'delete_image_ids')).toEqual([
+      ['delete_image_ids', removed.id],
+    ]);
+    expect(entries.filter(([name]) => name === 'image_order')).toEqual([
+      ['image_order', kept.id],
+    ]);
+    expect(entries.some(([name]) => name === 'images')).toBe(false);
   });
 
   test('shows the backend message for a conflict', async () => {

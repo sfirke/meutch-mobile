@@ -1,8 +1,16 @@
-import { fireEvent, screen, within } from '@testing-library/react-native';
+import {
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { Pressable, Text } from 'react-native';
 
-import { ApiError } from '../../lib/api';
+import { ApiError, RequestTimeoutError } from '../../lib/api';
+import { UPLOAD_ERROR_OVERRIDES } from '../../lib/errorCopy';
+import type { PhotoChanges, PhotoDraft } from '../../lib/itemPhotos';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import {
   defaultProfileFixture,
@@ -28,6 +36,18 @@ const CATEGORIES = {
     { id: 'cat-books', name: 'Books' },
   ],
 };
+
+const NO_PHOTO_CHANGES = { photos: [], deletedImageIds: [] };
+
+const launchLibrary = ImagePicker.launchImageLibraryAsync as jest.Mock;
+
+const existing = (id: string): PhotoDraft => ({
+  kind: 'existing',
+  id,
+  url: `https://example.com/${id}.jpg`,
+});
+
+const READY = { name: 'Drill', category_id: 'cat-tools' };
 
 const TAGS = { tags: [{ id: 'tag-drill', name: 'drill' }] };
 
@@ -74,6 +94,70 @@ function ErrorHarness(props: Omit<ItemFormProps, 'error'>) {
       <ItemForm {...props} error={error} />
     </>
   );
+}
+
+// Goes pending on submit; "Time out" then fails the save like the mutation would.
+function SubmitHarness(props: Omit<ItemFormProps, 'error' | 'pending'>) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => {
+          setPending(false);
+          setError(new RequestTimeoutError());
+        }}
+      >
+        <Text>Time out</Text>
+      </Pressable>
+      <ItemForm
+        {...props}
+        error={error}
+        onSubmit={(input, photos) => {
+          props.onSubmit(input, photos);
+          setPending(true);
+        }}
+        pending={pending}
+      />
+    </>
+  );
+}
+
+function renderSubmitHarness() {
+  mockSession({
+    authenticatedApiFetch: mockApiFetch({
+      '/categories': CATEGORIES,
+      '/tags': TAGS,
+      '/me/profile': { user: defaultProfileFixture },
+    }),
+  });
+  renderWithProviders(
+    <SubmitHarness
+      initialValues={READY}
+      onSubmit={jest.fn()}
+      submitLabel="List item"
+    />,
+  );
+}
+
+async function addPhotoFromLibrary(uri: string, expectedCount: number) {
+  launchLibrary.mockResolvedValueOnce({
+    canceled: false,
+    assets: [{ uri, width: 100, height: 100 }],
+  });
+  fireEvent.press(screen.getByLabelText('Add photo'));
+  fireEvent.press(screen.getByText('Choose from library'));
+  await waitFor(() =>
+    expect(screen.getByTestId('photo-count')).toHaveTextContent(
+      `${expectedCount} of 8 photos`,
+    ),
+  );
+}
+
+function submittedPhotos(onSubmit: ItemFormProps['onSubmit']): PhotoChanges {
+  return jest.mocked(onSubmit).mock.lastCall?.[1] as PhotoChanges;
 }
 
 function submitButton(label = 'List item') {
@@ -136,14 +220,17 @@ describe('ItemForm', () => {
     ).toBeSelected();
 
     fireEvent.press(submitButton('Save changes'));
-    expect(props.onSubmit).toHaveBeenCalledWith({
-      name: 'Ladder',
-      description: 'Six feet',
-      category_id: 'cat-tools',
-      tags: ['outdoor'],
-      is_giveaway: true,
-      giveaway_visibility: 'public',
-    });
+    expect(props.onSubmit).toHaveBeenCalledWith(
+      {
+        name: 'Ladder',
+        description: 'Six feet',
+        category_id: 'cat-tools',
+        tags: ['outdoor'],
+        is_giveaway: true,
+        giveaway_visibility: 'public',
+      },
+      NO_PHOTO_CHANGES,
+    );
   });
 
   test('enables submit only once a name and category are set', async () => {
@@ -166,14 +253,17 @@ describe('ItemForm', () => {
     expect(submitButton()).toBeEnabled();
 
     fireEvent.press(submitButton());
-    expect(props.onSubmit).toHaveBeenCalledWith({
-      name: 'Drill',
-      description: null,
-      category_id: 'cat-books',
-      tags: [],
-      is_giveaway: false,
-      giveaway_visibility: null,
-    });
+    expect(props.onSubmit).toHaveBeenCalledWith(
+      {
+        name: 'Drill',
+        description: null,
+        category_id: 'cat-books',
+        tags: [],
+        is_giveaway: false,
+        giveaway_visibility: null,
+      },
+      NO_PHOTO_CHANGES,
+    );
   });
 
   test('shows a loading row while categories load', async () => {
@@ -228,6 +318,7 @@ describe('ItemForm', () => {
     fireEvent.press(submitButton());
     expect(props.onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ description: 'Cordless' }),
+      expect.anything(),
     );
   });
 
@@ -244,6 +335,7 @@ describe('ItemForm', () => {
     fireEvent.press(submitButton());
     expect(props.onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ tags: ['drill', 'power'] }),
+      expect.anything(),
     );
   });
 
@@ -267,6 +359,7 @@ describe('ItemForm', () => {
         is_giveaway: true,
         giveaway_visibility: 'default',
       }),
+      expect.anything(),
     );
 
     selectTab('Who can see it', 'Public');
@@ -279,6 +372,7 @@ describe('ItemForm', () => {
         is_giveaway: false,
         giveaway_visibility: null,
       }),
+      expect.anything(),
     );
   });
 
@@ -430,5 +524,114 @@ describe('ItemForm', () => {
     expect(
       apiFetch.mock.calls.filter(([path]) => path === '/categories'),
     ).toHaveLength(2);
+  });
+  test('renders the photo grid with the initial photos', async () => {
+    renderForm({ initialPhotos: [existing('img-a'), existing('img-b')] });
+
+    expect(screen.getByText('Photos')).toBeTruthy();
+    expect(screen.getByTestId('photo-grid')).toBeTruthy();
+    expect(screen.getByLabelText('Photo 1 of 2')).toBeTruthy();
+    expect(screen.getByTestId('photo-count')).toHaveTextContent(
+      '2 of 8 photos',
+    );
+
+    await settle();
+  });
+
+  test('adding a photo makes the form dirty and submits a new draft', async () => {
+    const onDirtyChange = jest.fn();
+    const { props } = renderForm({ initialValues: READY, onDirtyChange });
+    await settle();
+
+    await addPhotoFromLibrary('file:///drill.jpg', 1);
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+    fireEvent.press(submitButton());
+    const changes = submittedPhotos(props.onSubmit);
+    expect(changes.deletedImageIds).toEqual([]);
+    expect(changes.photos).toEqual([
+      expect.objectContaining({ kind: 'new', uri: 'file:///drill.jpg' }),
+    ]);
+  });
+
+  test('removing an existing photo submits its id and the rest', async () => {
+    const onDirtyChange = jest.fn();
+    const { props } = renderForm({
+      initialValues: READY,
+      initialPhotos: [existing('img-a'), existing('img-b')],
+      onDirtyChange,
+    });
+    await settle();
+    expect(onDirtyChange).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByLabelText('Remove photo 1'));
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+    fireEvent.press(submitButton());
+    expect(submittedPhotos(props.onSubmit)).toEqual({
+      photos: [existing('img-b')],
+      deletedImageIds: ['img-a'],
+    });
+  });
+
+  test('Move later on the first photo submits the swapped order', async () => {
+    const { props } = renderForm({
+      initialValues: READY,
+      initialPhotos: [existing('img-a'), existing('img-b')],
+    });
+    await settle();
+
+    fireEvent(screen.getByTestId('photo-0'), 'accessibilityAction', {
+      nativeEvent: { actionName: 'moveLater' },
+    });
+
+    fireEvent.press(submitButton());
+    expect(submittedPhotos(props.onSubmit)).toEqual({
+      photos: [existing('img-b'), existing('img-a')],
+      deletedImageIds: [],
+    });
+  });
+
+  test('hides the add tile at the 8-photo cap', async () => {
+    renderForm({
+      initialPhotos: Array.from({ length: 8 }, (_, i) => existing(`img-${i}`)),
+    });
+
+    expect(screen.queryByLabelText('Add photo')).toBeNull();
+    expect(screen.getByTestId('photo-count')).toHaveTextContent(
+      '8 of 8 photos',
+    );
+
+    await settle();
+  });
+
+  test('pending with new photos shows Uploading photos... and upload error copy', async () => {
+    renderSubmitHarness();
+    await settle();
+    await addPhotoFromLibrary('file:///drill.jpg', 1);
+
+    fireEvent.press(submitButton());
+    expect(
+      screen.getByRole('button', { name: 'Uploading photos...' }),
+    ).toBeDisabled();
+    expect(screen.getByLabelText('Add photo')).toBeDisabled();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Time out' }));
+    expect(screen.getByTestId('item-form-error')).toHaveTextContent(
+      UPLOAD_ERROR_OVERRIDES.TIMEOUT?.message ?? '',
+    );
+  });
+
+  test('pending without new photos shows Saving... and the usual error copy', async () => {
+    renderSubmitHarness();
+    await settle();
+
+    fireEvent.press(submitButton());
+    expect(screen.getByRole('button', { name: 'Saving...' })).toBeDisabled();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Time out' }));
+    expect(screen.getByTestId('item-form-error')).not.toHaveTextContent(
+      UPLOAD_ERROR_OVERRIDES.TIMEOUT?.message ?? '',
+    );
   });
 });

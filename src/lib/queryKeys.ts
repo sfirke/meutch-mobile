@@ -85,7 +85,7 @@ export const feedKeys = {
             ? DEFAULT_FEED_DISTANCE
             : filters.distance,
         showOwnActivity: filters.showOwnActivity ?? true,
-        showClaimedGiveaways: filters.showClaimedGiveaways ?? false,
+        showClaimedGiveaways: filters.showClaimedGiveaways ?? true,
       },
     ] as const,
 };

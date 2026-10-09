@@ -19,7 +19,7 @@ describe('query keys', () => {
         types: null,
         distance: 20,
         showOwnActivity: true,
-        showClaimedGiveaways: false,
+        showClaimedGiveaways: true,
       },
     ]);
     expect(feedKeys.list({ types: ['giveaways'] })).toEqual([
@@ -30,7 +30,7 @@ describe('query keys', () => {
         types: ['giveaways'],
         distance: 20,
         showOwnActivity: true,
-        showClaimedGiveaways: false,
+        showClaimedGiveaways: true,
       },
     ]);
   });
@@ -41,7 +41,7 @@ describe('query keys', () => {
         scope: 'all',
         distance: 20,
         showOwnActivity: true,
-        showClaimedGiveaways: false,
+        showClaimedGiveaways: true,
       }),
     ).toEqual(feedKeys.list());
     expect(feedKeys.list({ scope: 'circles' })).not.toEqual(feedKeys.list());
@@ -49,7 +49,7 @@ describe('query keys', () => {
     expect(feedKeys.list({ showOwnActivity: false })).not.toEqual(
       feedKeys.list(),
     );
-    expect(feedKeys.list({ showClaimedGiveaways: true })).not.toEqual(
+    expect(feedKeys.list({ showClaimedGiveaways: false })).not.toEqual(
       feedKeys.list(),
     );
   });

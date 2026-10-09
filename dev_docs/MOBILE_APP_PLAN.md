@@ -137,8 +137,9 @@ Verification: `npm run verify` (105 suites, 1065 tests). Browse was run on Expo 
 
 Branch `pr8b-feed-filters`, [PR #18](https://github.com/sfirke/meutch-mobile/pull/18), stacked on 8a.
 
-- feed: all activity or my circles, distance, event types, show my own activity, show given-away giveaways (`FeedQuerySchema`); Apply is disabled with no type ticked
+- feed: all activity or my circles, distance, event types, show my own activity, show given-away giveaways (`FeedQuerySchema`); Apply is disabled with no type ticked; both switches start on, matching the backend defaults, so only `false` is ever sent for either
 - distance: leaving it out means 20 miles for a member with a location, so 20 is unsent, "No distance limit" sends `distance=none`, and other choices send the number; every type ticked also counts as the default and sends no `types`
+- without a location the distance rows are disabled and "No distance limit" shows ticked, since the server applies no distance for that member; the draft keeps the unsent default
 - the Filters toolbar sits outside the list's loading, empty, and error states so it stays reachable; the feed query now keeps the previous list on screen while a new filter set loads, with an "Updating..." row
 - not included: a circle picker on the feed
 

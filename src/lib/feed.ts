@@ -92,7 +92,7 @@ export type FetchFeedOptions = {
   distance?: FeedDistance | null;
   /** Only `false` is sent; `true` is the backend default. */
   showOwnActivity?: boolean;
-  /** Only `true` is sent; `false` is the backend default. */
+  /** Only `false` is sent; `true` is the backend default. */
   showClaimedGiveaways?: boolean;
   signal?: AbortSignal;
 };
@@ -245,8 +245,8 @@ export async function fetchFeed(
     params.push(['show_own_activity', 'false']);
   }
 
-  if (options.showClaimedGiveaways === true) {
-    params.push(['show_claimed_giveaways', 'true']);
+  if (options.showClaimedGiveaways === false) {
+    params.push(['show_claimed_giveaways', 'false']);
   }
 
   const response = await fetchImpl(`/feed${buildQueryString(params)}`, {

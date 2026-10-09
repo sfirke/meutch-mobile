@@ -278,9 +278,9 @@ describe('fetchFeed', () => {
       );
     });
 
-    test('sends show_claimed_giveaways=true', async () => {
-      expect(await requestPath({ page: 1, showClaimedGiveaways: true })).toBe(
-        '/feed?page=1&show_claimed_giveaways=true',
+    test('sends show_claimed_giveaways=false', async () => {
+      expect(await requestPath({ page: 1, showClaimedGiveaways: false })).toBe(
+        '/feed?page=1&show_claimed_giveaways=false',
       );
     });
 
@@ -306,10 +306,10 @@ describe('fetchFeed', () => {
           scope: 'circles',
           distance: null,
           showOwnActivity: false,
-          showClaimedGiveaways: true,
+          showClaimedGiveaways: false,
         }),
       ).toBe(
-        '/feed?page=2&per_page=10&types=loans&types=requests&scope=circles&distance=none&show_own_activity=false&show_claimed_giveaways=true',
+        '/feed?page=2&per_page=10&types=loans&types=requests&scope=circles&distance=none&show_own_activity=false&show_claimed_giveaways=false',
       );
     });
 
@@ -321,7 +321,7 @@ describe('fetchFeed', () => {
           scope: 'all',
           distance: 20,
           showOwnActivity: true,
-          showClaimedGiveaways: false,
+          showClaimedGiveaways: true,
           types: ['requests', 'giveaways', 'loans', 'circle_joins'],
         }),
       ).toBe('/feed?page=1');

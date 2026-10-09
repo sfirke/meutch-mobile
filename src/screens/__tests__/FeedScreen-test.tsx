@@ -524,13 +524,13 @@ describe('FeedScreen', () => {
       fireEvent(
         screen.getByLabelText('Show given-away giveaways'),
         'valueChange',
-        true,
+        false,
       );
       applyFilters();
 
       expect(await screen.findByText(headlineFor(circlesEvent))).toBeTruthy();
       expect(feedPaths(authenticatedApiFetch).at(-1)).toBe(
-        '/feed?page=1&show_own_activity=false&show_claimed_giveaways=true',
+        '/feed?page=1&show_own_activity=false&show_claimed_giveaways=false',
       );
       expect(screen.getByText('Filters (2)')).toBeTruthy();
     });

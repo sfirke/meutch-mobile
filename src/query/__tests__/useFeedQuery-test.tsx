@@ -78,10 +78,10 @@ test('passes filters through and caches under feedKeys.list', async () => {
     types: ['loans' as const],
     distance: null,
     showOwnActivity: false,
-    showClaimedGiveaways: true,
+    showClaimedGiveaways: false,
   };
   const path =
-    '/feed?page=1&types=loans&scope=circles&distance=none&show_own_activity=false&show_claimed_giveaways=true';
+    '/feed?page=1&types=loans&scope=circles&distance=none&show_own_activity=false&show_claimed_giveaways=false';
   const fetchImpl = mockApiFetch({
     [`GET ${path}`]: { events: [EVENT_A], pagination: pagination(1, false) },
   });

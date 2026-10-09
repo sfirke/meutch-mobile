@@ -32,7 +32,8 @@ export const DEFAULT_FEED_FILTERS: FeedFilters = {
   types: [...FEED_TYPE_FILTERS],
   distance: DEFAULT_FEED_DISTANCE,
   showOwnActivity: true,
-  showClaimedGiveaways: false,
+  // The backend shows given-away giveaways unless told otherwise.
+  showClaimedGiveaways: true,
 };
 
 /** How many filters differ from their defaults, for the toolbar count. */
@@ -42,7 +43,7 @@ export function countActiveFeedFilters(filters: FeedFilters): number {
     (!isEveryFeedType(filters.types) ? 1 : 0) +
     (filters.distance !== DEFAULT_FEED_DISTANCE ? 1 : 0) +
     (filters.showOwnActivity === false ? 1 : 0) +
-    (filters.showClaimedGiveaways === true ? 1 : 0)
+    (filters.showClaimedGiveaways === false ? 1 : 0)
   );
 }
 
@@ -147,7 +148,9 @@ export function FeedFilterSheet({
             }
           }}
           options={distanceOptions(hasLocation, distanceHint)}
-          value={[toDistanceOption(draft.distance)]}
+          // Without a location the server applies no distance, whatever the
+          // draft holds, so the honest row to show ticked is "No distance limit".
+          value={[hasLocation ? toDistanceOption(draft.distance) : 'none']}
         />
       </View>
       <View style={styles.section}>

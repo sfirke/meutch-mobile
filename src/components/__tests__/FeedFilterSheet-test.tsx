@@ -87,7 +87,7 @@ describe('countActiveFeedFilters', () => {
         types: ['loans'],
         distance: null,
         showOwnActivity: false,
-        showClaimedGiveaways: true,
+        showClaimedGiveaways: false,
       }),
     ).toBe(5);
   });
@@ -109,8 +109,9 @@ describe('<FeedFilterSheet />', () => {
       screen.getByRole('tab', { name: 'All activity' }).props.accessibilityState
         .selected,
     ).toBe(true);
-    expect(checked('select-20')).toBe(true);
-    expect(checked('select-none')).toBe(false);
+    // No location: the server applies no distance, so no limit shows ticked.
+    expect(checked('select-none')).toBe(true);
+    expect(checked('select-20')).toBe(false);
 
     for (const type of TYPE_IDS) {
       expect(checked(`select-${type}`)).toBe(true);
@@ -120,7 +121,7 @@ describe('<FeedFilterSheet />', () => {
       true,
     );
     expect(screen.getByLabelText('Show given-away giveaways').props.value).toBe(
-      false,
+      true,
     );
   });
 
@@ -226,7 +227,7 @@ describe('<FeedFilterSheet />', () => {
     fireEvent(
       screen.getByLabelText('Show given-away giveaways'),
       'valueChange',
-      true,
+      false,
     );
 
     expect(onApply).not.toHaveBeenCalled();
@@ -237,7 +238,7 @@ describe('<FeedFilterSheet />', () => {
     expect(onApply).toHaveBeenCalledWith({
       ...DEFAULT_FEED_FILTERS,
       showOwnActivity: false,
-      showClaimedGiveaways: true,
+      showClaimedGiveaways: false,
     });
   });
 

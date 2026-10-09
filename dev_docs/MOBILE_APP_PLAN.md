@@ -146,13 +146,8 @@ Verification: `npm run verify` (107 suites, 1102 tests). The feed was run on Exp
 
 #### PR 8c: Circle Discovery Radius
 
-Branch `pr8c-circle-radius`, [PR #19](https://github.com/sfirke/meutch-mobile/pull/19), stacked on 8a.
-
-- circle discovery: radius on the Discover tab only (Any distance, 5, 10, 25, 50, 100 miles, as on the web), starting on any distance (`CircleListQuerySchema`); any distance is unsent since `radius=none` is rejected, and the radius is never sent for `membership=mine`
-- empty state "No circles within N miles" with "Search any distance"; a note that a radius hides circles with no location, shown only while a radius is set
-- the picker is a plain `OptionSheet`, not a draft sheet, since there is one choice to make
-
-Verification: `npm run verify` (105 suites, 1078 tests). Circles was run on Expo web with stubbed API data and screenshotted on Discover, with the picker open, after choosing 10 miles, and with the options disabled for a member without a location. Not yet checked against staging: the real `/circles?membership=discoverable&radius=N` path.
+- circle discovery: radius on the Discover tab only, starting on any distance (`CircleListQuerySchema`); any distance is unsent since `radius=none` is rejected
+- empty state "No circles within N miles" with "Search any distance"; a note that a radius hides circles with no location
 
 Backend follow-up, not part of these PRs: `/items?sort=distance` for a member with no location returns rows in no defined order instead of falling back to date.
 

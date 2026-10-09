@@ -42,7 +42,7 @@ export function SelectList<T extends string>({
   }
 
   return (
-    <View accessibilityLabel={accessibilityLabel}>
+    <View accessibilityLabel={accessibilityLabel} accessibilityRole="list">
       {options.map((option) => {
         const checked = value.includes(option.value);
         const disabled = option.disabled === true;

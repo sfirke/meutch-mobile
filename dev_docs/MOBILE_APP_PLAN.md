@@ -149,7 +149,7 @@ Branch `pr8c-circle-radius`, [PR #19](https://github.com/sfirke/meutch-mobile/pu
 
 Verification: `npm run verify` (105 suites, 1078 tests). Circles was run on Expo web with stubbed API data and screenshotted on Discover, with the picker open, after choosing 10 miles, and with the options disabled for a member without a location. Not yet checked against staging: the real `/circles?membership=discoverable&radius=N` path.
 
-Backend follow-ups, not part of these PRs: `/items` honours a `circles` id the caller is not a member of (the feed intersects with the caller's circles; items does not), and `/items?sort=distance` for a member with no location returns rows in no defined order instead of falling back to date.
+Backend follow-up, not part of these PRs: `/items?sort=distance` for a member with no location returns rows in no defined order instead of falling back to date.
 
 ### PR 9: Starting Conversations And Inbox Management
 

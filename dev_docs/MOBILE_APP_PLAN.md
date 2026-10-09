@@ -123,10 +123,15 @@ All supported by the API today; the app currently sends only a search term. Spli
 
 #### PR 8a: Browse Filters And Sort
 
+Branch `pr8a-browse-filters`.
+
 - browse: item type (all, loans, giveaways), categories, the member's circles, sort by newest or closest (`ItemListQuerySchema`); "Closest first" is disabled without a location
 - shared pieces reused by 8b and 8c: `FilterSheet` (title, scrolling body, Reset and Apply), `SelectList` (single or multi-select rows), `FilterToolbar` (Filters button with an active count, optional Sort button), `disabled` and `hint` options on `OptionSheet`, a `filter` icon
-- data: `GET /categories`, all of the member's circles via `membership=mine` pages, `categories`, `circles`, `item_type`, and `sort` on `GET /items`
-- a filtered empty state with "Clear filters", shown after the existing no-circles check
+- data: `GET /categories`, all of the member's circles via `membership=mine` pages (50 a page, bounded by the reported page count), `categories`, `circles`, `item_type`, and `sort` on `GET /items`; the category and circle lists are requested only while the sheet is open and stay fresh for five minutes
+- a filtered empty state with "Clear filters", shown after the existing no-circles check and before the search empty state; the "Searching..." row now reads "Updating..." since it also shows on filter and sort changes
+- the sort picker reads the profile's `has_location`, so Browse now also requests `GET /me/profile` on mount
+
+Verification: `npm run verify` (105 suites, 1065 tests). Browse was run on Expo web with stubbed API data and screenshotted with the sheet open and the sort picker open, with and without a location. Not yet checked against staging: the real `/items` paths with filters applied, and `sort=distance` for a member with a location.
 
 #### PR 8b: Feed Filters
 

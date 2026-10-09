@@ -1,9 +1,9 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import type { ApiFetch } from '../lib/api';
 import { fetchFeed, type FeedEvent, type FeedPage } from '../lib/feed';
-import { feedKeys } from '../lib/queryKeys';
+import { feedKeys, type FeedListFilters } from '../lib/queryKeys';
 
 /**
  * Stable identity for a feed event, which the backend does not give an id.
@@ -26,14 +26,27 @@ export function getFeedEventKey(event: FeedEvent): string {
  * over live data, so the same event can arrive on two pages as newer
  * activity shifts later ones — `events` is the flattened, de-duplicated list.
  */
-export function useFeedQuery(fetchImpl: ApiFetch) {
+export function useFeedQuery(
+  fetchImpl: ApiFetch,
+  filters: FeedListFilters = {},
+) {
   const query = useInfiniteQuery<FeedPage>({
-    queryKey: feedKeys.list(),
+    queryKey: feedKeys.list(filters),
     queryFn: ({ pageParam, signal }) =>
-      fetchFeed(fetchImpl, { page: pageParam as number, signal }),
+      fetchFeed(fetchImpl, {
+        page: pageParam as number,
+        types: filters.types,
+        scope: filters.scope,
+        distance: filters.distance,
+        showOwnActivity: filters.showOwnActivity,
+        showClaimedGiveaways: filters.showClaimedGiveaways,
+        signal,
+      }),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.pagination.has_next ? lastPage.pagination.page + 1 : undefined,
+    // Keeps the previous feed on screen while the next one loads.
+    placeholderData: keepPreviousData,
   });
 
   const events = useMemo(() => {

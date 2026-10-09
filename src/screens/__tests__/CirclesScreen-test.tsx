@@ -620,7 +620,8 @@ describe('<CirclesScreen />', () => {
     await chooseRadius('25');
     expect(await screen.findByText('Riverside Makers')).toBeTruthy();
 
-    // The first scroll after the data swap may not reach onEndReached; retry.
+    // Under jest the list has no layout pass, so its render window has not
+    // grown to the new rows after the data swap; a second scroll extends it.
     await waitFor(() => {
       scrollToEnd();
       expect(requestedPaths()).toContain(

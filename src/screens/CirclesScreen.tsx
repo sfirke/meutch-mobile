@@ -90,6 +90,11 @@ export function CirclesScreen({
   // Unknown or failed counts as no location, so distances stay disabled.
   const profile = useProfileQuery();
   const hasLocation = profile.data?.has_location === true;
+  // The hint waits for the profile, so a member with a location never sees it.
+  const noLocationHint =
+    profile.data?.has_location === false
+      ? 'Set a location on the website to filter by distance.'
+      : undefined;
 
   const {
     circles,
@@ -114,13 +119,11 @@ export function CirclesScreen({
           ? {
               value,
               label: RADIUS_LABELS[value],
-              hint: hasLocation
-                ? undefined
-                : 'Set a location on the website to filter by distance.',
+              hint: noLocationHint,
             }
           : { value, label: RADIUS_LABELS[value], disabled: !hasLocation },
       ),
-    [hasLocation],
+    [hasLocation, noLocationHint],
   );
 
   const handleClearSearch = useCallback(() => {
@@ -299,9 +302,9 @@ export function CirclesScreen({
       ) : null}
 
       {isPlaceholderData && circles.length > 0 ? (
-        <View accessibilityLabel="Searching" style={styles.searchingRow}>
+        <View accessibilityLabel="Updating" style={styles.updatingRow}>
           <ActivityIndicator color={colors.primaryDark} size="small" />
-          <Text style={styles.searchingLabel}>Searching...</Text>
+          <Text style={styles.updatingLabel}>Updating...</Text>
         </View>
       ) : null}
 
@@ -387,11 +390,11 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     ...typography.itemMeta,
   },
-  searchingLabel: {
+  updatingLabel: {
     color: colors.secondary,
     ...typography.itemMeta,
   },
-  searchingRow: {
+  updatingRow: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing[8],

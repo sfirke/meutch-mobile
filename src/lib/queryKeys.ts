@@ -106,3 +106,9 @@ export const userKeys = {
   all: ['users'] as const,
   detail: (id: string) => [...userKeys.all, 'detail', id] as const,
 };
+
+export const referenceKeys = {
+  all: ['reference'] as const,
+  categories: () => [...referenceKeys.all, 'categories'] as const,
+  tags: () => [...referenceKeys.all, 'tags'] as const,
+};

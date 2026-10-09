@@ -1,4 +1,12 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { colors, radii, spacing, typography } from '../theme';
 import { Icon } from './Icon';
@@ -26,6 +34,8 @@ export function OptionSheet<T extends string>({
   onSelect,
   onClose,
 }: OptionSheetProps<T>) {
+  const { height } = useWindowDimensions();
+
   return (
     <Modal
       animationType="fade"
@@ -44,30 +54,38 @@ export function OptionSheet<T extends string>({
           <Text accessibilityRole="header" style={styles.title}>
             {title}
           </Text>
-          {options.map((option) => {
-            const selected = option.value === value;
+          <ScrollView
+            bounces={false}
+            keyboardShouldPersistTaps="handled"
+            style={{ maxHeight: height * 0.6 }}
+          >
+            {options.map((option) => {
+              const selected = option.value === value;
 
-            return (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                key={option.value}
-                onPress={() => {
-                  onSelect(option.value);
-                  onClose();
-                }}
-                style={styles.row}
-                testID={`option-${option.value}`}
-              >
-                <Text style={[styles.label, selected && styles.labelSelected]}>
-                  {option.label}
-                </Text>
-                {selected ? (
-                  <Icon color={colors.primaryDark} name="check" size={16} />
-                ) : null}
-              </Pressable>
-            );
-          })}
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  key={option.value}
+                  onPress={() => {
+                    onSelect(option.value);
+                    onClose();
+                  }}
+                  style={styles.row}
+                  testID={`option-${option.value}`}
+                >
+                  <Text
+                    style={[styles.label, selected && styles.labelSelected]}
+                  >
+                    {option.label}
+                  </Text>
+                  {selected ? (
+                    <Icon color={colors.primaryDark} name="check" size={16} />
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
       </View>
     </Modal>

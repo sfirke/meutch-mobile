@@ -1,4 +1,5 @@
 import {
+  categoryKeys,
   circleKeys,
   feedKeys,
   itemKeys,
@@ -19,10 +20,43 @@ describe('query keys', () => {
   });
 
   test('item list keys normalize the search query', () => {
-    expect(itemKeys.list()).toEqual(['items', 'list', { q: null }]);
+    expect(itemKeys.list()).toEqual([
+      'items',
+      'list',
+      {
+        q: null,
+        categories: null,
+        circles: null,
+        itemType: 'both',
+        sort: 'date',
+      },
+    ]);
     expect(itemKeys.list({ q: '   ' })).toEqual(itemKeys.list());
     expect(itemKeys.list({ q: ' drill ' })).toEqual(
       itemKeys.list({ q: 'drill' }),
+    );
+  });
+
+  test('item list keys treat omitted filters as the backend defaults', () => {
+    expect(itemKeys.list({ itemType: 'both', sort: 'date' })).toEqual(
+      itemKeys.list(),
+    );
+    expect(itemKeys.list({ categories: [], circles: [] })).toEqual(
+      itemKeys.list(),
+    );
+    expect(itemKeys.list({ itemType: 'loans' })).not.toEqual(itemKeys.list());
+    expect(itemKeys.list({ sort: 'distance' })).not.toEqual(itemKeys.list());
+  });
+
+  test('item list keys sort and dedupe id lists', () => {
+    expect(itemKeys.list({ categories: ['b', 'a', 'b'] })).toEqual(
+      itemKeys.list({ categories: ['a', 'b'] }),
+    );
+    expect(itemKeys.list({ circles: ['z', 'y'] })).toEqual(
+      itemKeys.list({ circles: ['y', 'z'] }),
+    );
+    expect(itemKeys.list({ categories: ['a'] })).not.toEqual(
+      itemKeys.list({ circles: ['a'] }),
     );
   });
 
@@ -76,6 +110,11 @@ describe('query keys', () => {
 
   test('circle keys nest under a shared prefix', () => {
     expect(circleKeys.hasAny()).toEqual(['circles', 'has-any']);
+    expect(circleKeys.mineAll()).toEqual(['circles', 'mine-all']);
+  });
+
+  test('category keys nest under a shared prefix', () => {
+    expect(categoryKeys.list()).toEqual(['categories', 'list']);
   });
 
   test('circle list keys normalize the search query', () => {
@@ -181,9 +220,14 @@ describe('query keys', () => {
         all: circleKeys.all,
         keys: [
           [...circleKeys.hasAny()],
+          [...circleKeys.mineAll()],
           [...circleKeys.list({ membership: 'mine' })],
           [...circleKeys.detail('x')],
         ],
+      },
+      {
+        all: categoryKeys.all,
+        keys: [[...categoryKeys.list()]],
       },
       {
         all: messageKeys.all,

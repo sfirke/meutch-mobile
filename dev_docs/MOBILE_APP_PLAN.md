@@ -56,7 +56,7 @@ Backend additions the mobile roadmap still needs, each noted on the PR that depe
 
 ## PR Sequence
 
-Status: PRs 1 through 5.6 and PR 7 are merged. Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
+Status: PRs 1 through 5.6, 7, 9, and 10 are merged. Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
 
 ### PR 1: Repo Foundation (merged)
 
@@ -113,11 +113,38 @@ Requests reach members through the home feed, as on the web, so there is no sepa
 
 ### PR 8: Filters And Sorting
 
-All supported by the API today; the app currently sends only a search term.
+All supported by the API today; the app currently sends only a search term. Split into three mobile PRs. Decisions shared by all three:
 
-- browse: item type, categories, circles, sort by date or distance (`ItemListQuerySchema`)
-- feed: all or my circles, event types, distance, show my own activity, show claimed giveaways (`FeedQuerySchema`)
-- circle discovery: radius (`CircleListQuerySchema`)
+- a filter sheet holds a draft and sends nothing until Apply is tapped, so one request per visit (the API allows 60 reads a minute)
+- filter choices live in screen state and are not remembered across launches
+- default values are never sent; list params go as repeated keys; query keys normalise so an omitted filter shares its cache entry with the explicit default
+- distance options are disabled, with a hint to set a location on the website, when the profile has no location (location editing arrives in PR 11)
+- no new dependencies
+
+#### PR 8a: Browse Filters And Sort
+
+Branch `pr8a-browse-filters`, [PR #17](https://github.com/sfirke/meutch-mobile/pull/17).
+
+- browse: item type (all, loans, giveaways), categories, the member's circles, sort by newest or closest (`ItemListQuerySchema`); "Closest first" is disabled without a location
+- shared pieces reused by 8b and 8c: `FilterSheet` (title, scrolling body, Reset and Apply), `SelectList` (single or multi-select rows), `FilterToolbar` (Filters button with an active count, optional Sort button), `disabled` and `hint` options on `OptionSheet`, a `filter` icon
+- data: `GET /categories`, all of the member's circles via `membership=mine` pages (50 a page, bounded by the reported page count), `categories`, `circles`, `item_type`, and `sort` on `GET /items`; the category and circle lists are requested only while the sheet is open and stay fresh for five minutes
+- a filtered empty state with "Clear filters", shown after the existing no-circles check and before the search empty state; the "Searching..." row now reads "Updating..." since it also shows on filter and sort changes
+- the sort picker reads the profile's `has_location`, so Browse now also requests `GET /me/profile` on mount
+
+Verification: `npm run verify` (105 suites, 1065 tests). Browse was run on Expo web with stubbed API data and screenshotted with the sheet open and the sort picker open, with and without a location. Not yet checked against staging: the real `/items` paths with filters applied, and `sort=distance` for a member with a location.
+
+#### PR 8b: Feed Filters
+
+- feed: all activity or my circles, distance, event types, show my own activity, show given-away giveaways (`FeedQuerySchema`)
+- distance: leaving it out means 20 miles for a member with a location, so 20 is unsent, "No distance limit" sends `distance=none`, and other choices send the number
+- not included: a circle picker on the feed
+
+#### PR 8c: Circle Discovery Radius
+
+- circle discovery: radius on the Discover tab only, starting on any distance (`CircleListQuerySchema`); any distance is unsent since `radius=none` is rejected
+- empty state "No circles within N miles" with "Search any distance"; a note that a radius hides circles with no location
+
+Backend follow-up, not part of these PRs: `/items?sort=distance` for a member with no location returns rows in no defined order instead of falling back to date.
 
 ### PR 9: Starting Conversations And Inbox Management
 

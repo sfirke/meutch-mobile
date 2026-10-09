@@ -1,6 +1,11 @@
 import type { CircleMembership } from './circles';
 import type { FeedTypeFilter } from './feed';
-import { normalizeSearchQuery, type MyItemKind } from './items';
+import {
+  normalizeSearchQuery,
+  type ItemSort,
+  type ItemTypeFilter,
+  type MyItemKind,
+} from './items';
 import type { LoanRole } from './loans';
 import type { InboxSort, InboxStatus } from './messages';
 import type { MyRequestStatus } from './requests';
@@ -11,6 +16,12 @@ export type FeedListFilters = {
 
 export type ItemListFilters = {
   q?: string;
+  /** Category ids; empty or omitted means every category. */
+  categories?: string[];
+  /** Circle ids; empty or omitted means every circle the member is in. */
+  circles?: string[];
+  itemType?: ItemTypeFilter;
+  sort?: ItemSort;
 };
 
 export type MyItemListFilters = {
@@ -42,12 +53,32 @@ export const feedKeys = {
     [...feedKeys.all, 'list', { types: filters.types ?? null }] as const,
 };
 
+// An empty id list is the same request as no list, and order never changes
+// the response, so both collapse to one cache entry.
+function normalizeIdList(ids: string[] | undefined): string[] | null {
+  if (!ids || ids.length === 0) {
+    return null;
+  }
+
+  return [...new Set(ids)].sort();
+}
+
 export const itemKeys = {
   all: ['items'] as const,
-  // Normalized so a blank or padded query shares the cache entry with the
-  // request that omits `q` entirely.
+  // Normalized so a blank or padded query, an empty id list, or an omitted
+  // default shares the cache entry with the request that omits it entirely.
   list: (filters: ItemListFilters = {}) =>
-    [...itemKeys.all, 'list', { q: normalizeSearchQuery(filters.q) }] as const,
+    [
+      ...itemKeys.all,
+      'list',
+      {
+        q: normalizeSearchQuery(filters.q),
+        categories: normalizeIdList(filters.categories),
+        circles: normalizeIdList(filters.circles),
+        itemType: filters.itemType ?? 'both',
+        sort: filters.sort ?? 'date',
+      },
+    ] as const,
   mine: (filters: MyItemListFilters) =>
     [
       ...itemKeys.all,
@@ -57,9 +88,16 @@ export const itemKeys = {
   detail: (id: string) => [...itemKeys.all, 'detail', id] as const,
 };
 
+export const categoryKeys = {
+  all: ['categories'] as const,
+  list: () => [...categoryKeys.all, 'list'] as const,
+};
+
 export const circleKeys = {
   all: ['circles'] as const,
   hasAny: () => [...circleKeys.all, 'has-any'] as const,
+  // Every circle the member belongs to, across pages, for filter pickers.
+  mineAll: () => [...circleKeys.all, 'mine-all'] as const,
   list: (filters: CircleListFilters) =>
     [
       ...circleKeys.all,

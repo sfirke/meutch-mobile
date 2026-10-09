@@ -352,6 +352,45 @@ export async function fetchCircles(
   return parseCirclePage(await readJsonOrThrow<unknown>(response));
 }
 
+export type FetchAllMyCirclesOptions = {
+  signal?: AbortSignal;
+};
+
+// The backend's maximum page size.
+const ALL_CIRCLES_PER_PAGE = 50;
+
+/** Every circle the member belongs to, across pages, sorted by name. For pickers. */
+export async function fetchAllMyCircles(
+  fetchImpl: ApiFetch,
+  options?: FetchAllMyCirclesOptions,
+): Promise<CircleSummary[]> {
+  const byId = new Map<string, CircleSummary>();
+  let page = 1;
+  let hasNext = true;
+
+  while (hasNext) {
+    const result = await fetchCircles(fetchImpl, {
+      membership: 'mine',
+      page,
+      perPage: ALL_CIRCLES_PER_PAGE,
+      signal: options?.signal,
+    });
+
+    // Offset paging over live data can repeat a row across pages.
+    for (const circle of result.circles) {
+      byId.set(circle.id, circle);
+    }
+
+    // Also bounded by `pages`, so a stuck `has_next` cannot loop forever.
+    hasNext =
+      result.pagination.has_next &&
+      result.pagination.page < result.pagination.pages;
+    page += 1;
+  }
+
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function fetchCircleDetail(
   fetchImpl: ApiFetch,
   id: string,

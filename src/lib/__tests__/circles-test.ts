@@ -2,6 +2,7 @@ import type { ApiFetch } from '../api';
 import { isApiError } from '../api';
 import {
   cancelJoinRequest,
+  fetchAllMyCircles,
   fetchCircleDetail,
   fetchCircles,
   fetchHasCircles,
@@ -705,5 +706,116 @@ describe('cancelJoinRequest', () => {
     expect(isApiError(error)).toBe(true);
     expect(isApiError(error) && error.code).toBe('FORBIDDEN');
     expect(isApiError(error) && error.status).toBe(403);
+  });
+});
+
+describe('fetchAllMyCircles', () => {
+  const OTHER_ID = 'c2222222-2222-4222-8222-222222222222';
+
+  function pageOf(
+    circles: ReturnType<typeof createCircleSummary>[],
+    page: number,
+    hasNext: boolean,
+  ) {
+    return createMockResponse({
+      circles,
+      pagination: {
+        page,
+        per_page: 50,
+        total: 2,
+        pages: hasNext ? 2 : 1,
+        has_next: hasNext,
+        has_prev: page > 1,
+      },
+    });
+  }
+
+  test('makes one request when the first page has no next', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(pageOf([createCircleSummary()], 1, false));
+
+    const circles = await fetchAllMyCircles(fetchImpl);
+
+    expect(circles.map((circle) => circle.id)).toEqual([CIRCLE_ID]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(getRequestPath(fetchImpl)).toBe(
+      '/circles?membership=mine&page=1&per_page=50',
+    );
+  });
+
+  test('follows has_next across pages and stops when it is false', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl
+      .mockResolvedValueOnce(pageOf([createCircleSummary()], 1, true))
+      .mockResolvedValueOnce(
+        pageOf([createCircleSummary({ id: OTHER_ID, name: 'Zed' })], 2, false),
+      );
+
+    const circles = await fetchAllMyCircles(fetchImpl);
+
+    expect(circles).toHaveLength(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl.mock.calls.map((call) => call[0])).toEqual([
+      '/circles?membership=mine&page=1&per_page=50',
+      '/circles?membership=mine&page=2&per_page=50',
+    ]);
+  });
+
+  test('de-duplicates a circle repeated across pages', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl
+      .mockResolvedValueOnce(pageOf([createCircleSummary()], 1, true))
+      .mockResolvedValueOnce(
+        pageOf(
+          [
+            createCircleSummary(),
+            createCircleSummary({ id: OTHER_ID, name: 'Zed' }),
+          ],
+          2,
+          false,
+        ),
+      );
+
+    const circles = await fetchAllMyCircles(fetchImpl);
+
+    expect(circles.map((circle) => circle.id)).toEqual([CIRCLE_ID, OTHER_ID]);
+  });
+
+  test('sorts circles by name', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      pageOf(
+        [
+          createCircleSummary({ id: OTHER_ID, name: 'Zed' }),
+          createCircleSummary({ name: 'Alpha' }),
+        ],
+        1,
+        false,
+      ),
+    );
+
+    const circles = await fetchAllMyCircles(fetchImpl);
+
+    expect(circles.map((circle) => circle.name)).toEqual(['Alpha', 'Zed']);
+  });
+
+  test('forwards the abort signal on every request', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+    const controller = new AbortController();
+
+    fetchImpl
+      .mockResolvedValueOnce(pageOf([createCircleSummary()], 1, true))
+      .mockResolvedValueOnce(pageOf([], 2, false));
+
+    await fetchAllMyCircles(fetchImpl, { signal: controller.signal });
+
+    expect(fetchImpl.mock.calls.map((call) => call[1])).toEqual([
+      { signal: controller.signal },
+      { signal: controller.signal },
+    ]);
   });
 });

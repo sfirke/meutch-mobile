@@ -16,6 +16,7 @@ import { describeError } from '../lib/errorCopy';
 import type { FeedEvent, FeedPage } from '../lib/feed';
 import { feedKeys } from '../lib/queryKeys';
 import { getFeedEventKey, useFeedQuery } from '../query/useFeedQuery';
+import { useRefreshOnFocus } from '../query/useRefreshOnFocus';
 import { useSession } from '../session/SessionProvider';
 import { colors, radii, spacing, typography } from '../theme';
 
@@ -37,6 +38,9 @@ export function FeedScreen() {
     isRefetchError,
     refetch,
   } = useFeedQuery(authenticatedApiFetch);
+  const feedKey = useMemo(() => feedKeys.list(), []);
+
+  useRefreshOnFocus(feedKey);
 
   // Captured once, not per row, so every visible card renders relative
   // times against the same instant instead of each computing its own.

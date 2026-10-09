@@ -166,8 +166,29 @@ Verification: `npm run verify` (97 suites, 997 tests); backend targeted pytest (
 
 ### PR 13: Item Posting And Editing
 
-- create, edit, and delete items
-- image upload, reorder, and delete
+Split into a backend PR and two mobile PRs: 13a (create, edit, delete with the text fields) and 13b (photos), stacked on 13a. Photos come from the library and the camera; reordering is hand-built drag and drop on the installed gesture-handler and reanimated, with no sortable library.
+
+#### Backend ([meutch `api-item-atomic-writes`](https://github.com/sfirke/meutch/pulls), must merge first)
+
+- [x] `POST /items` accepts an optional `creation_token` (UUID): the first request returns 201, a replay of the same token returns 200 with the existing item, so a retry after a timeout cannot create a duplicate
+- [x] `PATCH /items/<id>` accepts multipart `images`, `delete_image_ids`, and `image_order` (existing ids or `new-N`, consuming uploads in order) and applies everything in one transaction; capacity is checked before any upload; a JSON PATCH behaves as before
+- [x] an unknown `category_id` is a 422 on `category_id` ("Choose a category.") instead of a server error
+- [x] docs: `dev_docs/API_PR8s.md` (local only; the backend ignores `dev_docs/`) and `CHANGELOG.md`
+
+#### PR 13a: Create, Edit, And Delete
+
+- [x] Stage 1, foundations: `createItem`, `updateItem`, `deleteItem` in `src/lib/items.ts`; `fetchCategories` / `fetchTags` with day-long cached queries; `ConfirmDialog` (a `Modal`, since `Alert.alert` does nothing on web); `TagInput`; a scrollable `OptionSheet`; the 422 helpers moved out of Settings into `src/lib/validation.ts` and `FieldError`; `expo-crypto` for the creation token; `plus`, `pen`, `trash` icons and a `danger` colour
+- [ ] Stage 2: `useCreateItemMutation`, `useUpdateItemMutation`, `useDeleteItemMutation` (set the detail cache, mark item lists and the feed stale without refetching); `ItemForm` (name, description with counter, category sheet, tags, Lend / Give away, My circles / Public with a no-location hint)
+- [ ] Stage 3: `/item/new` and `/item/[id]/edit` screens with a leave-confirmation on a dirty form; Edit and Delete on item detail (delete shows the server's 409 in the dialog); a "+" header action and empty-state buttons on My items; My items and the feed refetch on focus so they pick up writes
+- [ ] Stage 4: assemble, screenshots, manual checks against a local backend, draft PR
+
+#### PR 13b: Photos
+
+- [ ] Stage 5, foundations: per-request timeouts and `buildMultipartRequestInit` in `src/lib/api.ts`; `expo-image-picker` and `expo-image-manipulator`; pure reorder math; `FormData`-aware test utilities; `camera` and `image` icons
+- [ ] Stage 6: `PhotoDraft` model, `preparePhoto` (resize to 1600px, JPEG, which also converts HEIC), `buildItemFormData`; `PhotoGrid` with cover badge, remove, count, add tile (camera or library), long-press drag to reorder, and "Move earlier" / "Move later" accessibility actions
+- [ ] Stage 7: wire photos into `ItemForm` and the screens; one multipart request per save; assemble, screenshots, manual checks, draft PR stacked on 13a
+
+Needs a human: on a device, library multi-select, camera capture, an iPhone HEIC photo, permission denial, and the drag feel; confirmation that staging uploads go to a non-production bucket before any write testing against staging.
 
 ### PR 14: Loans
 

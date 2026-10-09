@@ -418,6 +418,20 @@ describe('<CirclesScreen />', () => {
     expect(
       screen.getByText('Set a location on the website to filter by distance.'),
     ).toBeTruthy();
+    // Any distance leads the list, ahead of the numeric choices.
+    expect(
+      screen
+        .getAllByRole('button', { name: /distance|miles/ })
+        .map((row) => row.props.testID as string)
+        .filter((testID) => testID.startsWith('option-')),
+    ).toEqual([
+      'option-any',
+      'option-5',
+      'option-10',
+      'option-25',
+      'option-50',
+      'option-100',
+    ]);
 
     const option = screen.getByTestId('option-25');
 

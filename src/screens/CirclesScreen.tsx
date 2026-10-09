@@ -55,7 +55,8 @@ const RADIUS_LABELS: Record<RadiusOption, string> = {
   '100': 'Within 100 miles',
 };
 
-const RADIUS_VALUES = Object.keys(RADIUS_LABELS) as RadiusOption[];
+// Listed explicitly: `Object.keys` would move the numeric keys ahead of `any`.
+const RADIUS_VALUES: RadiusOption[] = ['any', '5', '10', '25', '50', '100'];
 
 function toRadius(option: RadiusOption): number | undefined {
   return option === 'any' ? undefined : Number(option);

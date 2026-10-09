@@ -144,7 +144,7 @@ Verification: `npm run verify` (105 suites, 1065 tests). Browse was run on Expo 
 - circle discovery: radius on the Discover tab only, starting on any distance (`CircleListQuerySchema`); any distance is unsent since `radius=none` is rejected
 - empty state "No circles within N miles" with "Search any distance"; a note that a radius hides circles with no location
 
-Backend follow-ups, not part of these PRs: `/items` honours a `circles` id the caller is not a member of (the feed intersects with the caller's circles; items does not), and `/items?sort=distance` for a member with no location returns rows in no defined order instead of falling back to date.
+Backend follow-up, not part of these PRs: `/items?sort=distance` for a member with no location returns rows in no defined order instead of falling back to date.
 
 ### PR 9: Starting Conversations And Inbox Management
 

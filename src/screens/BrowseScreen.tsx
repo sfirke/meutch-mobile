@@ -95,6 +95,11 @@ export function BrowseScreen({
   // Unknown or failed counts as no location, so distance stays disabled.
   const profile = useProfileQuery();
   const hasLocation = profile.data?.has_location === true;
+  // The hint waits for the profile, so a member with a location never sees it.
+  const noLocationHint =
+    profile.data?.has_location === false
+      ? 'Set a location on the website to sort by distance.'
+      : undefined;
 
   const {
     data,
@@ -151,12 +156,10 @@ export function BrowseScreen({
         value: 'distance' as const,
         label: SORT_LABELS.distance,
         disabled: !hasLocation,
-        hint: hasLocation
-          ? undefined
-          : 'Set a location on the website to sort by distance.',
+        hint: noLocationHint,
       },
     ],
-    [hasLocation],
+    [hasLocation, noLocationHint],
   );
 
   const handlePressItem = useCallback(
@@ -242,7 +245,7 @@ export function BrowseScreen({
       return (
         <EmptyState
           actionLabel="Clear filters"
-          message="Try different filters, or clear them to see everything again."
+          message="Try different filters, or clear them."
           onAction={handleClearFilters}
           title="No items match these filters"
         />

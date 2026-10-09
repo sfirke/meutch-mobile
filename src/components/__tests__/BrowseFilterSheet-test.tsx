@@ -1,4 +1,6 @@
 import { fireEvent, screen } from '@testing-library/react-native';
+import { useState } from 'react';
+import { Pressable } from 'react-native';
 
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import {
@@ -143,6 +145,41 @@ describe('<BrowseFilterSheet />', () => {
       categories: [GARDEN_ID],
       circles: [MAPLE_ID],
     });
+  });
+
+  test('restarts the draft from the applied filters when reopened', async () => {
+    const onApply = jest.fn();
+
+    function Harness() {
+      const [visible, setVisible] = useState(true);
+
+      return (
+        <>
+          <Pressable onPress={() => setVisible(!visible)} testID="toggle" />
+          <BrowseFilterSheet
+            filters={DEFAULT_BROWSE_FILTERS}
+            onApply={onApply}
+            onClose={() => setVisible(false)}
+            visible={visible}
+          />
+        </>
+      );
+    }
+
+    mockSession({ authenticatedApiFetch: mockApiFetch(defaultRoutes) });
+    renderWithProviders(<Harness />);
+
+    fireEvent.press(await screen.findByTestId(`select-${GARDEN_ID}`));
+    fireEvent.press(screen.getByTestId('toggle'));
+    fireEvent.press(screen.getByTestId('toggle'));
+
+    const garden = await screen.findByTestId(`select-${GARDEN_ID}`);
+
+    expect(garden.props.accessibilityState).toMatchObject({ checked: false });
+
+    fireEvent.press(screen.getByTestId('filter-sheet-apply'));
+
+    expect(onApply).toHaveBeenCalledWith(DEFAULT_BROWSE_FILTERS);
   });
 
   test('applies the chosen item type', async () => {

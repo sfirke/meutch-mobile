@@ -49,3 +49,13 @@ jest.mock('expo-image-manipulator', () => {
   });
   return { SaveFormat, manipulateAsync, ImageManipulator: { manipulate } };
 });
+
+// Gesture handler, worklets, and reanimated have no native runtime under
+// Jest; use their official mocks.
+require('react-native-gesture-handler/jestSetup');
+jest.mock('react-native-worklets', () =>
+  jest.requireActual('react-native-worklets/src/mock'),
+);
+jest.mock('react-native-reanimated', () =>
+  jest.requireActual('react-native-reanimated/mock'),
+);

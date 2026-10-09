@@ -1,4 +1,15 @@
-import { buildJsonRequestInit, readJsonOrThrow, type ApiFetch } from './api';
+import {
+  buildJsonRequestInit,
+  buildMultipartRequestInit,
+  readJsonOrThrow,
+  UPLOAD_REQUEST_TIMEOUT_MS,
+  type ApiFetch,
+} from './api';
+import {
+  buildItemFormData,
+  type PhotoChanges,
+  type PhotoDraft,
+} from './itemPhotos';
 import {
   buildQueryString,
   isNullableNumber,
@@ -413,27 +424,42 @@ export async function createItem(
   fetchImpl: ApiFetch,
   input: ItemWriteInput,
   creationToken: string,
+  photos: PhotoDraft[] = [],
 ): Promise<ItemDetailResponse> {
-  const response = await fetchImpl(
-    '/items',
-    buildJsonRequestInit(
-      { ...input, creation_token: creationToken },
-      { method: 'POST' },
-    ),
-  );
+  const init =
+    photos.length === 0
+      ? buildJsonRequestInit(
+          { ...input, creation_token: creationToken },
+          { method: 'POST' },
+        )
+      : buildMultipartRequestInit(
+          buildItemFormData(
+            input,
+            { photos, deletedImageIds: [] },
+            { creationToken },
+          ),
+          { method: 'POST', timeoutMs: UPLOAD_REQUEST_TIMEOUT_MS },
+        );
+  const response = await fetchImpl('/items', init);
 
   return parseItemDetailResponse(await readJsonOrThrow<unknown>(response));
 }
 
+/** Sends JSON unless `changes` is given, then one multipart request. */
 export async function updateItem(
   fetchImpl: ApiFetch,
   id: string,
   input: ItemWriteInput,
+  changes?: PhotoChanges,
 ): Promise<ItemDetailResponse> {
-  const response = await fetchImpl(
-    `/items/${encodeURIComponent(id)}`,
-    buildJsonRequestInit(input, { method: 'PATCH' }),
-  );
+  const init =
+    changes === undefined
+      ? buildJsonRequestInit(input, { method: 'PATCH' })
+      : buildMultipartRequestInit(buildItemFormData(input, changes), {
+          method: 'PATCH',
+          timeoutMs: UPLOAD_REQUEST_TIMEOUT_MS,
+        });
+  const response = await fetchImpl(`/items/${encodeURIComponent(id)}`, init);
 
   return parseItemDetailResponse(await readJsonOrThrow<unknown>(response));
 }

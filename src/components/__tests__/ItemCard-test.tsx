@@ -1,4 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import {
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import type { ItemSummary } from '../../lib/items';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
@@ -119,6 +125,27 @@ describe('<ItemCard />', () => {
       expect(screen.getByText('Pending Pickup')).toBeTruthy();
     },
   );
+
+  test('lays the ribbon and the availability badge out in one wrapping row', () => {
+    render(
+      <ItemCard
+        item={buildItem({
+          available: false,
+          is_giveaway: true,
+          claim_status: 'pending_pickup',
+        })}
+      />,
+    );
+
+    const overlay = screen.getByTestId('item-card-overlay');
+
+    expect(StyleSheet.flatten(overlay.props.style)).toMatchObject({
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    });
+    expect(within(overlay).getByText('GIVEAWAY')).toBeTruthy();
+    expect(within(overlay).getByText('Pending Pickup')).toBeTruthy();
+  });
 
   test('shows "Borrowed" for an unavailable, non-giveaway item', () => {
     render(

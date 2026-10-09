@@ -68,22 +68,30 @@ export function ItemCard({ item, onPress, style }: ItemCardProps) {
           <ImagePlaceholder />
         )}
 
-        {item.is_giveaway ? (
-          <View style={styles.ribbon}>
-            <Icon color={colors.onPrimaryText} name="giveaway" size={11} />
-            <Text style={styles.ribbonText}>GIVEAWAY</Text>
-          </View>
-        ) : null}
+        {item.is_giveaway || badge ? (
+          <View style={styles.overlay} testID="item-card-overlay">
+            {item.is_giveaway ? (
+              <View style={styles.ribbon}>
+                <Icon color={colors.onPrimaryText} name="giveaway" size={11} />
+                <Text style={styles.ribbonText}>GIVEAWAY</Text>
+              </View>
+            ) : null}
 
-        {badge ? (
-          <View
-            style={[
-              styles.badge,
-              { backgroundColor: badgeToneColors[badge.tone] },
-            ]}
-          >
-            <Icon color={colors.onPrimaryText} name={badge.icon} size={11} />
-            <Text style={styles.badgeText}>{badge.label}</Text>
+            {badge ? (
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: badgeToneColors[badge.tone] },
+                ]}
+              >
+                <Icon
+                  color={colors.onPrimaryText}
+                  name={badge.icon}
+                  size={11}
+                />
+                <Text style={styles.badgeText}>{badge.label}</Text>
+              </View>
+            ) : null}
           </View>
         ) : null}
       </View>
@@ -114,11 +122,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     flexDirection: 'row',
     gap: spacing[4],
+    // Keeps the badge on the right edge, alone or wrapped under the ribbon.
+    marginLeft: 'auto',
     paddingHorizontal: spacing[10],
     paddingVertical: spacing[4],
-    position: 'absolute',
-    right: spacing[8],
-    top: spacing[8],
   },
   badgeText: {
     color: colors.onPrimaryText,
@@ -171,17 +178,24 @@ const styles = StyleSheet.create({
     color: colors.text,
     ...typography.itemName,
   },
+  // One wrapping row, so the badge drops below the ribbon on a narrow card.
+  overlay: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[4],
+    left: spacing[8],
+    position: 'absolute',
+    right: spacing[8],
+    top: spacing[8],
+  },
   ribbon: {
     alignItems: 'center',
     backgroundColor: colors.success,
     borderRadius: radii.sm,
     flexDirection: 'row',
     gap: spacing[4],
-    left: spacing[8],
     paddingHorizontal: spacing[10],
     paddingVertical: spacing[4],
-    position: 'absolute',
-    top: spacing[8],
   },
   ribbonText: {
     color: colors.onPrimaryText,

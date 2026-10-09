@@ -123,7 +123,7 @@ All supported by the API today; the app currently sends only a search term. Spli
 
 #### PR 8a: Browse Filters And Sort
 
-Branch `pr8a-browse-filters`.
+Branch `pr8a-browse-filters`, [PR #17](https://github.com/sfirke/meutch-mobile/pull/17).
 
 - browse: item type (all, loans, giveaways), categories, the member's circles, sort by newest or closest (`ItemListQuerySchema`); "Closest first" is disabled without a location
 - shared pieces reused by 8b and 8c: `FilterSheet` (title, scrolling body, Reset and Apply), `SelectList` (single or multi-select rows), `FilterToolbar` (Filters button with an active count, optional Sort button), `disabled` and `hint` options on `OptionSheet`, a `filter` icon

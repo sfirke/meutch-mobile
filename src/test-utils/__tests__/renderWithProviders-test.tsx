@@ -212,4 +212,56 @@ describe('getRequestBody', () => {
     expect(getRequestBody()).toBeUndefined();
     expect(getRequestBody({})).toBeUndefined();
   });
+
+  test('returns FormData entries in insertion order, with file parts kept', () => {
+    const file = new Blob(['photo'], { type: 'image/jpeg' });
+    const formData = new FormData();
+    formData.append('title', 'Drill');
+    formData.append('photo', file, 'drill.jpg');
+    formData.append('description', 'Cordless');
+
+    const entries = getRequestBody({ body: formData }) as [string, unknown][];
+
+    expect(entries.map(([name]) => name)).toEqual([
+      'title',
+      'photo',
+      'description',
+    ]);
+    expect(entries[0]).toEqual(['title', 'Drill']);
+    expect(entries[1][1]).toBeInstanceOf(Blob);
+    expect(entries[2]).toEqual(['description', 'Cordless']);
+  });
+
+  test('falls back to getParts() when entries() is unavailable', () => {
+    const formData = Object.assign(new FormData(), {
+      entries: undefined,
+      getParts: () => [
+        {
+          fieldName: 'title',
+          string: 'Drill',
+          headers: {},
+        },
+        {
+          fieldName: 'photo',
+          uri: 'file:///drill.jpg',
+          name: 'drill.jpg',
+          type: 'image/jpeg',
+          headers: {},
+        },
+      ],
+    });
+
+    expect(getRequestBody({ body: formData })).toEqual([
+      ['title', 'Drill'],
+      [
+        'photo',
+        {
+          uri: 'file:///drill.jpg',
+          name: 'drill.jpg',
+          type: 'image/jpeg',
+          headers: {},
+        },
+      ],
+    ]);
+  });
 });

@@ -1,5 +1,7 @@
 import {
   ApiError,
+  buildJsonRequestInit,
+  buildMultipartRequestInit,
   createApiFetch,
   isApiError,
   readApiError,
@@ -35,6 +37,32 @@ describe('createApiFetch', () => {
     jest.advanceTimersByTime(1000);
 
     await expect(pending).rejects.toBeInstanceOf(RequestTimeoutError);
+  });
+
+  test('timeoutMs on the request overrides the default', async () => {
+    const fetchImpl = fetchThatHangsUntilAborted();
+    const request = createApiFetch(fetchImpl as unknown as typeof fetch, 1000);
+
+    const pending = request('/upload', { timeoutMs: 5000 });
+    const settled = jest.fn();
+    pending.catch(settled);
+    jest.advanceTimersByTime(1000);
+    await Promise.resolve();
+    expect(settled).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(4000);
+    await expect(pending).rejects.toBeInstanceOf(RequestTimeoutError);
+  });
+
+  test('does not forward timeoutMs to fetch', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(new Response('{}'));
+    const request = createApiFetch(fetchImpl as unknown as typeof fetch);
+
+    await request('/upload', { method: 'POST', timeoutMs: 5000 });
+
+    const forwarded = fetchImpl.mock.calls[0][1];
+    expect(forwarded).not.toHaveProperty('timeoutMs');
+    expect(forwarded.method).toBe('POST');
   });
 
   test('passes a caller abort through as an abort, not a timeout', async () => {
@@ -167,5 +195,31 @@ describe('ApiError', () => {
     });
 
     expect(error.details).toBeNull();
+  });
+});
+
+describe('request init builders', () => {
+  test('buildMultipartRequestInit sets the body and Accept only', () => {
+    const formData = new FormData();
+    const result = buildMultipartRequestInit(formData, {
+      method: 'POST',
+      timeoutMs: 90_000,
+      headers: { 'X-Test': '1' },
+    });
+
+    expect(result.body).toBe(formData);
+    expect(result.method).toBe('POST');
+    expect(result.timeoutMs).toBe(90_000);
+    expect(result.headers).toEqual({
+      'X-Test': '1',
+      Accept: 'application/json',
+    });
+    expect(result.headers).not.toHaveProperty('Content-Type');
+  });
+
+  test('buildJsonRequestInit passes timeoutMs through', () => {
+    expect(buildJsonRequestInit({ a: 1 }, { timeoutMs: 5000 }).timeoutMs).toBe(
+      5000,
+    );
   });
 });

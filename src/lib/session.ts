@@ -7,6 +7,7 @@ import {
   readJsonOrThrow,
   withBearerToken,
   type ApiFetch,
+  type ApiRequestInit,
 } from './api';
 import { secureSessionStorage, type SessionStorage } from './sessionStorage';
 
@@ -158,7 +159,7 @@ function isTerminalRefreshError(error: unknown): error is ApiError {
 async function requestTokenBundle(
   request: ApiFetch,
   path: string,
-  init: RequestInit,
+  init: ApiRequestInit,
 ): Promise<TokenBundle> {
   const response = await request(path, init);
   const payload = await readJsonOrThrow<unknown>(response);
@@ -275,7 +276,7 @@ export function createSessionClient(options?: {
     }
   }
 
-  async function authenticatedApiFetch(path: string, init?: RequestInit) {
+  async function authenticatedApiFetch(path: string, init?: ApiRequestInit) {
     if (!currentSession) {
       throw new SessionRequiredError();
     }

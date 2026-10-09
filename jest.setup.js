@@ -11,3 +11,41 @@ jest.mock('expo-crypto', () => ({
     return `00000000-0000-4000-8000-${String(mockUuidCounter).padStart(12, '0')}`;
   },
 }));
+
+// Native picker/manipulator modules are unavailable under Jest.
+jest.mock('expo-image-picker', () => ({
+  requestCameraPermissionsAsync: jest.fn(async () => ({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+  })),
+  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+  })),
+  launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: null })),
+  launchImageLibraryAsync: jest.fn(async () => ({
+    canceled: true,
+    assets: null,
+  })),
+}));
+
+jest.mock('expo-image-manipulator', () => {
+  const SaveFormat = { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' };
+  const manipulateAsync = jest.fn(async (uri) => ({
+    uri,
+    width: 1600,
+    height: 1200,
+  }));
+  const manipulate = jest.fn((uri) => {
+    const ctx = {
+      resize: jest.fn(() => ctx),
+      renderAsync: jest.fn(async () => ({
+        saveAsync: jest.fn(async () => ({ uri, width: 1600, height: 1200 })),
+      })),
+    };
+    return ctx;
+  });
+  return { SaveFormat, manipulateAsync, ImageManipulator: { manipulate } };
+});

@@ -229,9 +229,36 @@ export function mockApiFetch(
   });
 }
 
-// Parses a request's JSON body, for asserting exact write payloads.
+type FormDataWithParts = {
+  getParts: () => (Record<string, unknown> & { fieldName: string })[];
+};
+
+// Entries of a FormData body in insertion order. Falls back to the React
+// Native polyfill's getParts() when entries() is unavailable.
+function formDataEntries(formData: FormData): [string, unknown][] {
+  if (typeof formData.entries === 'function') {
+    return Array.from(formData.entries());
+  }
+
+  return (formData as unknown as FormDataWithParts)
+    .getParts()
+    .map(({ fieldName, ...part }) => [
+      fieldName,
+      'string' in part ? part.string : part,
+    ]);
+}
+
+// Parses a request's JSON or FormData body, for asserting exact write payloads.
 export function getRequestBody(init?: RequestInit): unknown {
-  return typeof init?.body === 'string'
-    ? (JSON.parse(init.body) as unknown)
-    : undefined;
+  const body: unknown = init?.body;
+
+  if (typeof body === 'string') {
+    return JSON.parse(body) as unknown;
+  }
+
+  if (typeof FormData !== 'undefined' && body instanceof FormData) {
+    return formDataEntries(body);
+  }
+
+  return undefined;
 }

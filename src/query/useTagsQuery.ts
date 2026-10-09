@@ -14,6 +14,5 @@ export function useTagsQuery() {
     queryKey: referenceKeys.tags(),
     queryFn: ({ signal }) => fetchTags(authenticatedApiFetch, { signal }),
     staleTime: TAGS_STALE_TIME,
-    gcTime: TAGS_STALE_TIME,
   });
 }

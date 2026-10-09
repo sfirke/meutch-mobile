@@ -14,6 +14,5 @@ export function useCategoriesQuery() {
     queryKey: referenceKeys.categories(),
     queryFn: ({ signal }) => fetchCategories(authenticatedApiFetch, { signal }),
     staleTime: CATEGORIES_STALE_TIME,
-    gcTime: CATEGORIES_STALE_TIME,
   });
 }

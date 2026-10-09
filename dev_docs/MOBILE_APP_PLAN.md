@@ -168,7 +168,7 @@ Verification: `npm run verify` (97 suites, 997 tests); backend targeted pytest (
 
 Split into a backend PR and two mobile PRs: 13a (create, edit, delete with the text fields) and 13b (photos), stacked on 13a. Photos come from the library and the camera; reordering is hand-built drag and drop on the installed gesture-handler and reanimated, with no sortable library.
 
-#### Backend ([meutch `api-item-atomic-writes`](https://github.com/sfirke/meutch/pulls), must merge first)
+#### Backend ([meutch#557](https://github.com/sfirke/meutch/pull/557), must merge first)
 
 - [x] `POST /items` accepts an optional `creation_token` (UUID): the first request returns 201, a replay of the same token returns 200 with the existing item, so a retry after a timeout cannot create a duplicate
 - [x] `PATCH /items/<id>` accepts multipart `images`, `delete_image_ids`, and `image_order` (existing ids or `new-N`, consuming uploads in order) and applies everything in one transaction; capacity is checked before any upload; a JSON PATCH behaves as before
@@ -178,9 +178,13 @@ Split into a backend PR and two mobile PRs: 13a (create, edit, delete with the t
 #### PR 13a: Create, Edit, And Delete
 
 - [x] Stage 1, foundations: `createItem`, `updateItem`, `deleteItem` in `src/lib/items.ts`; `fetchCategories` / `fetchTags` with day-long cached queries; `ConfirmDialog` (a `Modal`, since `Alert.alert` does nothing on web); `TagInput`; a scrollable `OptionSheet`; the 422 helpers moved out of Settings into `src/lib/validation.ts` and `FieldError`; `expo-crypto` for the creation token; `plus`, `pen`, `trash` icons and a `danger` colour
-- [ ] Stage 2: `useCreateItemMutation`, `useUpdateItemMutation`, `useDeleteItemMutation` (set the detail cache, mark item lists and the feed stale without refetching); `ItemForm` (name, description with counter, category sheet, tags, Lend / Give away, My circles / Public with a no-location hint)
-- [ ] Stage 3: `/item/new` and `/item/[id]/edit` screens with a leave-confirmation on a dirty form; Edit and Delete on item detail (delete shows the server's 409 in the dialog); a "+" header action and empty-state buttons on My items; My items and the feed refetch on focus so they pick up writes
-- [ ] Stage 4: assemble, screenshots, manual checks against a local backend, draft PR
+- [x] Stage 2: `useCreateItemMutation`, `useUpdateItemMutation`, `useDeleteItemMutation` (set the detail cache, mark item lists and the feed stale without refetching); `ItemForm` (name, description with counter, category sheet, tags, Lend / Give away, My circles / Public with a no-location hint)
+- [x] Stage 3: `/item/new` and `/item/[id]/edit` screens with a leave-confirmation on a dirty form (`useDiscardGuard`, a `beforeRemove` listener); Edit and Delete on item detail (delete shows the server's 409 in the dialog); a "+" header action and empty-state buttons on My items; My items and the feed refetch on focus so they pick up writes
+- [x] Stage 4: assembled, screenshots, manual checks against a local backend, draft PR
+
+Changes from the plan: the lookup hooks keep a day-long `staleTime` but no `gcTime` override, which kept Jest alive; My items and the feed gained `useRefreshOnFocus`, which the plan had not called for but which the stale-without-refetch strategy needs since stack screens stay mounted; the backend's over-capacity and upload-failure errors are 400 `BAD_REQUEST`, not 422, and `describeError` already shows them verbatim.
+
+Verification: `npm run verify` (112 suites, 1108 tests). Headless web screenshots of the new form, the give-away controls with the no-location hint, the category sheet, the edit form prefilled, the empty My items state with its button, the owner's Edit and Delete, and the delete dialog showing a 409. Against a local backend on meutch#557: create returned 201, a replay with the same token returned 200 with the same id and one item in My items, an edit with a type change, an unknown category returned 422 on `category_id`, delete returned 200 then 404, and deleting an item on loan returned the 409 message.
 
 #### PR 13b: Photos
 

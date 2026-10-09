@@ -1,5 +1,11 @@
 import type { CircleMembership } from './circles';
-import type { FeedTypeFilter } from './feed';
+import {
+  DEFAULT_FEED_DISTANCE,
+  isEveryFeedType,
+  type FeedDistance,
+  type FeedScope,
+  type FeedTypeFilter,
+} from './feed';
 import {
   normalizeSearchQuery,
   type ItemSort,
@@ -11,7 +17,13 @@ import type { InboxSort, InboxStatus } from './messages';
 import type { MyRequestStatus } from './requests';
 
 export type FeedListFilters = {
+  scope?: FeedScope;
+  /** Omitted, empty, or every type means no type filter. */
   types?: FeedTypeFilter[];
+  /** `null` is "no distance limit"; omitted is the backend default. */
+  distance?: FeedDistance | null;
+  showOwnActivity?: boolean;
+  showClaimedGiveaways?: boolean;
 };
 
 export type ItemListFilters = {
@@ -47,10 +59,35 @@ export type CircleListFilters = {
   q?: string;
 };
 
+function normalizeFeedTypes(
+  types: FeedTypeFilter[] | undefined,
+): FeedTypeFilter[] | null {
+  if (!types || types.length === 0 || isEveryFeedType(types)) {
+    return null;
+  }
+
+  return [...new Set(types)].sort();
+}
+
 export const feedKeys = {
   all: ['feed'] as const,
+  // Normalized so an omitted filter shares the cache entry with the backend
+  // default; `distance: null` (no limit) stays distinct from the default.
   list: (filters: FeedListFilters = {}) =>
-    [...feedKeys.all, 'list', { types: filters.types ?? null }] as const,
+    [
+      ...feedKeys.all,
+      'list',
+      {
+        scope: filters.scope ?? 'all',
+        types: normalizeFeedTypes(filters.types),
+        distance:
+          filters.distance === undefined
+            ? DEFAULT_FEED_DISTANCE
+            : filters.distance,
+        showOwnActivity: filters.showOwnActivity ?? true,
+        showClaimedGiveaways: filters.showClaimedGiveaways ?? true,
+      },
+    ] as const,
 };
 
 // An empty id list is the same request as no list, and order never changes

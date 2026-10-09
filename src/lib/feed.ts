@@ -33,6 +33,25 @@ export const FEED_TYPE_FILTERS = [
 
 export type FeedTypeFilter = (typeof FEED_TYPE_FILTERS)[number];
 
+export const FEED_SCOPES = ['all', 'circles'] as const;
+
+export type FeedScope = (typeof FEED_SCOPES)[number];
+
+export const FEED_DISTANCES = [5, 10, 20, 25, 50] as const;
+
+export type FeedDistance = (typeof FEED_DISTANCES)[number];
+
+/**
+ * What the backend applies when `distance` is left out for a member with a
+ * location. "No limit" is a separate, explicit value (`distance=none`).
+ */
+export const DEFAULT_FEED_DISTANCE: FeedDistance = 20;
+
+/** `true` when every type is listed, which the backend treats as no filter. */
+export function isEveryFeedType(types: readonly FeedTypeFilter[]): boolean {
+  return FEED_TYPE_FILTERS.every((type) => types.includes(type));
+}
+
 export type FeedEvent = {
   event_type: FeedEventType;
   created_at: string;
@@ -67,6 +86,14 @@ export type FetchFeedOptions = {
   /** The backend rejects `per_page` above 50 with a 422; it does not clamp. */
   perPage?: number;
   types?: FeedTypeFilter[];
+  /** The backend default `all` is never sent. */
+  scope?: FeedScope;
+  /** `null` sends `distance=none`; omitted or 20 (the backend default) sends nothing. */
+  distance?: FeedDistance | null;
+  /** Only `false` is sent; `true` is the backend default. */
+  showOwnActivity?: boolean;
+  /** Only `false` is sent; `true` is the backend default. */
+  showClaimedGiveaways?: boolean;
   signal?: AbortSignal;
 };
 
@@ -191,9 +218,35 @@ export async function fetchFeed(
     params.push(['per_page', String(options.perPage)]);
   }
 
-  // The backend reads list-valued query params from repeated keys.
-  for (const type of options.types ?? []) {
-    params.push(['types', type]);
+  // The backend reads list-valued query params from repeated keys. Listing
+  // every type is its default, so that is left unsent too.
+  const types = options.types ?? [];
+
+  if (types.length > 0 && !isEveryFeedType(types)) {
+    for (const type of types) {
+      params.push(['types', type]);
+    }
+  }
+
+  if (options.scope !== undefined && options.scope !== 'all') {
+    params.push(['scope', options.scope]);
+  }
+
+  if (options.distance === null) {
+    params.push(['distance', 'none']);
+  } else if (
+    options.distance !== undefined &&
+    options.distance !== DEFAULT_FEED_DISTANCE
+  ) {
+    params.push(['distance', String(options.distance)]);
+  }
+
+  if (options.showOwnActivity === false) {
+    params.push(['show_own_activity', 'false']);
+  }
+
+  if (options.showClaimedGiveaways === false) {
+    params.push(['show_claimed_giveaways', 'false']);
   }
 
   const response = await fetchImpl(`/feed${buildQueryString(params)}`, {

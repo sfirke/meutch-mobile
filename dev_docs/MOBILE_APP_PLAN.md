@@ -135,9 +135,15 @@ Verification: `npm run verify` (105 suites, 1065 tests). Browse was run on Expo 
 
 #### PR 8b: Feed Filters
 
-- feed: all activity or my circles, distance, event types, show my own activity, show given-away giveaways (`FeedQuerySchema`)
-- distance: leaving it out means 20 miles for a member with a location, so 20 is unsent, "No distance limit" sends `distance=none`, and other choices send the number
+Branch `pr8b-feed-filters`, [PR #18](https://github.com/sfirke/meutch-mobile/pull/18), stacked on 8a.
+
+- feed: all activity or my circles, distance, event types, show my own activity, show given-away giveaways (`FeedQuerySchema`); Apply is disabled with no type ticked; both switches start on, matching the backend defaults, so only `false` is ever sent for either
+- distance: leaving it out means 20 miles for a member with a location, so 20 is unsent, "No distance limit" sends `distance=none`, and other choices send the number; every type ticked also counts as the default and sends no `types`
+- without a location the distance rows are disabled and "No distance limit" shows ticked, since the server applies no distance for that member; the draft keeps the unsent default
+- the Filters toolbar sits outside the list's loading, empty, and error states so it stays reachable; the feed query now keeps the previous list on screen while a new filter set loads, with an "Updating..." row
 - not included: a circle picker on the feed
+
+Verification: `npm run verify` (107 suites, 1102 tests). The feed was run on Expo web with stubbed API data and screenshotted with the sheet open, after applying "My circles", and with the distance rows disabled for a member without a location. Not yet checked against staging: the real `/feed` paths, in particular `distance=none` and a numeric distance for a member with a location, and the unsent default for a member without one.
 
 #### PR 8c: Circle Discovery Radius
 

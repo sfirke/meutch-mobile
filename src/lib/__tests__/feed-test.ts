@@ -90,11 +90,11 @@ describe('fetchFeed', () => {
     await fetchFeed(fetchImpl, {
       page: 2,
       perPage: 10,
-      types: ['requests', 'giveaways', 'loans', 'circle_joins'],
+      types: ['requests', 'giveaways', 'loans'],
     });
 
     expect(getRequestPath(fetchImpl)).toBe(
-      '/feed?page=2&per_page=10&types=requests&types=giveaways&types=loans&types=circle_joins',
+      '/feed?page=2&per_page=10&types=requests&types=giveaways&types=loans',
     );
   });
 
@@ -234,5 +234,97 @@ describe('fetchFeed', () => {
     expect(isApiError(error)).toBe(true);
     expect(isApiError(error) && error.code).toBe('VALIDATION_ERROR');
     expect(isApiError(error) && error.status).toBe(422);
+  });
+
+  describe('filters', () => {
+    async function requestPath(
+      options: Parameters<typeof fetchFeed>[1],
+    ): Promise<string> {
+      const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+      fetchImpl.mockResolvedValueOnce(
+        createMockResponse({ events: [], pagination }),
+      );
+      await fetchFeed(fetchImpl, options);
+
+      return getRequestPath(fetchImpl);
+    }
+
+    test('sends scope=circles', async () => {
+      expect(await requestPath({ page: 1, scope: 'circles' })).toBe(
+        '/feed?page=1&scope=circles',
+      );
+    });
+
+    test('sends distance=none for no limit', async () => {
+      expect(await requestPath({ page: 1, distance: null })).toBe(
+        '/feed?page=1&distance=none',
+      );
+    });
+
+    test('sends a non-default distance as a number', async () => {
+      expect(await requestPath({ page: 1, distance: 5 })).toBe(
+        '/feed?page=1&distance=5',
+      );
+    });
+
+    test('leaves the default distance unsent', async () => {
+      expect(await requestPath({ page: 1, distance: 20 })).toBe('/feed?page=1');
+    });
+
+    test('sends show_own_activity=false', async () => {
+      expect(await requestPath({ page: 1, showOwnActivity: false })).toBe(
+        '/feed?page=1&show_own_activity=false',
+      );
+    });
+
+    test('sends show_claimed_giveaways=true', async () => {
+      expect(await requestPath({ page: 1, showClaimedGiveaways: true })).toBe(
+        '/feed?page=1&show_claimed_giveaways=true',
+      );
+    });
+
+    test('sends no types when every type is listed', async () => {
+      expect(
+        await requestPath({
+          page: 1,
+          types: ['requests', 'giveaways', 'loans', 'circle_joins'],
+        }),
+      ).toBe('/feed?page=1');
+    });
+
+    test('sends no types for an empty array', async () => {
+      expect(await requestPath({ page: 1, types: [] })).toBe('/feed?page=1');
+    });
+
+    test('orders params page, per_page, types, scope, distance, visibility', async () => {
+      expect(
+        await requestPath({
+          page: 2,
+          perPage: 10,
+          types: ['loans', 'requests'],
+          scope: 'circles',
+          distance: null,
+          showOwnActivity: false,
+          showClaimedGiveaways: true,
+        }),
+      ).toBe(
+        '/feed?page=2&per_page=10&types=loans&types=requests&scope=circles&distance=none&show_own_activity=false&show_claimed_giveaways=true',
+      );
+    });
+
+    test('sends nothing for backend defaults', async () => {
+      expect(await requestPath({ page: 1 })).toBe('/feed?page=1');
+      expect(
+        await requestPath({
+          page: 1,
+          scope: 'all',
+          distance: 20,
+          showOwnActivity: true,
+          showClaimedGiveaways: false,
+          types: ['requests', 'giveaways', 'loans', 'circle_joins'],
+        }),
+      ).toBe('/feed?page=1');
+    });
   });
 });

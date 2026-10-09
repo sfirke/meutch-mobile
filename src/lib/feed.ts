@@ -86,6 +86,14 @@ export type FetchFeedOptions = {
   /** The backend rejects `per_page` above 50 with a 422; it does not clamp. */
   perPage?: number;
   types?: FeedTypeFilter[];
+  /** The backend default `all` is never sent. */
+  scope?: FeedScope;
+  /** `null` sends `distance=none`; omitted or 20 (the backend default) sends nothing. */
+  distance?: FeedDistance | null;
+  /** Only `false` is sent; `true` is the backend default. */
+  showOwnActivity?: boolean;
+  /** Only `true` is sent; `false` is the backend default. */
+  showClaimedGiveaways?: boolean;
   signal?: AbortSignal;
 };
 
@@ -210,9 +218,35 @@ export async function fetchFeed(
     params.push(['per_page', String(options.perPage)]);
   }
 
-  // The backend reads list-valued query params from repeated keys.
-  for (const type of options.types ?? []) {
-    params.push(['types', type]);
+  // The backend reads list-valued query params from repeated keys. Listing
+  // every type is its default, so that is left unsent too.
+  const types = options.types ?? [];
+
+  if (types.length > 0 && !isEveryFeedType(types)) {
+    for (const type of types) {
+      params.push(['types', type]);
+    }
+  }
+
+  if (options.scope !== undefined && options.scope !== 'all') {
+    params.push(['scope', options.scope]);
+  }
+
+  if (options.distance === null) {
+    params.push(['distance', 'none']);
+  } else if (
+    options.distance !== undefined &&
+    options.distance !== DEFAULT_FEED_DISTANCE
+  ) {
+    params.push(['distance', String(options.distance)]);
+  }
+
+  if (options.showOwnActivity === false) {
+    params.push(['show_own_activity', 'false']);
+  }
+
+  if (options.showClaimedGiveaways === true) {
+    params.push(['show_claimed_giveaways', 'true']);
   }
 
   const response = await fetchImpl(`/feed${buildQueryString(params)}`, {

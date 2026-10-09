@@ -330,6 +330,61 @@ describe('fetchCircles', () => {
     });
   });
 
+  test('sends radius after per_page for discoverable circles', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValue(
+      createMockResponse({ circles: [], pagination: circlesPagination }),
+    );
+
+    await fetchCircles(fetchImpl, {
+      membership: 'discoverable',
+      page: 1,
+      radius: 10,
+    });
+    expect(getRequestPath(fetchImpl)).toBe(
+      '/circles?membership=discoverable&page=1&radius=10',
+    );
+
+    await fetchCircles(fetchImpl, {
+      membership: 'discoverable',
+      q: 'oak',
+      page: 1,
+      perPage: 20,
+      radius: 10,
+    });
+    expect(fetchImpl).toHaveBeenLastCalledWith(
+      '/circles?membership=discoverable&page=1&q=oak&per_page=20&radius=10',
+      { signal: undefined },
+    );
+  });
+
+  test('drops radius for the mine list', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ circles: [], pagination: circlesPagination }),
+    );
+
+    await fetchCircles(fetchImpl, { membership: 'mine', page: 1, radius: 10 });
+
+    expect(getRequestPath(fetchImpl)).toBe('/circles?membership=mine&page=1');
+  });
+
+  test('sends no radius when none is given', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ circles: [], pagination: circlesPagination }),
+    );
+
+    await fetchCircles(fetchImpl, { membership: 'discoverable', page: 1 });
+
+    expect(getRequestPath(fetchImpl)).toBe(
+      '/circles?membership=discoverable&page=1',
+    );
+  });
+
   test('rejects a malformed circle', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 

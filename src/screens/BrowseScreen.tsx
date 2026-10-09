@@ -11,19 +11,32 @@ import {
   type ListRenderItemInfo,
 } from 'react-native';
 
+import {
+  BrowseFilterSheet,
+  countActiveBrowseFilters,
+  DEFAULT_BROWSE_FILTERS,
+  type BrowseFilters,
+} from '../components/BrowseFilterSheet';
 import { EmptyState } from '../components/EmptyState';
+import { FilterToolbar } from '../components/FilterToolbar';
 import { ItemCard } from '../components/ItemCard';
 import { PagingFooter } from '../components/PagingFooter';
 import { QueryStateView } from '../components/QueryStateView';
 import { SearchField } from '../components/SearchField';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
-import type { ItemListPage, ItemSummary } from '../lib/items';
-import { circleKeys, itemKeys } from '../lib/queryKeys';
+import type { ItemListPage, ItemSort, ItemSummary } from '../lib/items';
+import { circleKeys, itemKeys, type ItemListFilters } from '../lib/queryKeys';
 import { useHasCirclesQuery } from '../query/useHasCirclesQuery';
 import { useItemsQuery } from '../query/useItemsQuery';
+import { useProfileQuery } from '../query/useProfileQuery';
 import { colors, spacing, typography } from '../theme';
 
 export const SEARCH_DEBOUNCE_MS = 350;
+
+const SORT_LABELS: Record<ItemSort, string> = {
+  date: 'Newest first',
+  distance: 'Closest first',
+};
 
 export type BrowseScreenProps = {
   /** Overridable so tests need not wait out the real debounce. */
@@ -59,9 +72,29 @@ export function BrowseScreen({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [searchText, setSearchText] = useState('');
+  const [filters, setFilters] = useState<BrowseFilters>(DEFAULT_BROWSE_FILTERS);
+  const [sort, setSort] = useState<ItemSort>('date');
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const debouncedSearchText = useDebouncedValue(searchText, searchDebounceMs);
   const searchQuery = debouncedSearchText.trim();
+  const activeFilterCount = countActiveBrowseFilters(filters);
+
+  // One object for both the query and the refresh's cache key, so they match.
+  const listFilters = useMemo<ItemListFilters>(
+    () => ({
+      q: searchQuery,
+      categories: filters.categories,
+      circles: filters.circles,
+      itemType: filters.itemType,
+      sort,
+    }),
+    [filters, searchQuery, sort],
+  );
+
+  // Unknown or failed counts as no location, so distance stays disabled.
+  const profile = useProfileQuery();
+  const hasLocation = profile.data?.has_location === true;
 
   const {
     data,
@@ -75,7 +108,7 @@ export function BrowseScreen({
     isRefetching,
     isSuccess,
     refetch,
-  } = useItemsQuery({ q: searchQuery });
+  } = useItemsQuery(listFilters);
 
   const items = useMemo(() => dedupeItems(data), [data]);
 
@@ -93,6 +126,38 @@ export function BrowseScreen({
   const handleClearSearch = useCallback(() => {
     setSearchText('');
   }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setFilters(DEFAULT_BROWSE_FILTERS);
+  }, []);
+
+  const handleOpenFilters = useCallback(() => {
+    setIsSheetOpen(true);
+  }, []);
+
+  const handleCloseFilters = useCallback(() => {
+    setIsSheetOpen(false);
+  }, []);
+
+  const handleApplyFilters = useCallback((next: BrowseFilters) => {
+    setFilters(next);
+    setIsSheetOpen(false);
+  }, []);
+
+  const sortOptions = useMemo(
+    () => [
+      { value: 'date' as const, label: SORT_LABELS.date },
+      {
+        value: 'distance' as const,
+        label: SORT_LABELS.distance,
+        disabled: !hasLocation,
+        hint: hasLocation
+          ? undefined
+          : 'Set a location on the website to sort by distance.',
+      },
+    ],
+    [hasLocation],
+  );
 
   const handlePressItem = useCallback(
     (item: ItemSummary) => {
@@ -128,7 +193,7 @@ export function BrowseScreen({
     setIsRefreshing(true);
     // `refetch()` re-requests every loaded page, so drop the tail first.
     queryClient.setQueryData<InfiniteData<ItemListPage>>(
-      itemKeys.list({ q: searchQuery }),
+      itemKeys.list(listFilters),
       (current) =>
         current && {
           pages: current.pages.slice(0, 1),
@@ -142,7 +207,7 @@ export function BrowseScreen({
     void refetch().finally(() => {
       setIsRefreshing(false);
     });
-  }, [queryClient, refetch, searchQuery]);
+  }, [listFilters, queryClient, refetch]);
 
   const renderItem = useCallback(
     ({ item, index }: ListRenderItemInfo<ItemSummary>) => {
@@ -173,6 +238,17 @@ export function BrowseScreen({
       );
     }
 
+    if (activeFilterCount > 0) {
+      return (
+        <EmptyState
+          actionLabel="Clear filters"
+          message="Try different filters, or clear them to see everything again."
+          onAction={handleClearFilters}
+          title="No items match these filters"
+        />
+      );
+    }
+
     if (searchQuery) {
       return (
         <EmptyState
@@ -190,7 +266,14 @@ export function BrowseScreen({
         title="Nothing to borrow yet"
       />
     );
-  }, [handleClearSearch, hasCircles, router, searchQuery]);
+  }, [
+    activeFilterCount,
+    handleClearFilters,
+    handleClearSearch,
+    hasCircles,
+    router,
+    searchQuery,
+  ]);
 
   // A placeholder page that is itself empty is the *previous* search's answer,
   // so it must never be shown as this one's result.
@@ -208,10 +291,16 @@ export function BrowseScreen({
         value={searchText}
       />
 
+      <FilterToolbar
+        activeFilterCount={activeFilterCount}
+        onOpenFilters={handleOpenFilters}
+        sort={{ value: sort, options: sortOptions, onChange: setSort }}
+      />
+
       {isPlaceholderData && items.length > 0 ? (
-        <View accessibilityLabel="Searching" style={styles.searchingRow}>
+        <View accessibilityLabel="Updating" style={styles.updatingRow}>
           <ActivityIndicator color={colors.primaryDark} size="small" />
-          <Text style={styles.searchingLabel}>Searching...</Text>
+          <Text style={styles.updatingLabel}>Updating...</Text>
         </View>
       ) : null}
 
@@ -260,6 +349,13 @@ export function BrowseScreen({
           />
         </QueryStateView>
       </View>
+
+      <BrowseFilterSheet
+        filters={filters}
+        onApply={handleApplyFilters}
+        onClose={handleCloseFilters}
+        visible={isSheetOpen}
+      />
     </View>
   );
 }
@@ -280,18 +376,18 @@ const styles = StyleSheet.create({
     paddingBottom: spacing[24],
     paddingHorizontal: spacing[16],
   },
-  searchingLabel: {
+  spacer: {
+    flex: 1,
+  },
+  updatingLabel: {
     color: colors.secondary,
     ...typography.itemMeta,
   },
-  searchingRow: {
+  updatingRow: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing[8],
     paddingBottom: spacing[8],
     paddingHorizontal: spacing[16],
-  },
-  spacer: {
-    flex: 1,
   },
 });

@@ -98,6 +98,14 @@ export type ItemDetailResponse = {
   viewer: ItemViewerState;
 };
 
+export const ITEM_TYPE_FILTERS = ['both', 'loans', 'giveaways'] as const;
+
+export type ItemTypeFilter = (typeof ITEM_TYPE_FILTERS)[number];
+
+export const ITEM_SORTS = ['date', 'distance'] as const;
+
+export type ItemSort = (typeof ITEM_SORTS)[number];
+
 export type FetchItemsOptions = {
   page: number;
   q?: string;

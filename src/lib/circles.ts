@@ -115,6 +115,8 @@ export type FetchCirclesOptions = {
   page: number;
   /** The backend rejects `per_page` above 50 with a 422; it does not clamp. */
   perPage?: number;
+  /** Miles; omitted means any distance. Sent only for `discoverable`. */
+  radius?: number;
   signal?: AbortSignal;
 };
 
@@ -343,6 +345,12 @@ export async function fetchCircles(
 
   if (options.perPage !== undefined) {
     params.push(['per_page', String(options.perPage)]);
+  }
+
+  // The server applies radius only to discoverable circles; never narrow the
+  // member's own list.
+  if (options.radius !== undefined && options.membership === 'discoverable') {
+    params.push(['radius', String(options.radius)]);
   }
 
   const response = await fetchImpl(`/circles${buildQueryString(params)}`, {

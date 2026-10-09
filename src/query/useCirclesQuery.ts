@@ -12,21 +12,27 @@ import { useSession } from '../session/SessionProvider';
 export type UseCirclesQueryOptions = {
   membership: CircleMembership;
   q?: string;
+  radius?: number;
 };
 
 /**
  * Infinite `GET /circles` page, flattened and de-duplicated by `id` (offset
  * paging over live data can repeat a row across pages, as with the feed).
  */
-export function useCirclesQuery({ membership, q }: UseCirclesQueryOptions) {
+export function useCirclesQuery({
+  membership,
+  q,
+  radius,
+}: UseCirclesQueryOptions) {
   const { authenticatedApiFetch } = useSession();
 
   const query = useInfiniteQuery({
-    queryKey: circleKeys.list({ membership, q }),
+    queryKey: circleKeys.list({ membership, q, radius }),
     queryFn: ({ pageParam, signal }) =>
       fetchCircles(authenticatedApiFetch, {
         membership,
         q,
+        radius,
         page: pageParam,
         signal,
       }),

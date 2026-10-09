@@ -381,7 +381,10 @@ export async function fetchAllMyCircles(
       byId.set(circle.id, circle);
     }
 
-    hasNext = result.pagination.has_next;
+    // Also bounded by `pages`, so a stuck `has_next` cannot loop forever.
+    hasNext =
+      result.pagination.has_next &&
+      result.pagination.page < result.pagination.pages;
     page += 1;
   }
 

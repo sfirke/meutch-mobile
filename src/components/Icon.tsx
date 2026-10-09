@@ -29,6 +29,7 @@ export type IconName =
   | 'chevron'
   | 'archive'
   | 'sort'
+  | 'filter'
   | 'unread'
   | 'read';
 
@@ -63,6 +64,7 @@ export const ICON_GLYPHS: Record<IconName, string> = {
   chevron: 'chevron-right',
   archive: 'box-archive',
   sort: 'arrow-down-wide-short',
+  filter: 'filter',
   unread: 'envelope',
   read: 'envelope-open',
 };

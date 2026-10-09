@@ -121,7 +121,7 @@ describe('query keys', () => {
     expect(circleKeys.list({ membership: 'mine' })).toEqual([
       'circles',
       'list',
-      { membership: 'mine', q: null },
+      { membership: 'mine', q: null, radius: null },
     ]);
     expect(circleKeys.list({ membership: 'mine', q: '   ' })).toEqual(
       circleKeys.list({ membership: 'mine' }),
@@ -129,6 +129,15 @@ describe('query keys', () => {
     expect(circleKeys.list({ membership: 'mine', q: ' garden ' })).toEqual(
       circleKeys.list({ membership: 'mine', q: 'garden' }),
     );
+  });
+
+  test('circle list keys include the radius when set', () => {
+    expect(circleKeys.list({ membership: 'discoverable', radius: 10 })).toEqual(
+      ['circles', 'list', { membership: 'discoverable', q: null, radius: 10 }],
+    );
+    expect(
+      circleKeys.list({ membership: 'discoverable', radius: 10 }),
+    ).not.toEqual(circleKeys.list({ membership: 'discoverable' }));
   });
 
   test('circle list keys differ by membership', () => {

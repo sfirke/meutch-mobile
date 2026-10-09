@@ -45,6 +45,8 @@ export type InboxListFilters = {
 export type CircleListFilters = {
   membership: CircleMembership;
   q?: string;
+  /** Miles; omitted means any distance. Only meaningful for `discoverable`. */
+  radius?: number;
 };
 
 export const feedKeys = {
@@ -102,7 +104,11 @@ export const circleKeys = {
     [
       ...circleKeys.all,
       'list',
-      { membership: filters.membership, q: normalizeSearchQuery(filters.q) },
+      {
+        membership: filters.membership,
+        q: normalizeSearchQuery(filters.q),
+        radius: filters.radius ?? null,
+      },
     ] as const,
   detail: (id: string) => [...circleKeys.all, 'detail', id] as const,
 };

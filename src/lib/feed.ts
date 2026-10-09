@@ -33,6 +33,25 @@ export const FEED_TYPE_FILTERS = [
 
 export type FeedTypeFilter = (typeof FEED_TYPE_FILTERS)[number];
 
+export const FEED_SCOPES = ['all', 'circles'] as const;
+
+export type FeedScope = (typeof FEED_SCOPES)[number];
+
+export const FEED_DISTANCES = [5, 10, 20, 25, 50] as const;
+
+export type FeedDistance = (typeof FEED_DISTANCES)[number];
+
+/**
+ * What the backend applies when `distance` is left out for a member with a
+ * location. "No limit" is a separate, explicit value (`distance=none`).
+ */
+export const DEFAULT_FEED_DISTANCE: FeedDistance = 20;
+
+/** `true` when every type is listed, which the backend treats as no filter. */
+export function isEveryFeedType(types: readonly FeedTypeFilter[]): boolean {
+  return FEED_TYPE_FILTERS.every((type) => types.includes(type));
+}
+
 export type FeedEvent = {
   event_type: FeedEventType;
   created_at: string;

@@ -11,12 +11,64 @@ import {
 
 describe('query keys', () => {
   test('feed keys nest under a shared prefix', () => {
-    expect(feedKeys.list()).toEqual(['feed', 'list', { types: null }]);
+    expect(feedKeys.list()).toEqual([
+      'feed',
+      'list',
+      {
+        scope: 'all',
+        types: null,
+        distance: 20,
+        showOwnActivity: true,
+        showClaimedGiveaways: false,
+      },
+    ]);
     expect(feedKeys.list({ types: ['giveaways'] })).toEqual([
       'feed',
       'list',
-      { types: ['giveaways'] },
+      {
+        scope: 'all',
+        types: ['giveaways'],
+        distance: 20,
+        showOwnActivity: true,
+        showClaimedGiveaways: false,
+      },
     ]);
+  });
+
+  test('feed keys treat omitted filters as the backend defaults', () => {
+    expect(
+      feedKeys.list({
+        scope: 'all',
+        distance: 20,
+        showOwnActivity: true,
+        showClaimedGiveaways: false,
+      }),
+    ).toEqual(feedKeys.list());
+    expect(feedKeys.list({ scope: 'circles' })).not.toEqual(feedKeys.list());
+    expect(feedKeys.list({ distance: 5 })).not.toEqual(feedKeys.list());
+    expect(feedKeys.list({ showOwnActivity: false })).not.toEqual(
+      feedKeys.list(),
+    );
+    expect(feedKeys.list({ showClaimedGiveaways: true })).not.toEqual(
+      feedKeys.list(),
+    );
+  });
+
+  test('feed keys keep no distance limit apart from the default', () => {
+    expect(feedKeys.list({ distance: null })).not.toEqual(feedKeys.list());
+    expect(feedKeys.list({ distance: null })[2].distance).toBeNull();
+  });
+
+  test('feed keys normalize the type list', () => {
+    expect(feedKeys.list({ types: [] })).toEqual(feedKeys.list());
+    expect(
+      feedKeys.list({
+        types: ['loans', 'requests', 'giveaways', 'circle_joins'],
+      }),
+    ).toEqual(feedKeys.list());
+    expect(feedKeys.list({ types: ['loans', 'giveaways', 'loans'] })).toEqual(
+      feedKeys.list({ types: ['giveaways', 'loans'] }),
+    );
   });
 
   test('item list keys normalize the search query', () => {

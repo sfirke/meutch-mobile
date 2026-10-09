@@ -78,4 +78,37 @@ describe('<OptionSheet />', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  test('a disabled option ignores presses and reports disabled', () => {
+    const { onClose, onSelect } = renderSheet({
+      options: [...options, { value: 'c', label: 'Gamma', disabled: true }],
+    });
+
+    const row = screen.getByTestId('option-c');
+    fireEvent.press(row);
+
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(row.props.accessibilityState).toEqual({
+      selected: false,
+      disabled: true,
+    });
+  });
+
+  test('renders a hint under the label', () => {
+    renderSheet({
+      options: [
+        ...options,
+        {
+          value: 'c',
+          label: 'Gamma',
+          disabled: true,
+          hint: 'Set a location first',
+        },
+      ],
+    });
+
+    expect(screen.getByText('Gamma')).toBeTruthy();
+    expect(screen.getByText('Set a location first')).toBeTruthy();
+  });
 });

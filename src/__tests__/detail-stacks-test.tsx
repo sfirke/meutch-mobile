@@ -36,6 +36,7 @@ const THREAD_ID = '0f2f0d1a-6e8b-4f0f-9c2f-1b9d2a3c4d5e';
 const CIRCLE_ID = '1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d';
 const REQUEST_ID = '2b3c4d5e-6f7a-4b2c-9d3e-4f5a6b7c8d9e';
 const USER_ID = '3c4d5e6f-7a8b-4c3d-9e4f-5a6b7c8d9e0f';
+const LOAN_ID = '4d5e6f7a-8b9c-4d4e-8f5a-6b7c8d9e0f1a';
 
 function mockSession(overrides: Partial<SessionValue>) {
   mockedUseSession.mockReturnValue({
@@ -104,6 +105,33 @@ describe('detail stacks', () => {
     // As above: the empty fetch never returns a user profile payload.
     expect(await screen.findByLabelText('Loading profile')).toBeTruthy();
     expect(getPathname()).toBe(`/user/${USER_ID}`);
+  });
+
+  test('mounts the loan detail screen for a loan deep link', async () => {
+    mockSession({ status: 'signed-in', user: member });
+
+    const { getPathname } = renderRouter('app', {
+      initialUrl: `/loan/${LOAN_ID}`,
+    });
+
+    // As above: the empty fetch never returns a loan detail payload.
+    expect(await screen.findByLabelText('Loading loan')).toBeTruthy();
+    expect(getPathname()).toBe(`/loan/${LOAN_ID}`);
+  });
+
+  test.each([
+    ['/profile/items', 'Nothing listed to lend'],
+    ['/profile/loans', 'Nothing borrowed right now'],
+    ['/profile/requests', 'No active requests'],
+  ])('mounts the own-activity list at %s', async (path, emptyTitle) => {
+    mockSession({ status: 'signed-in', user: member });
+
+    const { getPathname } = renderRouter('app', { initialUrl: path });
+
+    // The empty fetch answers each list with an empty page, so the screen
+    // settles on its empty state.
+    expect(await screen.findByText(emptyTitle)).toBeTruthy();
+    expect(getPathname()).toBe(path);
   });
 
   test('mounts the settings screen at /profile/settings', async () => {

@@ -24,6 +24,7 @@ import { QueryStateView } from '../components/QueryStateView';
 import { formatCalendarDate } from '../lib/dates';
 import type { ErrorCopyOverrides } from '../lib/errorCopy';
 import type { ItemDetail, ItemViewerState } from '../lib/items';
+import { DELETED_USER_NAME } from '../lib/parse';
 import { WEB_SITE } from '../lib/webOnly';
 import { isItemId, useItemDetailQuery } from '../query/useItemDetailQuery';
 import { useSession } from '../session/SessionProvider';
@@ -78,9 +79,6 @@ const LOAN_PLACEHOLDER =
   'What do you want to know about the item or lending it?';
 const GIVEAWAY_HINT =
   'Ask a question or express your interest. The owner can pick anyone who sends them a message.';
-
-/** Matches the backend's `Item.owner_name` fallback for a deleted account. */
-const DELETED_OWNER_NAME = 'Deleted User';
 
 /**
  * The web page shows the recipient's name to the owner only, and the borrower's
@@ -326,7 +324,7 @@ function ItemDetailBody({
         ) : (
           <View style={styles.ownerRow}>
             <Avatar testID="item-owner-avatar" user={item.owner} />
-            <Text style={styles.ownerName}>{DELETED_OWNER_NAME}</Text>
+            <Text style={styles.ownerName}>{DELETED_USER_NAME}</Text>
           </View>
         )}
       </View>

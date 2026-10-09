@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ConversationSummary } from '../lib/messages';
+import { DELETED_USER_NAME } from '../lib/parse';
 import { formatRelativeTime } from '../lib/relativeTime';
 import { colors, radii, spacing, typography } from '../theme';
 import { Avatar } from './Avatar';
@@ -16,9 +17,6 @@ export type ConversationRowProps = {
   selected?: boolean;
   onToggleSelect?: (conversation: ConversationSummary) => void;
 };
-
-/** Matches item detail's fallback for a deleted account. */
-const DELETED_OTHER_USER_NAME = 'Deleted User';
 
 function getContextChip(
   conversation: ConversationSummary,
@@ -56,7 +54,7 @@ export function ConversationRow({
 }: ConversationRowProps) {
   const { latest_message: latestMessage, other_user: otherUser } = conversation;
   const unread = conversation.unread_count > 0;
-  const name = otherUser ? otherUser.full_name : DELETED_OTHER_USER_NAME;
+  const name = otherUser ? otherUser.full_name : DELETED_USER_NAME;
   const isOwnMessage = latestMessage.sender.id === currentUserId;
   const previewText = isOwnMessage
     ? `You: ${latestMessage.body}`

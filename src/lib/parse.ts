@@ -131,6 +131,9 @@ export function matchEnum<T extends string>(
     : null;
 }
 
+/** Display name for a deleted account (matches the backend fallback). */
+export const DELETED_USER_NAME = 'Deleted User';
+
 export type UserSummary = {
   id: string;
   first_name: string;

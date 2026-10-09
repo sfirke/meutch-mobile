@@ -123,6 +123,15 @@ export const defaultSettingsFixture = {
   digest_requests_include_public: false,
 };
 
+// Collection envelope key per path prefix; unlisted paths fall back to items.
+const envelopeKeyByPrefix: [prefix: string, key: string][] = [
+  ['/feed', 'events'],
+  ['/circles', 'circles'],
+  ['/messages', 'conversations'],
+  ['/me/loans', 'loans'],
+  ['/me/requests', 'requests'],
+];
+
 // A fake authenticatedApiFetch answering every collection read with an empty
 // page, so router-level tests settle on the screens' empty states.
 export function emptyApiFetch() {
@@ -135,13 +144,9 @@ export function emptyApiFetch() {
       return jsonResponse({ settings: defaultSettingsFixture });
     }
 
-    const name = path.startsWith('/feed')
-      ? 'events'
-      : path.startsWith('/circles')
-        ? 'circles'
-        : path.startsWith('/messages')
-          ? 'conversations'
-          : 'items';
+    const name =
+      envelopeKeyByPrefix.find(([prefix]) => path.startsWith(prefix))?.[1] ??
+      'items';
 
     return jsonResponse({
       [name]: [],

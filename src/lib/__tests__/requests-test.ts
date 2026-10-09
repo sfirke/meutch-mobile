@@ -1,10 +1,15 @@
 import type { ApiFetch } from '../api';
 import {
+  describeRequestStatus,
+  fetchMyRequests,
   fetchRequestDetail,
   formatRequestDate,
   isRequestExpired,
   parseRequestDetailResponse,
+  parseRequestListPage,
   parseRequestSummary,
+  SEEKING_LABELS,
+  VISIBILITY_LABELS,
 } from '../requests';
 
 function createMockResponse(body: unknown, status = 200): Response {
@@ -61,6 +66,12 @@ describe('parseRequestSummary', () => {
       user: requester,
       distance: null,
     });
+  });
+
+  test('parses a summary without a distance key', () => {
+    const { distance: _distance, ...withoutDistance } = createRequest();
+
+    expect(parseRequestSummary(withoutDistance).distance).toBeNull();
   });
 
   test('maps unknown enum values to null instead of failing', () => {
@@ -160,5 +171,142 @@ describe('formatRequestDate', () => {
 
   test('returns null for an unparseable value', () => {
     expect(formatRequestDate('soon')).toBeNull();
+  });
+});
+
+const pagination = {
+  page: 1,
+  per_page: 12,
+  total: 2,
+  pages: 1,
+  has_next: false,
+  has_prev: false,
+};
+
+const SECOND_REQUEST_ID = 'b2222222-2222-4222-8222-222222222223';
+
+describe('parseRequestListPage', () => {
+  test('parses requests and pagination', () => {
+    const page = parseRequestListPage({
+      requests: [
+        createRequest(),
+        createRequest({ id: SECOND_REQUEST_ID, title: 'Tile saw' }),
+      ],
+      pagination,
+    });
+
+    expect(page.requests.map((request) => request.title)).toEqual([
+      'Extension ladder',
+      'Tile saw',
+    ]);
+    expect(page.pagination).toEqual(pagination);
+  });
+
+  test('rejects a malformed page', () => {
+    expect(() => parseRequestListPage({ pagination })).toThrow(
+      'Invalid request list payload.',
+    );
+    expect(() =>
+      parseRequestListPage({
+        requests: [createRequest({ title: '' })],
+        pagination,
+      }),
+    ).toThrow('Invalid request payload.');
+  });
+});
+
+describe('fetchMyRequests', () => {
+  function mockFetch(): jest.MockedFunction<ApiFetch> {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ requests: [createRequest()], pagination }),
+    );
+
+    return fetchImpl;
+  }
+
+  test.each(['active', 'fulfilled'] as const)(
+    'requests the %s path',
+    async (status) => {
+      const fetchImpl = mockFetch();
+      const page = await fetchMyRequests(fetchImpl, { status, page: 2 });
+
+      expect(fetchImpl.mock.calls[0][0]).toBe(
+        `/me/requests?status=${status}&page=2`,
+      );
+      expect(page.requests).toHaveLength(1);
+    },
+  );
+
+  test('includes per_page when given', async () => {
+    const fetchImpl = mockFetch();
+
+    await fetchMyRequests(fetchImpl, {
+      status: 'active',
+      page: 1,
+      perPage: 5,
+    });
+
+    expect(fetchImpl.mock.calls[0][0]).toBe(
+      '/me/requests?status=active&page=1&per_page=5',
+    );
+  });
+
+  test('forwards the abort signal', async () => {
+    const fetchImpl = mockFetch();
+    const { signal } = new AbortController();
+
+    await fetchMyRequests(fetchImpl, { status: 'active', page: 1, signal });
+
+    expect(fetchImpl.mock.calls[0][1]?.signal).toBe(signal);
+  });
+
+  test('rejects a non-2xx response', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(createMockResponse({}, 500));
+
+    await expect(
+      fetchMyRequests(fetchImpl, { status: 'active', page: 1 }),
+    ).rejects.toBeDefined();
+  });
+});
+
+describe('describeRequestStatus', () => {
+  const now = new Date('2026-06-16T12:00:00Z');
+
+  test('reports a fulfilled request as fulfilled even when past expiry', () => {
+    const request = parseRequestSummary(createRequest({ status: 'fulfilled' }));
+
+    expect(describeRequestStatus(request, now)).toBe('fulfilled');
+  });
+
+  test('reports an open request past its expiry as expired', () => {
+    const request = parseRequestSummary(createRequest());
+
+    expect(describeRequestStatus(request, now)).toBe('expired');
+  });
+
+  test('reports an unexpired open request as open', () => {
+    const request = parseRequestSummary(createRequest());
+
+    expect(
+      describeRequestStatus(request, new Date('2026-06-15T12:00:00Z')),
+    ).toBe('open');
+  });
+});
+
+describe('request labels', () => {
+  test('label every seeking and visibility value', () => {
+    expect(SEEKING_LABELS).toEqual({
+      loan: 'Seeking a loan',
+      giveaway: 'Seeking a giveaway',
+      either: 'Loan or giveaway',
+    });
+    expect(VISIBILITY_LABELS).toEqual({
+      public: 'Public',
+      circles: 'Circles only',
+    });
   });
 });

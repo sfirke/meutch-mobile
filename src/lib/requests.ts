@@ -1,12 +1,16 @@
 import { readJsonOrThrow, type ApiFetch } from './api';
 import { formatCalendarDate } from './dates';
 import {
+  buildQueryString,
   isNullableString,
   isObject,
   isString,
   matchEnum,
   parseArray,
+  parsePagination,
   parseUserSummary,
+  type Pagination,
+  type QueryParam,
   type UserSummary,
 } from './parse';
 
@@ -22,6 +26,21 @@ export type RequestSeeking = (typeof REQUEST_SEEKING)[number];
 export const REQUEST_VISIBILITIES = ['circles', 'public'] as const;
 
 export type RequestVisibility = (typeof REQUEST_VISIBILITIES)[number];
+
+export const MY_REQUEST_STATUSES = ['active', 'fulfilled'] as const;
+
+export type MyRequestStatus = (typeof MY_REQUEST_STATUSES)[number];
+
+export const SEEKING_LABELS: Record<RequestSeeking, string> = {
+  loan: 'Seeking a loan',
+  giveaway: 'Seeking a giveaway',
+  either: 'Loan or giveaway',
+};
+
+export const VISIBILITY_LABELS: Record<RequestVisibility, string> = {
+  public: 'Public',
+  circles: 'Circles only',
+};
 
 export type RequestSummary = {
   id: string;
@@ -55,11 +74,24 @@ export type RequestDetailResponse = {
   conversations: RequestConversation[];
 };
 
+export type RequestListPage = {
+  requests: RequestSummary[];
+  pagination: Pagination;
+};
+
+export type FetchMyRequestsOptions = {
+  status: MyRequestStatus;
+  page: number;
+  perPage?: number;
+  signal?: AbortSignal;
+};
+
 export type FetchRequestDetailOptions = {
   signal?: AbortSignal;
 };
 
 const INVALID_REQUEST = 'Invalid request payload.';
+const INVALID_REQUEST_LIST = 'Invalid request list payload.';
 const INVALID_REQUEST_DETAIL = 'Invalid request detail payload.';
 
 const LEADING_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}/;
@@ -76,6 +108,19 @@ export function isRequestExpired(request: RequestSummary, now: Date): boolean {
   const expiresOn = leadingDate(request.expires_at);
 
   return expiresOn !== null && now.toISOString().slice(0, 10) > expiresOn;
+}
+
+export type RequestDisplayStatus = 'open' | 'expired' | 'fulfilled';
+
+export function describeRequestStatus(
+  request: RequestSummary,
+  now: Date,
+): RequestDisplayStatus {
+  if (request.status === 'fulfilled') {
+    return 'fulfilled';
+  }
+
+  return isRequestExpired(request, now) ? 'expired' : 'open';
 }
 
 /** Formats the leading date of `expires_at` or `fulfilled_at` as `Jun 3, 2026`. */
@@ -181,4 +226,37 @@ export async function fetchRequestDetail(
   });
 
   return parseRequestDetailResponse(await readJsonOrThrow<unknown>(response));
+}
+
+export function parseRequestListPage(value: unknown): RequestListPage {
+  if (!isObject(value)) {
+    throw new Error(INVALID_REQUEST_LIST);
+  }
+
+  return {
+    requests: parseArray(value.requests, INVALID_REQUEST_LIST).map(
+      parseRequestSummary,
+    ),
+    pagination: parsePagination(value.pagination),
+  };
+}
+
+export async function fetchMyRequests(
+  fetchImpl: ApiFetch,
+  options: FetchMyRequestsOptions,
+): Promise<RequestListPage> {
+  const params: QueryParam[] = [
+    ['status', options.status],
+    ['page', String(options.page)],
+  ];
+
+  if (options.perPage !== undefined) {
+    params.push(['per_page', String(options.perPage)]);
+  }
+
+  const response = await fetchImpl(`/me/requests${buildQueryString(params)}`, {
+    signal: options.signal,
+  });
+
+  return parseRequestListPage(await readJsonOrThrow<unknown>(response));
 }

@@ -34,6 +34,7 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="item" options={{ headerShown: false }} />
       <Stack.Screen name="request" options={{ headerShown: false }} />
+      <Stack.Screen name="loan" options={{ headerShown: false }} />
       <Stack.Screen name="message" options={{ headerShown: false }} />
       <Stack.Screen name="circle" options={{ headerShown: false }} />
       <Stack.Screen name="profile" options={{ headerShown: false }} />

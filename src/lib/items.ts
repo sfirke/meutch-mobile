@@ -106,6 +106,23 @@ export type FetchItemsOptions = {
   signal?: AbortSignal;
 };
 
+export const MY_ITEM_KINDS = [
+  'lending',
+  'active_giveaways',
+  'past_giveaways',
+] as const;
+
+export type MyItemKind = (typeof MY_ITEM_KINDS)[number];
+
+export type FetchMyItemsOptions = {
+  kind: MyItemKind;
+  page: number;
+  q?: string;
+  /** The backend rejects `per_page` above 50 with a 422; it does not clamp. */
+  perPage?: number;
+  signal?: AbortSignal;
+};
+
 export type FetchItemDetailOptions = {
   signal?: AbortSignal;
 };
@@ -322,6 +339,31 @@ export async function fetchItems(
   }
 
   const response = await fetchImpl(`/items${buildQueryString(params)}`, {
+    signal: options.signal,
+  });
+
+  return parseItemListPage(await readJsonOrThrow<unknown>(response));
+}
+
+export async function fetchMyItems(
+  fetchImpl: ApiFetch,
+  options: FetchMyItemsOptions,
+): Promise<ItemListPage> {
+  const params: QueryParam[] = [
+    ['kind', options.kind],
+    ['page', String(options.page)],
+  ];
+  const searchQuery = normalizeSearchQuery(options.q);
+
+  if (searchQuery) {
+    params.push(['q', searchQuery]);
+  }
+
+  if (options.perPage !== undefined) {
+    params.push(['per_page', String(options.perPage)]);
+  }
+
+  const response = await fetchImpl(`/me/items${buildQueryString(params)}`, {
     signal: options.signal,
   });
 

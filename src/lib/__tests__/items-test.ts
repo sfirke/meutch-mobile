@@ -1,6 +1,11 @@
 import type { ApiFetch } from '../api';
 import { isApiError } from '../api';
-import { fetchItemDetail, fetchItems } from '../items';
+import {
+  fetchItemDetail,
+  fetchItems,
+  fetchMyItems,
+  MY_ITEM_KINDS,
+} from '../items';
 
 function createMockResponse(body: unknown, status = 200): Response {
   return {
@@ -195,6 +200,126 @@ describe('fetchItems', () => {
     expect(isApiError(error)).toBe(true);
     expect(isApiError(error) && error.code).toBe('FORBIDDEN');
     expect(isApiError(error) && error.status).toBe(403);
+  });
+});
+
+describe('fetchMyItems', () => {
+  test.each(MY_ITEM_KINDS)('requests the %s kind', async (kind) => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ items: [], pagination }),
+    );
+
+    await fetchMyItems(fetchImpl, { kind, page: 2 });
+
+    expect(getRequestPath(fetchImpl)).toBe(`/me/items?kind=${kind}&page=2`);
+  });
+
+  test('trims the search query and sends per_page when set', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ items: [], pagination }),
+    );
+
+    await fetchMyItems(fetchImpl, {
+      kind: 'lending',
+      page: 1,
+      q: ' drill & bits ',
+      perPage: 50,
+    });
+
+    expect(getRequestPath(fetchImpl)).toBe(
+      '/me/items?kind=lending&page=1&q=drill%20%26%20bits&per_page=50',
+    );
+  });
+
+  test('omits a blank search query', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ items: [], pagination }),
+    );
+
+    await fetchMyItems(fetchImpl, { kind: 'lending', page: 1, q: '   ' });
+
+    expect(getRequestPath(fetchImpl)).toBe('/me/items?kind=lending&page=1');
+  });
+
+  test('forwards the abort signal', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+    const controller = new AbortController();
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ items: [], pagination }),
+    );
+
+    await fetchMyItems(fetchImpl, {
+      kind: 'past_giveaways',
+      page: 1,
+      signal: controller.signal,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      '/me/items?kind=past_giveaways&page=1',
+      { signal: controller.signal },
+    );
+  });
+
+  test('parses an item page', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ items: [createItemSummary()], pagination }),
+    );
+
+    const page = await fetchMyItems(fetchImpl, { kind: 'lending', page: 1 });
+
+    expect(page.pagination).toEqual(pagination);
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0].id).toBe(ITEM_ID);
+    expect(page.items[0].owner?.full_name).toBe('Ada Example');
+  });
+
+  test('rejects a malformed payload', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({
+        items: [createItemSummary({ available: 'yes' })],
+        pagination,
+      }),
+    );
+
+    await expect(
+      fetchMyItems(fetchImpl, { kind: 'lending', page: 1 }),
+    ).rejects.toThrow('Invalid item payload.');
+  });
+
+  test('propagates a non-2xx response as an ApiError', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid kind.',
+            details: {},
+          },
+        },
+        422,
+      ),
+    );
+
+    const error = await fetchMyItems(fetchImpl, {
+      kind: 'lending',
+      page: 1,
+    }).catch((caught: unknown) => caught);
+
+    expect(isApiError(error)).toBe(true);
+    expect(isApiError(error) && error.status).toBe(422);
   });
 });
 

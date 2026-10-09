@@ -3,15 +3,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '../theme';
 import { Icon } from './Icon';
-import { OptionSheet } from './OptionSheet';
+import { OptionSheet, type OptionSheetOption } from './OptionSheet';
 
-export type FilterToolbarSortOption<S extends string> = {
-  value: S;
-  label: string;
-  disabled?: boolean;
-  /** Small secondary text under the label, e.g. why the option is disabled. */
-  hint?: string;
-};
+export type FilterToolbarSortOption<S extends string> = OptionSheetOption<S>;
 
 export type FilterToolbarSort<S extends string> = {
   value: S;

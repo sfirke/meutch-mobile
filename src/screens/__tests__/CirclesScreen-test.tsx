@@ -416,7 +416,7 @@ describe('<CirclesScreen />', () => {
     fireEvent.press(radiusButton());
 
     expect(
-      screen.getByText('Set a location on the website to filter by distance.'),
+      screen.getByText('Add a location on your profile to filter by distance.'),
     ).toBeTruthy();
     // Any distance leads the list, ahead of the numeric choices.
     expect(

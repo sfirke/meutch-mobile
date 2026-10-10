@@ -17,12 +17,13 @@ import { ProfileHeader } from '../components/ProfileHeader';
 import { ProfileLinksSection } from '../components/ProfileLinksSection';
 import { QueryStateView } from '../components/QueryStateView';
 import { runtimeConfig } from '../config/env';
+import { RECOVERY_ERROR_OVERRIDES } from '../lib/accountRecovery';
 import { isApiError } from '../lib/api';
 import { formatMonthYear } from '../lib/dates';
 import { describeError } from '../lib/errorCopy';
 import type { UserProfile } from '../lib/profile';
-import { webOnlyNote } from '../lib/webOnly';
 import { useProfileQuery } from '../query/useProfileQuery';
+import { useResendConfirmationMutation } from '../query/useResendConfirmationMutation';
 import { useUpdateAboutMeMutation } from '../query/useUpdateAboutMeMutation';
 import { useSession } from '../session/SessionProvider';
 import { colors, radii, spacing, typography } from '../theme';
@@ -31,10 +32,8 @@ const ABOUT_ME_LIMIT = 500;
 /** The counter only appears once the limit is close enough to matter. */
 const COUNTER_THRESHOLD = 450;
 const ABOUT_ME_PROMPT = 'Add a few words about yourself';
-const LINKS_NOTE = webOnlyNote('Edit links and photo');
-const LOCATION_NOTE = webOnlyNote('Update your location');
 
-/** Photo upload and link editing stay on the web, so only `about_me` writes. */
+/** The inline editor only writes `about_me`; photo and links use their own screen. */
 function describeAboutMeError(error: unknown): string {
   if (isApiError(error)) {
     const messages = error.details?.about_me;
@@ -158,6 +157,38 @@ function AboutMeSection({ aboutMe }: AboutMeSectionProps) {
   );
 }
 
+function ResendConfirmation({ email }: { email: string }) {
+  const resend = useResendConfirmationMutation();
+
+  if (resend.isSuccess) {
+    return <Text style={styles.note}>{resend.data.message}</Text>;
+  }
+
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: resend.isPending }}
+        disabled={resend.isPending}
+        onPress={() => resend.mutate(email)}
+        style={({ pressed }) => [
+          styles.textButton,
+          (resend.isPending || pressed) && styles.dim,
+        ]}
+      >
+        <Text style={styles.textButtonLabel}>
+          {resend.isPending ? 'Sending...' : 'Resend confirmation email'}
+        </Text>
+      </Pressable>
+      {resend.error ? (
+        <Text style={styles.inlineError}>
+          {describeError(resend.error, RECOVERY_ERROR_OVERRIDES).message}
+        </Text>
+      ) : null}
+    </>
+  );
+}
+
 type ProfileBodyProps = {
   profile: UserProfile;
   isRefreshing: boolean;
@@ -186,14 +217,24 @@ function ProfileBody({ profile, isRefreshing, onRefresh }: ProfileBodyProps) {
         <View style={styles.emailRow}>
           <Text style={styles.email}>{profile.email}</Text>
           {profile.email_confirmed ? null : (
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>Unconfirmed</Text>
-            </View>
+            <>
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>Unconfirmed</Text>
+              </View>
+              <ResendConfirmation email={profile.email} />
+            </>
           )}
         </View>
         {memberSince ? (
           <Text style={styles.note}>{`Member since ${memberSince}`}</Text>
         ) : null}
+        <View style={styles.rowList}>
+          <NavRow
+            icon="pen"
+            label="Edit profile"
+            onPress={() => router.push('/profile/edit')}
+          />
+        </View>
       </ProfileHeader>
 
       <View style={styles.section}>
@@ -221,7 +262,6 @@ function ProfileBody({ profile, isRefreshing, onRefresh }: ProfileBodyProps) {
 
       <View style={styles.section}>
         <ProfileLinksSection links={profile.web_links} />
-        <Text style={styles.note}>{LINKS_NOTE}</Text>
       </View>
 
       <View style={styles.section}>
@@ -230,7 +270,13 @@ function ProfileBody({ profile, isRefreshing, onRefresh }: ProfileBodyProps) {
           <Icon color={colors.secondary} name="location" />
           <Text style={styles.locationText}>{describeLocation(profile)}</Text>
         </View>
-        <Text style={styles.note}>{LOCATION_NOTE}</Text>
+        <View style={styles.rowList}>
+          <NavRow
+            icon="location"
+            label={profile.has_location ? 'Update location' : 'Add a location'}
+            onPress={() => router.push('/profile/location')}
+          />
+        </View>
       </View>
     </KeyboardAwareScrollView>
   );

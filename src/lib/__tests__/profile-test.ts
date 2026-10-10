@@ -1,11 +1,18 @@
 import type { ApiFetch } from '../api';
-import { isApiError } from '../api';
+import { ApiError, isApiError, UPLOAD_REQUEST_TIMEOUT_MS } from '../api';
 import {
   fetchProfile,
   fetchSettings,
+  LINK_PLATFORM_LABELS,
+  LINK_PLATFORMS,
+  normalizeLinkUrl,
+  readLinkErrors,
+  toWebLinkInput,
   updateAboutMe,
+  updateProfile,
   updateSettings,
   type UserSettings,
+  type WebLink,
 } from '../profile';
 
 function createMockResponse(body: unknown, status = 200): Response {
@@ -346,5 +353,258 @@ describe('updateSettings', () => {
     expect(isApiError(error)).toBe(true);
     expect(isApiError(error) && error.code).toBe('FORBIDDEN');
     expect(isApiError(error) && error.status).toBe(403);
+  });
+});
+
+describe('LINK_PLATFORM_LABELS', () => {
+  test('labels every platform', () => {
+    expect(Object.keys(LINK_PLATFORM_LABELS).sort()).toEqual(
+      [...LINK_PLATFORMS].sort(),
+    );
+    LINK_PLATFORMS.forEach((platform) => {
+      expect(LINK_PLATFORM_LABELS[platform]).toEqual(expect.any(String));
+    });
+    expect(LINK_PLATFORM_LABELS.x).toBe('X (Twitter)');
+  });
+});
+
+describe('toWebLinkInput', () => {
+  const base: WebLink = {
+    id: LINK_ID_FIRST,
+    platform_type: 'mastodon',
+    platform_name: null,
+    display_name: 'Mastodon',
+    url: 'https://example.com/@ada',
+    display_order: 1,
+  };
+
+  test('keeps a known platform without a custom name', () => {
+    expect(toWebLinkInput(base)).toEqual({
+      platform: 'mastodon',
+      custom_name: null,
+      url: 'https://example.com/@ada',
+    });
+  });
+
+  test("uses platform_name as the custom name for 'other'", () => {
+    expect(
+      toWebLinkInput({
+        ...base,
+        platform_type: 'other',
+        platform_name: 'Community Wiki',
+        display_name: 'Community Wiki',
+      }),
+    ).toEqual({
+      platform: 'other',
+      custom_name: 'Community Wiki',
+      url: 'https://example.com/@ada',
+    });
+  });
+
+  test("falls back to 'other' for an unknown platform", () => {
+    expect(
+      toWebLinkInput({
+        ...base,
+        platform_type: 'myspace',
+        display_name: 'MySpace',
+      }),
+    ).toEqual({
+      platform: 'other',
+      custom_name: 'MySpace',
+      url: 'https://example.com/@ada',
+    });
+  });
+});
+
+describe('normalizeLinkUrl', () => {
+  test('adds https:// when there is no scheme', () => {
+    expect(normalizeLinkUrl('example.com/ada')).toBe('https://example.com/ada');
+  });
+
+  test('keeps an existing http or https scheme', () => {
+    expect(normalizeLinkUrl('http://example.com')).toBe('http://example.com');
+    expect(normalizeLinkUrl('https://example.com')).toBe('https://example.com');
+  });
+
+  test('trims whitespace', () => {
+    expect(normalizeLinkUrl('  example.com  ')).toBe('https://example.com');
+  });
+
+  test('leaves an empty value empty', () => {
+    expect(normalizeLinkUrl('   ')).toBe('');
+  });
+});
+
+// jest-expo stringifies RN file descriptors in `entries()`, so record the
+// exact `append` calls instead.
+async function appendedParts(
+  run: () => Promise<unknown>,
+): Promise<unknown[][]> {
+  const spy = jest.spyOn(FormData.prototype, 'append');
+
+  try {
+    await run();
+
+    return spy.mock.calls.map((call) => [...call]);
+  } finally {
+    spy.mockRestore();
+  }
+}
+
+describe('updateProfile', () => {
+  const links = [
+    {
+      platform: 'website' as const,
+      custom_name: null,
+      url: 'https://example.com',
+    },
+    {
+      platform: 'other' as const,
+      custom_name: 'Wiki',
+      url: 'https://example.com/wiki',
+    },
+  ];
+
+  function okResponse(imageUploadFailed = false) {
+    return createMockResponse({
+      user: createProfilePayload({ first_name: 'Grace' }),
+      image_upload_failed: imageUploadFailed,
+    });
+  }
+
+  test('sends JSON with only the provided keys', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+    fetchImpl.mockResolvedValueOnce(okResponse());
+
+    const result = await updateProfile(fetchImpl, {
+      first_name: 'Grace',
+      links,
+    });
+
+    expect(getRequestPath(fetchImpl)).toBe('/me/profile');
+    const init = getRequestInit(fetchImpl);
+    expect(init?.method).toBe('PATCH');
+    expect((init?.headers as Record<string, string>)['Content-Type']).toBe(
+      'application/json',
+    );
+    expect(JSON.parse(init?.body as string)).toEqual({
+      first_name: 'Grace',
+      links,
+    });
+    expect(result.user.first_name).toBe('Grace');
+    expect(result.imageUploadFailed).toBe(false);
+  });
+
+  test('sends delete_image when the photo is removed', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+    fetchImpl.mockResolvedValueOnce(okResponse());
+
+    await updateProfile(fetchImpl, { photo: { kind: 'remove' } });
+
+    expect(JSON.parse(getRequestInit(fetchImpl)?.body as string)).toEqual({
+      delete_image: true,
+    });
+  });
+
+  test('sends multipart with links as one JSON part when a new photo is present', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+    fetchImpl.mockResolvedValueOnce(okResponse());
+
+    const parts = await appendedParts(() =>
+      updateProfile(fetchImpl, {
+        first_name: 'Grace',
+        about_me: 'Hello',
+        links,
+        photo: { kind: 'new', uri: 'file:///tmp/avatar.jpg' },
+      }),
+    );
+
+    const init = getRequestInit(fetchImpl) as RequestInit & {
+      timeoutMs?: number;
+    };
+    expect(init.method).toBe('PATCH');
+    expect(init.body).toBeInstanceOf(FormData);
+    expect(init.timeoutMs).toBe(UPLOAD_REQUEST_TIMEOUT_MS);
+    expect(
+      (init.headers as Record<string, string>)['Content-Type'],
+    ).toBeUndefined();
+    expect(parts).toEqual([
+      ['first_name', 'Grace'],
+      ['about_me', 'Hello'],
+      ['links', JSON.stringify(links)],
+      [
+        'profile_image',
+        {
+          uri: 'file:///tmp/avatar.jpg',
+          name: 'profile.jpg',
+          type: 'image/jpeg',
+        },
+      ],
+    ]);
+  });
+
+  test('reports a failed image upload', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+    fetchImpl.mockResolvedValueOnce(okResponse(true));
+
+    const result = await updateProfile(fetchImpl, {
+      photo: { kind: 'new', uri: 'file:///tmp/avatar.jpg' },
+    });
+
+    expect(result.imageUploadFailed).toBe(true);
+    expect(result.user.id).toBe(USER_ID);
+  });
+});
+
+describe('readLinkErrors', () => {
+  function validationError(details: Record<string, unknown>) {
+    return new ApiError({
+      code: 'VALIDATION_ERROR',
+      message: 'Input validation failed.',
+      status: 422,
+      details,
+    });
+  }
+
+  test('maps row errors keyed by index', () => {
+    const error = validationError({
+      links: {
+        '1': {
+          url: ['Not a valid URL.'],
+          custom_name: ['This field is required when platform is "other".'],
+        },
+      },
+    });
+
+    expect(readLinkErrors(error)).toEqual({
+      rows: {
+        1: {
+          url: 'Not a valid URL.',
+          custom_name: 'This field is required when platform is "other".',
+        },
+      },
+      general: null,
+    });
+  });
+
+  test('reads a list-level error as general', () => {
+    const error = validationError({
+      links: ['Longer than maximum length 5.'],
+    });
+
+    expect(readLinkErrors(error)).toEqual({
+      rows: {},
+      general: 'Longer than maximum length 5.',
+    });
+  });
+
+  test('ignores errors without link details', () => {
+    expect(readLinkErrors(new Error('boom'))).toEqual({
+      rows: {},
+      general: null,
+    });
+    expect(
+      readLinkErrors(validationError({ first_name: ['Too long.'] })),
+    ).toEqual({ rows: {}, general: null });
   });
 });

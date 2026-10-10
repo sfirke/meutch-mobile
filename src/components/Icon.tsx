@@ -36,7 +36,8 @@ export type IconName =
   | 'read'
   | 'plus'
   | 'pen'
-  | 'trash';
+  | 'trash'
+  | 'warning';
 
 /**
  * FontAwesome 6 Free solid glyph names. Covered by Icon-test.tsx, which
@@ -77,6 +78,7 @@ export const ICON_GLYPHS: Record<IconName, string> = {
   plus: 'plus',
   pen: 'pen',
   trash: 'trash',
+  warning: 'triangle-exclamation',
 };
 
 export type IconProps = {

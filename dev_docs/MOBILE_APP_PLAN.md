@@ -56,7 +56,7 @@ Backend additions the mobile roadmap still needs, each noted on the PR that depe
 
 ## PR Sequence
 
-Status: PRs 1 through 5.6, 7, 9, and 10 are merged. Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
+Status: PRs 1 through 5.6, 7, 8, 9, and 10 are merged; 13a, 13b, and 11 are open as a stacked series. Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
 
 ### PR 1: Repo Foundation (merged)
 
@@ -118,7 +118,7 @@ All supported by the API today; the app currently sends only a search term. Spli
 - a filter sheet holds a draft and sends nothing until Apply is tapped, so one request per visit (the API allows 60 reads a minute)
 - filter choices live in screen state and are not remembered across launches
 - default values are never sent; list params go as repeated keys; query keys normalise so an omitted filter shares its cache entry with the explicit default
-- distance options are disabled, with a hint to set a location on the website, when the profile has no location (location editing arrives in PR 11)
+- distance options are disabled, with a hint to set a location on the website, when the profile has no location (the hint now points at the profile since PR 11)
 - no new dependencies
 
 #### PR 8a: Browse Filters And Sort
@@ -189,10 +189,24 @@ Verification: `npm run verify` (97 suites, 997 tests); backend targeted pytest (
 
 ### PR 11: Account And Profile Editing
 
-- "Forgot password" on sign in, reset password, resend confirmation email (`/auth/forgot-password`, `/auth/reset-password`, `/auth/resend-confirmation`)
-- first and last name editing, profile photo upload and removal, web link editing (`PATCH /me/profile`)
-- location by address (`PATCH /me/location`)
-- account deletion (`DELETE /me`), showing outstanding loans first like the web page
+Branch `pr11-account-profile`, stacked on `pr13b-item-photos` (PR #16, itself on #15). [PR #22](https://github.com/sfirke/meutch-mobile/pull/22). No new dependencies.
+
+- Account recovery: "Forgot password?" on sign in opens `/forgot-password`, which requests the reset email (`POST /auth/forgot-password`); the emailed link opens the meutch.com page where the member chooses a new password
+- Unconfirmed accounts: a 403 `FORBIDDEN` at sign in shows a "Confirm your email" card with "Resend confirmation email" (`POST /auth/resend-confirmation`); the Profile tab has the same button beside the Unconfirmed chip; sign in moved to `SignInScreen`
+- Edit profile (`/profile/edit`): photo (camera, library, remove; resized to 1600px JPEG like item photos), first and last name, up to five web links (platform sheet, custom name for "other", `https://` added to a schemeless URL); one Save sends only the changed fields, as JSON or as multipart when a new photo is included; a discard guard; if the backend reports `image_upload_failed`, the other changes are saved and the screen stays with the photo still pending
+- Location (`/profile/location`): an address form that is always empty, since the saved address is never returned; privacy and once-per-day notes; an inline result per backend status (success, removed, rate_limited, geocoding_failed, geocoding_error, unexpected_error, all 200s); a 60 s timeout because geocoding is synchronous, after which the profile is refetched; "Remove location" behind a confirmation. On success the profile flags are merged and item, feed, and circle lists are marked stale
+- Delete account (`/profile/delete-account`, from Settings → Account): the website's warning, an outstanding-loans notice counted from `GET /me/loans` for both roles, "View my loans", a typed `DELETE MY ACCOUNT`, a destructive dialog, then `DELETE /me`. The session is discarded locally and sign in shows "Your account has been deleted." A failed loans check shows Retry and does not block deletion
+- Session: `discardSession`, `errorCode`, and `notice` on the session context; `authenticatedApiFetch` is typed as `ApiFetch` so timeouts pass through
+- Shared: `FormTextField`, `WebLinksEditor`, `ProfilePhotoPicker`, a `warning` icon, `loanKeys.summary()`; picker permission strings now mention profile photos; the "set a location on the website" hints in Browse, the feed filter sheet, Circles, and the item form now point at the profile
+- not included: signed-in password or email change, location by coordinates or map, email confirmation itself and sign up (PR 17), moving the inline About me editor, a loan list on the delete screen
+
+Changes from the plan: password reset finishes on the web, so there is no in-app reset screen or deep link and `/auth/reset-password` is not called. Overdue loans count as outstanding, since every `approved` loan does and backend [meutch#564](https://github.com/sfirke/meutch/pull/564) changed the website's summary to match. The Delete account entry lives in Settings rather than on the Profile tab.
+
+Known limits: removing a location is also blocked by the 24-hour limit and the API cannot say so in advance, so the screen reports it after the attempt. Other devices stay signed in after account deletion or a password reset (backend behaviour). A backend bug deletes the old profile image before a failed re-upload completes (`app/services/profile_service.py`); the app tells the member to retry.
+
+Verification: `npm run verify` (142 suites, 1451 tests). Headless web screenshots of Profile (the new rows and the resend button beside the Unconfirmed chip), Edit profile prefilled with a photo and two links, Location with a location set, Delete account with the notice counting an overdue loan, and Settings with the Account section. Against a local backend on meutch#564 with curl: forgot-password and resend-confirmation returned 200 and logged an email (an unknown or already confirmed address logged none), the sixth request in an hour returned 429, and an unconfirmed login returned 403 `FORBIDDEN`; a JSON PATCH with one name field left the rest intact, two links came back in order, an "other" link without a name and six links returned 422 in the shapes the app reads; a multipart PATCH with a JSON `links` field and a JPEG stored the photo, a text file as the image returned 200 with `image_upload_failed: true` and the other changes saved, and `delete_image` cleared it; location returned `success` (0.7 s), then `rate_limited`, `geocoding_failed` for a nonsense address, and `removed` only outside the 24-hour window; an approved loan past its end date showed as overdue in `/me/loans` and counted on the web delete page; `DELETE /me` returned 200 and the same token then got 401 `TOKEN_REVOKED`. Not exercised: `geocoding_error`, `unexpected_error`, and the 503 `EMAIL_SEND_FAILED` path. Found in the backend and not addressed here: `DELETE /me` returns 500 for a member who owns an item with loan-request history or a giveaway with interest (the app shows the error in the dialog and keeps the session), and other devices' sessions survive deletion.
+
+Needs a human: the camera and library avatar flow on a device, an iPhone HEIC photo, the keyboard over the links editor, and the real reset email end to end on staging or production (staging sends no email).
 
 ### PR 12: Circle Membership And Admin
 

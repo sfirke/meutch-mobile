@@ -172,6 +172,19 @@ describe('detail stacks', () => {
     expect(getPathname()).toBe('/profile/settings');
   });
 
+  test.each([
+    ['edit profile', '/profile/edit', 'First name'],
+    ['location', '/profile/location', 'Save location'],
+    ['delete account', '/profile/delete-account', 'Delete my account'],
+  ])('mounts the %s screen at %s', async (_name, path, expected) => {
+    mockSession({ status: 'signed-in', user: member });
+
+    const { getPathname } = renderRouter('app', { initialUrl: path });
+
+    expect(await screen.findByText(expected)).toBeTruthy();
+    expect(getPathname()).toBe(path);
+  });
+
   test('renders the profile tab at /profile, not the settings stack', async () => {
     mockSession({ status: 'signed-in', user: member });
 

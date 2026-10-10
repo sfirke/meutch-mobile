@@ -34,7 +34,7 @@ export const ITEM_FIELDS = [
 ] as const;
 
 export const PUBLIC_LOCATION_HINT =
-  'Public giveaways need a location on your profile so nearby members can find them. Add one on meutch.com.';
+  'Public giveaways need a location on your profile so nearby members can find them. Add one from your profile.';
 
 export type ItemFormValues = ItemWriteInput;
 

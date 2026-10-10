@@ -189,7 +189,7 @@ Verification: `npm run verify` (97 suites, 997 tests); backend targeted pytest (
 
 ### PR 11: Account And Profile Editing
 
-Branch `pr11-account-profile`, stacked on `pr13b-item-photos` (PR #16, itself on #15). Draft PR to follow: [PR-LINK]. No new dependencies.
+Branch `pr11-account-profile`, stacked on `pr13b-item-photos` (PR #16, itself on #15). [PR #22](https://github.com/sfirke/meutch-mobile/pull/22). No new dependencies.
 
 - Account recovery: "Forgot password?" on sign in opens `/forgot-password`, which requests the reset email (`POST /auth/forgot-password`); the emailed link opens the meutch.com page where the member chooses a new password
 - Unconfirmed accounts: a 403 `FORBIDDEN` at sign in shows a "Confirm your email" card with "Resend confirmation email" (`POST /auth/resend-confirmation`); the Profile tab has the same button beside the Unconfirmed chip; sign in moved to `SignInScreen`

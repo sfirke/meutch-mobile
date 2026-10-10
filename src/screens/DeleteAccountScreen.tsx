@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   dangerHeading: {
     color: colors.danger,
     flex: 1,
-    ...typography.title,
+    ...typography.value,
   },
   deleteButton: {
     alignItems: 'center',
@@ -307,6 +307,6 @@ const styles = StyleSheet.create({
   },
   warningHeading: {
     color: colors.errorLabel,
-    ...typography.title,
+    ...typography.value,
   },
 });

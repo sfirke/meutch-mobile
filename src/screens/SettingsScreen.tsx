@@ -337,7 +337,10 @@ export function SettingsScreen() {
 
 const styles = StyleSheet.create({
   accountSection: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
     gap: spacing[8],
+    paddingTop: spacing[12],
     paddingBottom: spacing[24],
     paddingHorizontal: spacing[16],
   },

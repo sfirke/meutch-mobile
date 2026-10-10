@@ -7,6 +7,7 @@ import {
   mockApiFetch,
   mockSession,
 } from '../../test-utils/renderWithProviders';
+import { circleKeys } from '../../lib/queryKeys';
 import { useCirclesQuery } from '../useCirclesQuery';
 
 jest.mock('../../session/SessionProvider', () => ({ useSession: jest.fn() }));
@@ -139,4 +140,36 @@ test('a changed q produces a different query key', async () => {
       CIRCLE_B,
     ]),
   );
+});
+
+test('sends the radius and keys the cache by it', async () => {
+  const queryClient = createTestQueryClient();
+  const authenticatedApiFetch = mockApiFetch({
+    'GET /circles?membership=discoverable&page=1&radius=25': {
+      circles: [createCircle(CIRCLE_A)],
+      pagination: {
+        page: 1,
+        per_page: 12,
+        total: 1,
+        pages: 1,
+        has_next: false,
+        has_prev: false,
+      },
+    },
+  });
+
+  mockSession({ authenticatedApiFetch });
+
+  const { result } = renderHook(
+    () => useCirclesQuery({ membership: 'discoverable', radius: 25 }),
+    { wrapper: createWrapper(queryClient) },
+  );
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(result.current.circles.map((circle) => circle.id)).toEqual([CIRCLE_A]);
+  expect(
+    queryClient.getQueryData(
+      circleKeys.list({ membership: 'discoverable', radius: 25 }),
+    ),
+  ).toBeDefined();
 });

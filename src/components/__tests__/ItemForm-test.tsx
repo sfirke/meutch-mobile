@@ -266,6 +266,21 @@ describe('ItemForm', () => {
     );
   });
 
+  test('lists categories sorted by name', async () => {
+    renderForm();
+
+    fireEvent.press(
+      await screen.findByRole('button', {
+        name: 'Category: Choose a category',
+      }),
+    );
+
+    const sheet = within(screen.getByTestId('option-sheet'));
+    expect(sheet.getAllByRole('button').map((row) => row.props.testID)).toEqual(
+      ['option-cat-books', 'option-cat-tools'],
+    );
+  });
+
   test('shows a loading row while categories load', async () => {
     let resolveCategories: (response: Response) => void = () => undefined;
     const routes = mockApiFetch({

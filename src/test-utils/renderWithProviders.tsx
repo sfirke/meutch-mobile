@@ -144,6 +144,10 @@ export function emptyApiFetch() {
       return jsonResponse({ settings: defaultSettingsFixture });
     }
 
+    if (path.startsWith('/categories')) {
+      return jsonResponse({ categories: [] });
+    }
+
     const name =
       envelopeKeyByPrefix.find(([prefix]) => path.startsWith(prefix))?.[1] ??
       'items';

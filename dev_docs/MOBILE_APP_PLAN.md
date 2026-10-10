@@ -56,7 +56,7 @@ Backend additions the mobile roadmap still needs, each noted on the PR that depe
 
 ## PR Sequence
 
-Status: PRs 1 through 5.6 and PR 7 are merged. Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
+Status: PRs 1 through 5.6, 7, 9, and 10 are merged. Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
 
 ### PR 1: Repo Foundation (merged)
 
@@ -113,11 +113,49 @@ Requests reach members through the home feed, as on the web, so there is no sepa
 
 ### PR 8: Filters And Sorting
 
-All supported by the API today; the app currently sends only a search term.
+All supported by the API today; the app currently sends only a search term. Split into three mobile PRs. Decisions shared by all three:
 
-- browse: item type, categories, circles, sort by date or distance (`ItemListQuerySchema`)
-- feed: all or my circles, event types, distance, show my own activity, show claimed giveaways (`FeedQuerySchema`)
-- circle discovery: radius (`CircleListQuerySchema`)
+- a filter sheet holds a draft and sends nothing until Apply is tapped, so one request per visit (the API allows 60 reads a minute)
+- filter choices live in screen state and are not remembered across launches
+- default values are never sent; list params go as repeated keys; query keys normalise so an omitted filter shares its cache entry with the explicit default
+- distance options are disabled, with a hint to set a location on the website, when the profile has no location (location editing arrives in PR 11)
+- no new dependencies
+
+#### PR 8a: Browse Filters And Sort
+
+Branch `pr8a-browse-filters`, [PR #17](https://github.com/sfirke/meutch-mobile/pull/17).
+
+- browse: item type (all, loans, giveaways), categories, the member's circles, sort by newest or closest (`ItemListQuerySchema`); "Closest first" is disabled without a location
+- shared pieces reused by 8b and 8c: `FilterSheet` (title, scrolling body, Reset and Apply), `SelectList` (single or multi-select rows), `FilterToolbar` (Filters button with an active count, optional Sort button), `disabled` and `hint` options on `OptionSheet`, a `filter` icon
+- data: `GET /categories`, all of the member's circles via `membership=mine` pages (50 a page, bounded by the reported page count), `categories`, `circles`, `item_type`, and `sort` on `GET /items`; the category and circle lists are requested only while the sheet is open and stay fresh for five minutes
+- a filtered empty state with "Clear filters", shown after the existing no-circles check and before the search empty state; the "Searching..." row now reads "Updating..." since it also shows on filter and sort changes
+- the sort picker reads the profile's `has_location`, so Browse now also requests `GET /me/profile` on mount
+
+Verification: `npm run verify` (105 suites, 1065 tests). Browse was run on Expo web with stubbed API data and screenshotted with the sheet open and the sort picker open, with and without a location. Not yet checked against staging: the real `/items` paths with filters applied, and `sort=distance` for a member with a location.
+
+#### PR 8b: Feed Filters
+
+Branch `pr8b-feed-filters`, [PR #18](https://github.com/sfirke/meutch-mobile/pull/18), stacked on 8a.
+
+- feed: all activity or my circles, distance, event types, show my own activity, show given-away giveaways (`FeedQuerySchema`); Apply is disabled with no type ticked; both switches start on, matching the backend defaults, so only `false` is ever sent for either
+- distance: leaving it out means 20 miles for a member with a location, so 20 is unsent, "No distance limit" sends `distance=none`, and other choices send the number; every type ticked also counts as the default and sends no `types`
+- without a location the distance rows are disabled and "No distance limit" shows ticked, since the server applies no distance for that member; the draft keeps the unsent default
+- the Filters toolbar sits outside the list's loading, empty, and error states so it stays reachable; the feed query now keeps the previous list on screen while a new filter set loads, with an "Updating..." row
+- not included: a circle picker on the feed
+
+Verification: `npm run verify` (107 suites, 1102 tests). The feed was run on Expo web with stubbed API data and screenshotted with the sheet open, after applying "My circles", and with the distance rows disabled for a member without a location. Not yet checked against staging: the real `/feed` paths, in particular `distance=none` and a numeric distance for a member with a location, and the unsent default for a member without one.
+
+#### PR 8c: Circle Discovery Radius
+
+Branch `pr8c-circle-radius`, [PR #19](https://github.com/sfirke/meutch-mobile/pull/19), stacked on 8a.
+
+- circle discovery: radius on the Discover tab only (Any distance, 5, 10, 25, 50, 100 miles, as on the web), starting on any distance (`CircleListQuerySchema`); any distance is unsent since `radius=none` is rejected, and the radius is never sent for `membership=mine`
+- empty state "No circles within N miles" with "Search any distance"; a note that a radius hides circles with no location, shown only while a radius is set
+- the picker is a plain `OptionSheet`, not a draft sheet, since there is one choice to make
+
+Verification: `npm run verify` (107 suites, 1116 tests). Circles was run on Expo web with stubbed API data and screenshotted on Discover, with the picker open, after choosing 10 miles, and with the options disabled for a member without a location. Not yet checked against staging: the real `/circles?membership=discoverable&radius=N` path.
+
+Backend follow-up, not part of these PRs: `/items?sort=distance` for a member with no location returns rows in no defined order instead of falling back to date.
 
 ### PR 9: Starting Conversations And Inbox Management
 
@@ -177,12 +215,12 @@ Split into a backend PR and two mobile PRs: 13a (create, edit, delete with the t
 
 #### PR 13a: Create, Edit, And Delete
 
-- [x] Stage 1, foundations: `createItem`, `updateItem`, `deleteItem` in `src/lib/items.ts`; `fetchCategories` / `fetchTags` with day-long cached queries; `ConfirmDialog` (a `Modal`, since `Alert.alert` does nothing on web); `TagInput`; a scrollable `OptionSheet`; the 422 helpers moved out of Settings into `src/lib/validation.ts` and `FieldError`; `expo-crypto` for the creation token; `plus`, `pen`, `trash` icons and a `danger` colour
+- [x] Stage 1, foundations: `createItem`, `updateItem`, `deleteItem` in `src/lib/items.ts`; `fetchTags` with a day-long cached query (categories reuse PR 8a's `useCategoriesQuery`, sorted by name in `ItemForm`); `ConfirmDialog` (a `Modal`, since `Alert.alert` does nothing on web); `TagInput`; a scrollable `OptionSheet`; the 422 helpers moved out of Settings into `src/lib/validation.ts` and `FieldError`; `expo-crypto` for the creation token; `plus`, `pen`, `trash` icons and a `danger` colour
 - [x] Stage 2: `useCreateItemMutation`, `useUpdateItemMutation`, `useDeleteItemMutation` (set the detail cache, mark item lists and the feed stale without refetching); `ItemForm` (name, description with counter, category sheet, tags, Lend / Give away, My circles / Public with a no-location hint)
 - [x] Stage 3: `/item/new` and `/item/[id]/edit` screens with a leave-confirmation on a dirty form (`useDiscardGuard`, a `beforeRemove` listener); Edit and Delete on item detail (delete shows the server's 409 in the dialog); a "+" header action and empty-state buttons on My items; My items and the feed refetch on focus so they pick up writes
 - [x] Stage 4: assembled, screenshots, manual checks against a local backend, draft PR
 
-Changes from the plan: the lookup hooks keep a day-long `staleTime` but no `gcTime` override, which kept Jest alive; My items and the feed gained `useRefreshOnFocus`, which the plan had not called for but which the stale-without-refetch strategy needs since stack screens stay mounted; the backend's over-capacity and upload-failure errors are 400 `BAD_REQUEST`, not 422, and `describeError` already shows them verbatim.
+Changes from the plan: the tags hook keeps a day-long `staleTime` but no `gcTime` override, which kept Jest alive; My items and the feed gained `useRefreshOnFocus`, which the plan had not called for but which the stale-without-refetch strategy needs since stack screens stay mounted; the backend's over-capacity and upload-failure errors are 400 `BAD_REQUEST`, not 422, and `describeError` already shows them verbatim.
 
 Verification: `npm run verify` (112 suites, 1108 tests). Headless web screenshots of the new form, the give-away controls with the no-location hint, the category sheet, the edit form prefilled, the empty My items state with its button, the owner's Edit and Delete, and the delete dialog showing a 409. Against a local backend on meutch#557: create returned 201, a replay with the same token returned 200 with the same id and one item in My items, an edit with a type change, an unknown category returned 422 on `category_id`, delete returned 200 then 404, and deleting an item on loan returned the 409 message.
 

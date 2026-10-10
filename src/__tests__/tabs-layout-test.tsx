@@ -109,4 +109,34 @@ describe('tabs layout', () => {
 
     expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
   });
+
+  test('shows the Create button in every tab header', async () => {
+    renderRouter('app');
+
+    expect(await screen.findByText('Nothing here yet')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Create' })).toBeTruthy();
+
+    for (const tab of ['Browse', 'Inbox', 'Circles', 'Profile']) {
+      fireEvent.press(screen.getByRole('button', { name: tab }));
+
+      expect(
+        await screen.findByRole('button', { name: 'Create' }),
+      ).toBeTruthy();
+    }
+  });
+
+  test('Create then List an item opens the new item form', async () => {
+    const { getPathname } = renderRouter('app');
+
+    expect(await screen.findByText('Nothing here yet')).toBeTruthy();
+    expect(screen.queryByText('List an item')).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Create' }));
+    fireEvent.press(
+      await screen.findByRole('button', { name: 'List an item' }),
+    );
+
+    expect(await screen.findByText('Name')).toBeTruthy();
+    expect(getPathname()).toBe('/item/new');
+  });
 });

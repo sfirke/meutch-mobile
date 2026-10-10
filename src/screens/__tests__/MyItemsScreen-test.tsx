@@ -271,8 +271,7 @@ describe('<MyItemsScreen />', () => {
     expect(
       screen.getByText('Items you list for lending show up here.'),
     ).toBeTruthy();
-    // Index 0 is the header button; 1 is the empty-state action.
-    fireEvent.press(screen.getAllByRole('button', { name: 'List an item' })[1]);
+    fireEvent.press(screen.getByRole('button', { name: 'List an item' }));
     expect(mockPush).toHaveBeenCalledWith('/item/new');
     mockPush.mockClear();
 
@@ -284,7 +283,7 @@ describe('<MyItemsScreen />', () => {
         "Items you're giving away show up here until they're claimed.",
       ),
     ).toBeTruthy();
-    fireEvent.press(screen.getAllByRole('button', { name: 'List an item' })[1]);
+    fireEvent.press(screen.getByRole('button', { name: 'List an item' }));
     expect(mockPush).toHaveBeenCalledWith('/item/new');
 
     fireEvent.press(screen.getByRole('tab', { name: 'Given away' }));
@@ -295,17 +294,16 @@ describe('<MyItemsScreen />', () => {
         'Giveaways you handed off in the last 90 days show up here.',
       ),
     ).toBeTruthy();
-    expect(
-      screen.getAllByRole('button', { name: 'List an item' }),
-    ).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'List an item' })).toBeNull();
   });
 
-  test('the header button opens the new item form', async () => {
+  test('the header Create menu opens the new item form', async () => {
     routeItems(() => jsonResponse(buildItemsPage([drill])));
 
     renderWithProviders(<MyItemsScreen />);
     expect(await screen.findByText('Cordless drill')).toBeTruthy();
 
+    fireEvent.press(screen.getByRole('button', { name: 'Create' }));
     fireEvent.press(screen.getByRole('button', { name: 'List an item' }));
 
     expect(mockPush).toHaveBeenCalledWith('/item/new');

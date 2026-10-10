@@ -1,4 +1,5 @@
 import {
+  categoryKeys,
   circleKeys,
   feedKeys,
   itemKeys,
@@ -11,19 +12,104 @@ import {
 
 describe('query keys', () => {
   test('feed keys nest under a shared prefix', () => {
-    expect(feedKeys.list()).toEqual(['feed', 'list', { types: null }]);
+    expect(feedKeys.list()).toEqual([
+      'feed',
+      'list',
+      {
+        scope: 'all',
+        types: null,
+        distance: 20,
+        showOwnActivity: true,
+        showClaimedGiveaways: true,
+      },
+    ]);
     expect(feedKeys.list({ types: ['giveaways'] })).toEqual([
       'feed',
       'list',
-      { types: ['giveaways'] },
+      {
+        scope: 'all',
+        types: ['giveaways'],
+        distance: 20,
+        showOwnActivity: true,
+        showClaimedGiveaways: true,
+      },
     ]);
   });
 
+  test('feed keys treat omitted filters as the backend defaults', () => {
+    expect(
+      feedKeys.list({
+        scope: 'all',
+        distance: 20,
+        showOwnActivity: true,
+        showClaimedGiveaways: true,
+      }),
+    ).toEqual(feedKeys.list());
+    expect(feedKeys.list({ scope: 'circles' })).not.toEqual(feedKeys.list());
+    expect(feedKeys.list({ distance: 5 })).not.toEqual(feedKeys.list());
+    expect(feedKeys.list({ showOwnActivity: false })).not.toEqual(
+      feedKeys.list(),
+    );
+    expect(feedKeys.list({ showClaimedGiveaways: false })).not.toEqual(
+      feedKeys.list(),
+    );
+  });
+
+  test('feed keys keep no distance limit apart from the default', () => {
+    expect(feedKeys.list({ distance: null })).not.toEqual(feedKeys.list());
+    expect(feedKeys.list({ distance: null })[2].distance).toBeNull();
+  });
+
+  test('feed keys normalize the type list', () => {
+    expect(feedKeys.list({ types: [] })).toEqual(feedKeys.list());
+    expect(
+      feedKeys.list({
+        types: ['loans', 'requests', 'giveaways', 'circle_joins'],
+      }),
+    ).toEqual(feedKeys.list());
+    expect(feedKeys.list({ types: ['loans', 'giveaways', 'loans'] })).toEqual(
+      feedKeys.list({ types: ['giveaways', 'loans'] }),
+    );
+  });
+
   test('item list keys normalize the search query', () => {
-    expect(itemKeys.list()).toEqual(['items', 'list', { q: null }]);
+    expect(itemKeys.list()).toEqual([
+      'items',
+      'list',
+      {
+        q: null,
+        categories: null,
+        circles: null,
+        itemType: 'both',
+        sort: 'date',
+      },
+    ]);
     expect(itemKeys.list({ q: '   ' })).toEqual(itemKeys.list());
     expect(itemKeys.list({ q: ' drill ' })).toEqual(
       itemKeys.list({ q: 'drill' }),
+    );
+  });
+
+  test('item list keys treat omitted filters as the backend defaults', () => {
+    expect(itemKeys.list({ itemType: 'both', sort: 'date' })).toEqual(
+      itemKeys.list(),
+    );
+    expect(itemKeys.list({ categories: [], circles: [] })).toEqual(
+      itemKeys.list(),
+    );
+    expect(itemKeys.list({ itemType: 'loans' })).not.toEqual(itemKeys.list());
+    expect(itemKeys.list({ sort: 'distance' })).not.toEqual(itemKeys.list());
+  });
+
+  test('item list keys sort and dedupe id lists', () => {
+    expect(itemKeys.list({ categories: ['b', 'a', 'b'] })).toEqual(
+      itemKeys.list({ categories: ['a', 'b'] }),
+    );
+    expect(itemKeys.list({ circles: ['z', 'y'] })).toEqual(
+      itemKeys.list({ circles: ['y', 'z'] }),
+    );
+    expect(itemKeys.list({ categories: ['a'] })).not.toEqual(
+      itemKeys.list({ circles: ['a'] }),
     );
   });
 
@@ -77,13 +163,18 @@ describe('query keys', () => {
 
   test('circle keys nest under a shared prefix', () => {
     expect(circleKeys.hasAny()).toEqual(['circles', 'has-any']);
+    expect(circleKeys.mineAll()).toEqual(['circles', 'mine-all']);
+  });
+
+  test('category keys nest under a shared prefix', () => {
+    expect(categoryKeys.list()).toEqual(['categories', 'list']);
   });
 
   test('circle list keys normalize the search query', () => {
     expect(circleKeys.list({ membership: 'mine' })).toEqual([
       'circles',
       'list',
-      { membership: 'mine', q: null },
+      { membership: 'mine', q: null, radius: null },
     ]);
     expect(circleKeys.list({ membership: 'mine', q: '   ' })).toEqual(
       circleKeys.list({ membership: 'mine' }),
@@ -91,6 +182,15 @@ describe('query keys', () => {
     expect(circleKeys.list({ membership: 'mine', q: ' garden ' })).toEqual(
       circleKeys.list({ membership: 'mine', q: 'garden' }),
     );
+  });
+
+  test('circle list keys include the radius when set', () => {
+    expect(circleKeys.list({ membership: 'discoverable', radius: 10 })).toEqual(
+      ['circles', 'list', { membership: 'discoverable', q: null, radius: 10 }],
+    );
+    expect(
+      circleKeys.list({ membership: 'discoverable', radius: 10 }),
+    ).not.toEqual(circleKeys.list({ membership: 'discoverable' }));
   });
 
   test('circle list keys differ by membership', () => {
@@ -148,7 +248,6 @@ describe('query keys', () => {
   });
 
   test('reference keys nest under a shared prefix', () => {
-    expect(referenceKeys.categories()).toEqual(['reference', 'categories']);
     expect(referenceKeys.tags()).toEqual(['reference', 'tags']);
   });
 
@@ -187,9 +286,14 @@ describe('query keys', () => {
         all: circleKeys.all,
         keys: [
           [...circleKeys.hasAny()],
+          [...circleKeys.mineAll()],
           [...circleKeys.list({ membership: 'mine' })],
           [...circleKeys.detail('x')],
         ],
+      },
+      {
+        all: categoryKeys.all,
+        keys: [[...categoryKeys.list()]],
       },
       {
         all: messageKeys.all,
@@ -204,7 +308,7 @@ describe('query keys', () => {
       },
       {
         all: referenceKeys.all,
-        keys: [[...referenceKeys.categories()], [...referenceKeys.tags()]],
+        keys: [[...referenceKeys.tags()]],
       },
     ];
 

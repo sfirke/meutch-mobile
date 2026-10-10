@@ -1,8 +1,8 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react-native';
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
-import { referenceKeys } from '../../lib/queryKeys';
+import { categoryKeys } from '../../lib/queryKeys';
 import {
   createTestQueryClient,
   mockApiFetch,
@@ -12,30 +12,42 @@ import { useCategoriesQuery } from '../useCategoriesQuery';
 
 jest.mock('../../session/SessionProvider', () => ({ useSession: jest.fn() }));
 
+const categories = [
+  { id: 'a1111111-1111-4111-8111-111111111111', name: 'Books' },
+  { id: 'b2222222-2222-4222-8222-222222222222', name: 'Tools' },
+];
+
+function setup(options?: Parameters<typeof useCategoriesQuery>[0]) {
+  const queryClient = createTestQueryClient();
+  const authenticatedApiFetch = mockApiFetch({
+    'GET /categories': { categories },
+  });
+  mockSession({ authenticatedApiFetch });
+
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+  const hook = renderHook(() => useCategoriesQuery(options), { wrapper });
+
+  return { queryClient, authenticatedApiFetch, ...hook };
+}
+
 describe('useCategoriesQuery', () => {
-  test('loads sorted categories under the reference key', async () => {
-    const authenticatedApiFetch = mockApiFetch({
-      'GET /categories': {
-        categories: [
-          { id: 'c3333333-3333-4333-8333-333333333333', name: 'Tools' },
-          { id: 'd4444444-4444-4444-8444-444444444444', name: 'Books' },
-        ],
-      },
-    });
-    mockSession({ authenticatedApiFetch });
-
-    const queryClient = createTestQueryClient();
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-
-    const { result } = renderHook(() => useCategoriesQuery(), { wrapper });
+  test('fetches categories and caches them under the list key', async () => {
+    const { result, queryClient, authenticatedApiFetch } = setup();
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data?.map((c) => c.name)).toEqual(['Books', 'Tools']);
-    expect(queryClient.getQueryData(referenceKeys.categories())).toEqual(
-      result.current.data,
-    );
+    expect(result.current.data).toEqual(categories);
+    expect(queryClient.getQueryData(categoryKeys.list())).toEqual(categories);
+    expect(authenticatedApiFetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('makes no request when disabled', () => {
+    const { result, authenticatedApiFetch } = setup({ enabled: false });
+
+    expect(authenticatedApiFetch).not.toHaveBeenCalled();
+    expect(result.current.isPending).toBe(true);
+    expect(result.current.fetchStatus).toBe('idle');
   });
 });

@@ -115,6 +115,8 @@ export type FetchCirclesOptions = {
   page: number;
   /** The backend rejects `per_page` above 50 with a 422; it does not clamp. */
   perPage?: number;
+  /** Miles; omitted means any distance. Sent only for `discoverable`. */
+  radius?: number;
   signal?: AbortSignal;
 };
 
@@ -345,11 +347,56 @@ export async function fetchCircles(
     params.push(['per_page', String(options.perPage)]);
   }
 
+  // The server applies radius only to discoverable circles; never narrow the
+  // member's own list.
+  if (options.radius !== undefined && options.membership === 'discoverable') {
+    params.push(['radius', String(options.radius)]);
+  }
+
   const response = await fetchImpl(`/circles${buildQueryString(params)}`, {
     signal: options.signal,
   });
 
   return parseCirclePage(await readJsonOrThrow<unknown>(response));
+}
+
+export type FetchAllMyCirclesOptions = {
+  signal?: AbortSignal;
+};
+
+// The backend's maximum page size.
+const ALL_CIRCLES_PER_PAGE = 50;
+
+/** Every circle the member belongs to, across pages, sorted by name. For pickers. */
+export async function fetchAllMyCircles(
+  fetchImpl: ApiFetch,
+  options?: FetchAllMyCirclesOptions,
+): Promise<CircleSummary[]> {
+  const byId = new Map<string, CircleSummary>();
+  let page = 1;
+  let hasNext = true;
+
+  while (hasNext) {
+    const result = await fetchCircles(fetchImpl, {
+      membership: 'mine',
+      page,
+      perPage: ALL_CIRCLES_PER_PAGE,
+      signal: options?.signal,
+    });
+
+    // Offset paging over live data can repeat a row across pages.
+    for (const circle of result.circles) {
+      byId.set(circle.id, circle);
+    }
+
+    // Also bounded by `pages`, so a stuck `has_next` cannot loop forever.
+    hasNext =
+      result.pagination.has_next &&
+      result.pagination.page < result.pagination.pages;
+    page += 1;
+  }
+
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function fetchCircleDetail(

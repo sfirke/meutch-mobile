@@ -98,9 +98,25 @@ export type ItemDetailResponse = {
   viewer: ItemViewerState;
 };
 
+export const ITEM_TYPE_FILTERS = ['both', 'loans', 'giveaways'] as const;
+
+export type ItemTypeFilter = (typeof ITEM_TYPE_FILTERS)[number];
+
+export const ITEM_SORTS = ['date', 'distance'] as const;
+
+export type ItemSort = (typeof ITEM_SORTS)[number];
+
 export type FetchItemsOptions = {
   page: number;
   q?: string;
+  /** Category ids; empty or omitted sends nothing. */
+  categories?: string[];
+  /** Circle ids; empty or omitted sends nothing. */
+  circles?: string[];
+  /** The backend default `both` is never sent. */
+  itemType?: ItemTypeFilter;
+  /** The backend default `date` is never sent. */
+  sort?: ItemSort;
   /** The backend rejects `per_page` above 50 with a 422; it does not clamp. */
   perPage?: number;
   signal?: AbortSignal;
@@ -336,6 +352,22 @@ export async function fetchItems(
 
   if (options.perPage !== undefined) {
     params.push(['per_page', String(options.perPage)]);
+  }
+
+  for (const id of options.categories ?? []) {
+    params.push(['categories', id]);
+  }
+
+  for (const id of options.circles ?? []) {
+    params.push(['circles', id]);
+  }
+
+  if (options.itemType && options.itemType !== 'both') {
+    params.push(['item_type', options.itemType]);
+  }
+
+  if (options.sort && options.sort !== 'date') {
+    params.push(['sort', options.sort]);
   }
 
   const response = await fetchImpl(`/items${buildQueryString(params)}`, {

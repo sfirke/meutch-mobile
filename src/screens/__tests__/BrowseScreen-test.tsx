@@ -1,8 +1,11 @@
 import { act, fireEvent, screen } from '@testing-library/react-native';
 
 import type { ApiFetch } from '../../lib/api';
+import type { ItemListPage } from '../../lib/items';
+import { itemKeys } from '../../lib/queryKeys';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import {
+  defaultProfileFixture,
   jsonResponse,
   mockSession,
   renderWithProviders,
@@ -97,8 +100,27 @@ type ApiHandler = (path: string) => Response | Promise<Response>;
 
 const apiFetch = jest.fn<Promise<Response>, [string, RequestInit?]>();
 
-function routeApi(routes: { items: ApiHandler; circles?: ApiHandler }) {
+// The filter sheet's circle picker, requested only while the sheet is open.
+const PICKER_CIRCLES_PATH = '/circles?membership=mine&page=1&per_page=50';
+
+function routeApi(routes: {
+  items: ApiHandler;
+  circles?: ApiHandler;
+  profile?: typeof defaultProfileFixture;
+}) {
   apiFetch.mockImplementation(async (path) => {
+    if (path.startsWith('/me/profile')) {
+      return jsonResponse({ user: routes.profile ?? defaultProfileFixture });
+    }
+
+    if (path.startsWith('/categories')) {
+      return jsonResponse({ categories: [] });
+    }
+
+    if (path === PICKER_CIRCLES_PATH) {
+      return jsonResponse(buildCirclesPage(0));
+    }
+
     if (path.startsWith('/circles')) {
       if (!routes.circles) {
         throw new Error(`Unexpected circles request: ${path}`);
@@ -115,8 +137,21 @@ function routeApi(routes: { items: ApiHandler; circles?: ApiHandler }) {
   });
 }
 
+// Every request except the profile read, which the screen makes on mount.
 function requestedPaths(): string[] {
-  return apiFetch.mock.calls.map(([path]) => path);
+  return apiFetch.mock.calls
+    .map(([path]) => path)
+    .filter((path) => path !== '/me/profile');
+}
+
+function itemPaths(): string[] {
+  return requestedPaths().filter((path) => path.startsWith('/items'));
+}
+
+function applyItemType(label: string) {
+  fireEvent.press(screen.getByTestId('filter-toolbar-filters'));
+  fireEvent.press(screen.getByText(label));
+  fireEvent.press(screen.getByTestId('filter-sheet-apply'));
 }
 
 async function flushDebounce() {
@@ -231,7 +266,7 @@ describe('<BrowseScreen />', () => {
     await flushDebounce();
 
     expect(screen.getByText('Cordless drill')).toBeTruthy();
-    expect(screen.getByLabelText('Searching')).toBeTruthy();
+    expect(screen.getByLabelText('Updating')).toBeTruthy();
 
     await act(async () => {
       resolveSearch(jsonResponse(buildItemsPage([ladder])));
@@ -490,5 +525,186 @@ describe('<BrowseScreen />', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Cordless drill' }));
 
     expect(mockPush).toHaveBeenCalledWith(`/item/${DRILL_ID}`);
+  });
+
+  test('shows the filter toolbar without extra requests on mount', async () => {
+    routeApi({ items: () => jsonResponse(buildItemsPage([drill])) });
+
+    renderWithProviders(<BrowseScreen />);
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+
+    expect(screen.getByText('Filters')).toBeTruthy();
+    expect(screen.getByText('Sort: Newest first')).toBeTruthy();
+    expect(apiFetch.mock.calls.map(([path]) => path).sort()).toEqual([
+      '/items?page=1',
+      '/me/profile',
+    ]);
+  });
+
+  test('applies an item type filter only when Apply is tapped', async () => {
+    routeApi({
+      items: (path) =>
+        path.includes('item_type=loans')
+          ? jsonResponse(buildItemsPage([ladder]))
+          : jsonResponse(buildItemsPage([drill])),
+    });
+
+    renderWithProviders(<BrowseScreen />);
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('filter-toolbar-filters'));
+    fireEvent.press(screen.getByText('Loans'));
+    await flushDebounce();
+
+    expect(itemPaths()).toEqual(['/items?page=1']);
+
+    fireEvent.press(screen.getByTestId('filter-sheet-apply'));
+
+    expect(await screen.findByText('Step ladder')).toBeTruthy();
+    expect(itemPaths()).toEqual([
+      '/items?page=1',
+      '/items?page=1&item_type=loans',
+    ]);
+    expect(screen.getByText('Filters (1)')).toBeTruthy();
+  });
+
+  test('Reset then Apply returns to the unfiltered list', async () => {
+    routeApi({
+      items: (path) =>
+        path.includes('item_type=loans')
+          ? jsonResponse(buildItemsPage([ladder]))
+          : jsonResponse(buildItemsPage([drill])),
+    });
+
+    renderWithProviders(<BrowseScreen />);
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+
+    applyItemType('Loans');
+    expect(await screen.findByText('Step ladder')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('filter-toolbar-filters'));
+    fireEvent.press(screen.getByTestId('filter-sheet-reset'));
+    fireEvent.press(screen.getByTestId('filter-sheet-apply'));
+
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+    expect(screen.getByText('Filters')).toBeTruthy();
+    expect(itemPaths().at(-1)).toBe('/items?page=1');
+  });
+
+  test('disables distance sort when the member has no location', async () => {
+    routeApi({ items: () => jsonResponse(buildItemsPage([drill])) });
+
+    renderWithProviders(<BrowseScreen />);
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+    await act(async () => {});
+
+    fireEvent.press(screen.getByTestId('filter-toolbar-sort'));
+    const distance = screen.getByTestId('option-distance');
+
+    expect(distance.props.accessibilityState).toEqual(
+      expect.objectContaining({ disabled: true }),
+    );
+
+    fireEvent.press(distance);
+    await flushDebounce();
+
+    expect(itemPaths()).toEqual(['/items?page=1']);
+    expect(screen.getByText('Sort: Newest first')).toBeTruthy();
+  });
+
+  test('sorts by distance when the member has a location', async () => {
+    routeApi({
+      items: (path) =>
+        path.includes('sort=distance')
+          ? jsonResponse(buildItemsPage([ladder]))
+          : jsonResponse(buildItemsPage([drill])),
+      profile: { ...defaultProfileFixture, has_location: true },
+    });
+
+    renderWithProviders(<BrowseScreen />);
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+    await act(async () => {});
+
+    fireEvent.press(screen.getByTestId('filter-toolbar-sort'));
+    fireEvent.press(screen.getByTestId('option-distance'));
+
+    expect(await screen.findByText('Step ladder')).toBeTruthy();
+    expect(itemPaths()).toEqual([
+      '/items?page=1',
+      '/items?page=1&sort=distance',
+    ]);
+    expect(screen.getByText('Sort: Closest first')).toBeTruthy();
+  });
+
+  test('shows the no-matches state for filters, and Clear filters restores the list', async () => {
+    routeApi({
+      items: (path) =>
+        path.includes('item_type=giveaways')
+          ? jsonResponse(buildItemsPage([]))
+          : jsonResponse(buildItemsPage([drill])),
+      circles: () => jsonResponse(buildCirclesPage(2)),
+    });
+
+    renderWithProviders(<BrowseScreen />);
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+
+    applyItemType('Giveaways');
+
+    expect(
+      await screen.findByText('No items match these filters'),
+    ).toBeTruthy();
+
+    apiFetch.mockClear();
+    fireEvent.press(screen.getByRole('button', { name: 'Clear filters' }));
+
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+    expect(screen.getByText('Filters')).toBeTruthy();
+    expect(itemPaths()).toEqual(['/items?page=1']);
+  });
+
+  test('trims the filtered cache entry before a pull-to-refresh', async () => {
+    routeApi({
+      items: (path) => {
+        if (path.includes('page=2')) {
+          return jsonResponse(
+            buildItemsPage([hammer], { page: 2, total: 2, pages: 2 }),
+          );
+        }
+
+        if (path.includes('item_type=loans')) {
+          return jsonResponse(
+            buildItemsPage([ladder], { has_next: true, total: 2, pages: 2 }),
+          );
+        }
+
+        return jsonResponse(buildItemsPage([drill]));
+      },
+    });
+
+    const { queryClient } = renderWithProviders(<BrowseScreen />);
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+
+    applyItemType('Loans');
+    expect(await screen.findByText('Step ladder')).toBeTruthy();
+
+    scrollToEnd();
+    expect(await screen.findByText('Claw hammer')).toBeTruthy();
+
+    const key = itemKeys.list({ itemType: 'loans' });
+
+    expect(
+      queryClient.getQueryData<{ pages: ItemListPage[] }>(key)?.pages,
+    ).toHaveLength(2);
+
+    apiFetch.mockClear();
+
+    await act(async () => {
+      screen.getByTestId('browse-list').props.refreshControl.props.onRefresh();
+    });
+
+    expect(itemPaths()).toEqual(['/items?page=1&item_type=loans']);
+    expect(
+      queryClient.getQueryData<{ pages: ItemListPage[] }>(key)?.pages,
+    ).toHaveLength(1);
   });
 });

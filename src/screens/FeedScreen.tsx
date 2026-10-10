@@ -2,6 +2,7 @@ import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
@@ -9,12 +10,20 @@ import {
   type ListRenderItemInfo,
 } from 'react-native';
 
+import { EmptyState } from '../components/EmptyState';
 import { FeedEventCard } from '../components/FeedEventCard';
+import {
+  countActiveFeedFilters,
+  DEFAULT_FEED_FILTERS,
+  FeedFilterSheet,
+  type FeedFilters,
+} from '../components/FeedFilterSheet';
+import { FilterToolbar } from '../components/FilterToolbar';
 import { PagingFooter } from '../components/PagingFooter';
 import { QueryStateView } from '../components/QueryStateView';
 import { describeError } from '../lib/errorCopy';
 import type { FeedEvent, FeedPage } from '../lib/feed';
-import { feedKeys } from '../lib/queryKeys';
+import { feedKeys, type FeedListFilters } from '../lib/queryKeys';
 import { getFeedEventKey, useFeedQuery } from '../query/useFeedQuery';
 import { useRefreshOnFocus } from '../query/useRefreshOnFocus';
 import { useSession } from '../session/SessionProvider';
@@ -25,6 +34,21 @@ export function FeedScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [filters, setFilters] = useState<FeedFilters>(DEFAULT_FEED_FILTERS);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const activeFilterCount = countActiveFeedFilters(filters);
+
+  // One object for both the query and the refresh's cache key, so they match.
+  const listFilters = useMemo<FeedListFilters>(
+    () => ({
+      scope: filters.scope,
+      types: filters.types,
+      distance: filters.distance,
+      showOwnActivity: filters.showOwnActivity,
+      showClaimedGiveaways: filters.showClaimedGiveaways,
+    }),
+    [filters],
+  );
 
   const {
     error,
@@ -34,17 +58,35 @@ export function FeedScreen() {
     isFetching,
     isFetchingNextPage,
     isFetchNextPageError,
-    isPending,
+    isPending: isFeedPending,
+    isPlaceholderData,
     isRefetchError,
     refetch,
-  } = useFeedQuery(authenticatedApiFetch);
-  const feedKey = useMemo(() => feedKeys.list(), []);
+  } = useFeedQuery(authenticatedApiFetch, listFilters);
+  const feedKey = useMemo(() => feedKeys.list(listFilters), [listFilters]);
 
   useRefreshOnFocus(feedKey);
 
   // Captured once, not per row, so every visible card renders relative
   // times against the same instant instead of each computing its own.
   const now = useMemo(() => new Date(), []);
+
+  const handleClearFilters = useCallback(() => {
+    setFilters(DEFAULT_FEED_FILTERS);
+  }, []);
+
+  const handleOpenFilters = useCallback(() => {
+    setIsSheetOpen(true);
+  }, []);
+
+  const handleCloseFilters = useCallback(() => {
+    setIsSheetOpen(false);
+  }, []);
+
+  const handleApplyFilters = useCallback((next: FeedFilters) => {
+    setFilters(next);
+    setIsSheetOpen(false);
+  }, []);
 
   const handlePressItem = useCallback(
     (itemId: string) => {
@@ -87,10 +129,21 @@ export function FeedScreen() {
   );
 
   const handleEndReached = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage && !isFetchNextPageError) {
+    if (
+      hasNextPage &&
+      !isFetchingNextPage &&
+      !isPlaceholderData &&
+      !isFetchNextPageError
+    ) {
       void fetchNextPage();
     }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError]);
+  }, [
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    isPlaceholderData,
+  ]);
 
   const handleRetryNextPage = useCallback(() => {
     void fetchNextPage();
@@ -101,28 +154,58 @@ export function FeedScreen() {
 
     // A plain refetch() re-requests every loaded page sequentially; trim to
     // the first page first so pull-to-refresh costs one request, not N.
-    queryClient.setQueryData<InfiniteData<FeedPage, number>>(
-      feedKeys.list(),
-      (data) =>
-        data
-          ? {
-              pages: data.pages.slice(0, 1),
-              pageParams: data.pageParams.slice(0, 1),
-            }
-          : data,
+    queryClient.setQueryData<InfiniteData<FeedPage, number>>(feedKey, (data) =>
+      data
+        ? {
+            pages: data.pages.slice(0, 1),
+            pageParams: data.pageParams.slice(0, 1),
+          }
+        : data,
     );
 
     await refetch();
     setIsRefreshing(false);
-  }, [queryClient, refetch]);
+  }, [feedKey, queryClient, refetch]);
+
+  const renderEmpty = useCallback(() => {
+    if (activeFilterCount > 0) {
+      return (
+        <EmptyState
+          actionLabel="Clear filters"
+          message="Try different filters, or clear them to see everything again."
+          onAction={handleClearFilters}
+          title="No activity matches these filters"
+        />
+      );
+    }
+
+    return (
+      <EmptyState
+        message="Activity from your circles will show up here."
+        title="Nothing here yet"
+      />
+    );
+  }, [activeFilterCount, handleClearFilters]);
+
+  // A placeholder page that is itself empty is the *previous* filters' answer,
+  // so it must never be shown as this one's result.
+  const isPending = isFeedPending || (isPlaceholderData && events.length === 0);
 
   return (
     <View style={styles.container}>
+      <FilterToolbar
+        activeFilterCount={activeFilterCount}
+        onOpenFilters={handleOpenFilters}
+      />
+
+      {isPlaceholderData && events.length > 0 ? (
+        <View accessibilityLabel="Updating" style={styles.updatingRow}>
+          <ActivityIndicator color={colors.primaryDark} size="small" />
+          <Text style={styles.updatingLabel}>Updating...</Text>
+        </View>
+      ) : null}
+
       <QueryStateView
-        empty={{
-          message: 'Activity from your circles will show up here.',
-          title: 'Nothing here yet',
-        }}
         error={error}
         isEmpty={events.length === 0}
         isPending={isPending}
@@ -130,6 +213,7 @@ export function FeedScreen() {
         isRetrying={isFetching}
         onRefresh={() => void handleRefresh()}
         onRetry={() => void refetch()}
+        renderEmpty={renderEmpty}
       >
         {isRefetchError ? (
           <View style={styles.banner}>
@@ -155,6 +239,13 @@ export function FeedScreen() {
           testID="feed-list"
         />
       </QueryStateView>
+
+      <FeedFilterSheet
+        filters={filters}
+        onApply={handleApplyFilters}
+        onClose={handleCloseFilters}
+        visible={isSheetOpen}
+      />
     </View>
   );
 }
@@ -184,5 +275,16 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: spacing[16],
+  },
+  updatingLabel: {
+    color: colors.secondary,
+    ...typography.itemMeta,
+  },
+  updatingRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing[8],
+    paddingBottom: spacing[8],
+    paddingHorizontal: spacing[16],
   },
 });

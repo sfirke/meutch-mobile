@@ -145,10 +145,12 @@ function CategoryField({ categoryId, disabled, onChange }: CategoryFieldProps) {
     );
   }
 
-  const options = (categories.data ?? []).map((category) => ({
-    value: category.id,
-    label: category.name,
-  }));
+  const options = [...(categories.data ?? [])]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((category) => ({
+      value: category.id,
+      label: category.name,
+    }));
   const loading = !categories.data;
   const chosen = options.find((option) => option.value === categoryId);
   const rowDisabled = disabled || loading;

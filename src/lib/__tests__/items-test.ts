@@ -205,6 +205,86 @@ describe('fetchItems', () => {
     expect(isApiError(error) && error.code).toBe('FORBIDDEN');
     expect(isApiError(error) && error.status).toBe(403);
   });
+
+  describe('filters', () => {
+    const CATEGORY_A = 'e5555555-5555-4555-8555-555555555555';
+    const CATEGORY_B = 'f6666666-6666-4666-8666-666666666666';
+    const CIRCLE_A = 'a7777777-7777-4777-8777-777777777777';
+    const CIRCLE_B = 'b8888888-8888-4888-8888-888888888888';
+
+    async function requestPath(
+      options: Parameters<typeof fetchItems>[1],
+    ): Promise<string> {
+      const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+      fetchImpl.mockResolvedValueOnce(
+        createMockResponse({ items: [], pagination }),
+      );
+
+      await fetchItems(fetchImpl, options);
+
+      return getRequestPath(fetchImpl);
+    }
+
+    test('repeats the categories key in the given order', async () => {
+      expect(
+        await requestPath({ page: 1, categories: [CATEGORY_B, CATEGORY_A] }),
+      ).toBe(`/items?page=1&categories=${CATEGORY_B}&categories=${CATEGORY_A}`);
+    });
+
+    test('repeats the circles key', async () => {
+      expect(
+        await requestPath({ page: 1, circles: [CIRCLE_A, CIRCLE_B] }),
+      ).toBe(`/items?page=1&circles=${CIRCLE_A}&circles=${CIRCLE_B}`);
+    });
+
+    test('sends item_type loans', async () => {
+      expect(await requestPath({ page: 1, itemType: 'loans' })).toBe(
+        '/items?page=1&item_type=loans',
+      );
+    });
+
+    test('sends item_type giveaways', async () => {
+      expect(await requestPath({ page: 1, itemType: 'giveaways' })).toBe(
+        '/items?page=1&item_type=giveaways',
+      );
+    });
+
+    test('sends sort distance', async () => {
+      expect(await requestPath({ page: 1, sort: 'distance' })).toBe(
+        '/items?page=1&sort=distance',
+      );
+    });
+
+    test('orders page, q, per_page, categories, circles, item_type, sort', async () => {
+      expect(
+        await requestPath({
+          page: 2,
+          q: 'drill',
+          perPage: 20,
+          categories: [CATEGORY_A, CATEGORY_B],
+          circles: [CIRCLE_A],
+          itemType: 'loans',
+          sort: 'distance',
+        }),
+      ).toBe(
+        `/items?page=2&q=drill&per_page=20&categories=${CATEGORY_A}&categories=${CATEGORY_B}&circles=${CIRCLE_A}&item_type=loans&sort=distance`,
+      );
+    });
+
+    test('never sends defaults', async () => {
+      expect(await requestPath({ page: 1 })).toBe('/items?page=1');
+      expect(
+        await requestPath({
+          page: 1,
+          itemType: 'both',
+          sort: 'date',
+          categories: [],
+          circles: [],
+        }),
+      ).toBe('/items?page=1');
+    });
+  });
 });
 
 describe('fetchMyItems', () => {

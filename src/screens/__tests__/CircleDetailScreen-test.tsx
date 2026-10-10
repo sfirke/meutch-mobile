@@ -76,7 +76,7 @@ function buildCircle(overrides: CirclePayload = {}): CirclePayload {
     is_admin: false,
     has_pending_join_request: false,
     pending_join_request_count: 0,
-    distance_miles: null,
+    distance: null,
     can_view_members: true,
     is_last_member: false,
     pending_join_request: null,
@@ -181,17 +181,17 @@ describe('<CircleDetailScreen />', () => {
     expect(writeCalls(apiFetch)).toHaveLength(0);
   });
 
-  test('describes the distance when the member is geocoded', async () => {
-    renderCircle({ distance_miles: 3.25 });
+  test('shows the distance verbatim when the member is geocoded', async () => {
+    renderCircle({ distance: '2-5 mi' });
 
-    expect(await screen.findByText('about 3.3 mi away')).toBeTruthy();
+    expect(await screen.findByText('2-5 mi')).toBeTruthy();
   });
 
   test('omits the distance line when there is no distance', async () => {
     renderCircle();
 
     expect(await screen.findByText('Oak Street Tool Library')).toBeTruthy();
-    expect(screen.queryByText(/mi away/)).toBeNull();
+    expect(screen.queryByText(/\bmi\b/)).toBeNull();
   });
 
   test('names the radius of a regional circle', async () => {

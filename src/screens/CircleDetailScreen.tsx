@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
-import { describeDistance } from '../components/CircleCard';
 import { ErrorState } from '../components/ErrorState';
 import { Icon, type IconName } from '../components/Icon';
 import { ImagePlaceholder } from '../components/ImagePlaceholder';
@@ -333,12 +332,10 @@ function CircleDetailBody({
           </Text>
         </View>
 
-        {circle.distance_miles !== null ? (
+        {circle.distance ? (
           <View style={styles.metaRow}>
             <Icon color={colors.secondary} name="location" size={14} />
-            <Text style={styles.meta}>
-              {describeDistance(circle.distance_miles)}
-            </Text>
+            <Text style={styles.meta}>{circle.distance}</Text>
           </View>
         ) : null}
 

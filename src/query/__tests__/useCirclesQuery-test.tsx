@@ -31,7 +31,7 @@ function createCircle(id: string, overrides?: Record<string, unknown>) {
     is_admin: false,
     has_pending_join_request: false,
     pending_join_request_count: 0,
-    distance_miles: null,
+    distance: null,
     ...overrides,
   };
 }

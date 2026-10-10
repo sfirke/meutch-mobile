@@ -23,11 +23,19 @@ jest.mock('../../session/SessionProvider', () => ({
 }));
 
 const mockPush = jest.fn();
+const mockBack = jest.fn();
+const mockReplace = jest.fn();
+const mockCanGoBack = jest.fn(() => true);
 
 jest.mock('expo-router', () => ({
   Stack: { Screen: jest.fn(() => null) },
   useLocalSearchParams: jest.fn(),
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({
+    push: mockPush,
+    back: mockBack,
+    replace: mockReplace,
+    canGoBack: mockCanGoBack,
+  }),
 }));
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
@@ -170,6 +178,7 @@ function lastTitle(): unknown {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockCanGoBack.mockReturnValue(true);
 });
 
 describe('<ItemDetailScreen />', () => {
@@ -505,15 +514,23 @@ describe('<ItemDetailScreen /> affordances', () => {
     expect(screen.queryByTestId('item-primary-action')).toBeNull();
   });
 
-  test('tells the owner where their item is managed', async () => {
+  test('offers the owner edit and delete instead of a web-only note', async () => {
     renderScreen({
       viewer: { is_owner: true, shares_circle_with_owner: false },
     });
 
-    expect(
-      await screen.findByText('This is your item. Manage it on meutch.com.'),
-    ).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Edit' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy();
+    expect(screen.queryByText(/Manage it on meutch.com/)).toBeNull();
     expect(screen.queryByTestId('item-primary-action')).toBeNull();
+  });
+
+  test('offers non-owners neither edit nor delete', async () => {
+    renderScreen();
+
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
   });
 
   test('shows the interest count on the owner of a giveaway', async () => {
@@ -544,9 +561,7 @@ describe('<ItemDetailScreen /> affordances', () => {
       item: { is_giveaway: true, interested_count: null },
     });
 
-    expect(
-      await screen.findByText('This is your item. Manage it on meutch.com.'),
-    ).toBeTruthy();
+    expect(await screen.findByTestId('item-edit')).toBeTruthy();
     expect(screen.queryByText(/expressed interest/)).toBeNull();
   });
 
@@ -583,6 +598,116 @@ describe('<ItemDetailScreen /> affordances', () => {
     ).toBeTruthy();
     expect(screen.getByTestId('item-composer')).toBeTruthy();
     expect(screen.queryByTestId('item-primary-action')).toBeNull();
+  });
+});
+
+describe('<ItemDetailScreen /> owner actions', () => {
+  const ownerOptions = {
+    viewer: { is_owner: true, shares_circle_with_owner: false },
+  };
+
+  function respondToDelete(authenticatedApiFetch: jest.Mock) {
+    const item = buildItem();
+
+    authenticatedApiFetch.mockImplementation(
+      async (_path: string, init?: RequestInit) =>
+        init?.method === 'DELETE'
+          ? jsonResponse({ deleted: true, item_id: ITEM_ID })
+          : jsonResponse({ item, viewer: buildViewer(ownerOptions.viewer) }),
+    );
+  }
+
+  test('Edit opens the edit route', async () => {
+    renderScreen(ownerOptions);
+
+    fireEvent.press(await screen.findByTestId('item-edit'));
+
+    expect(mockPush).toHaveBeenCalledWith(`/item/${ITEM_ID}/edit`);
+  });
+
+  test('Delete asks for confirmation before sending anything', async () => {
+    const { authenticatedApiFetch } = renderScreen(ownerOptions);
+
+    fireEvent.press(await screen.findByTestId('item-delete'));
+
+    expect(screen.getByText('Delete this item?')).toBeTruthy();
+    expect(screen.getByText("This can't be undone.")).toBeTruthy();
+    expectOnlyReads(authenticatedApiFetch);
+  });
+
+  test('confirming deletes the item and goes back', async () => {
+    const { authenticatedApiFetch } = renderScreen(ownerOptions);
+
+    respondToDelete(authenticatedApiFetch);
+    fireEvent.press(await screen.findByTestId('item-delete'));
+    fireEvent.press(screen.getByTestId('confirm-dialog-confirm'));
+
+    await waitFor(() => {
+      expect(mockBack).toHaveBeenCalledTimes(1);
+    });
+
+    const call = authenticatedApiFetch.mock.calls.find(
+      ([, init]) => (init as RequestInit | undefined)?.method === 'DELETE',
+    ) as [string, RequestInit];
+
+    expect(call[0]).toBe(`/items/${ITEM_ID}`);
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  test('falls back to the tabs when there is nothing to go back to', async () => {
+    mockCanGoBack.mockReturnValue(false);
+    const { authenticatedApiFetch } = renderScreen(ownerOptions);
+
+    respondToDelete(authenticatedApiFetch);
+    fireEvent.press(await screen.findByTestId('item-delete'));
+    fireEvent.press(screen.getByTestId('confirm-dialog-confirm'));
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
+    });
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  test('a conflict keeps the dialog open and shows the server message', async () => {
+    const { authenticatedApiFetch } = renderScreen(ownerOptions);
+    const item = buildItem();
+
+    authenticatedApiFetch.mockImplementation(
+      async (_path: string, init?: RequestInit) =>
+        init?.method === 'DELETE'
+          ? jsonResponse(
+              {
+                error: {
+                  code: 'CONFLICT',
+                  message: 'This item has an active loan.',
+                },
+              },
+              409,
+            )
+          : jsonResponse({ item, viewer: buildViewer(ownerOptions.viewer) }),
+    );
+
+    fireEvent.press(await screen.findByTestId('item-delete'));
+    fireEvent.press(screen.getByTestId('confirm-dialog-confirm'));
+
+    expect(await screen.findByTestId('confirm-dialog-error')).toHaveTextContent(
+      'This item has an active loan.',
+    );
+    expect(screen.getByTestId('confirm-dialog')).toBeTruthy();
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  test('cancelling closes the dialog without deleting', async () => {
+    const { authenticatedApiFetch } = renderScreen(ownerOptions);
+
+    fireEvent.press(await screen.findByTestId('item-delete'));
+    fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('confirm-dialog')).toBeNull();
+    });
+    expectOnlyReads(authenticatedApiFetch);
+    expect(mockBack).not.toHaveBeenCalled();
   });
 });
 
@@ -692,9 +817,7 @@ describe('<ItemDetailScreen /> messaging the owner', () => {
       item: { is_giveaway: true, interested_count: 0 },
     });
 
-    expect(
-      await screen.findByText('This is your item. Manage it on meutch.com.'),
-    ).toBeTruthy();
+    expect(await screen.findByTestId('item-edit')).toBeTruthy();
     expect(screen.queryByTestId('item-composer')).toBeNull();
   });
 

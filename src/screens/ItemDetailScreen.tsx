@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -10,6 +10,7 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Avatar } from '../components/Avatar';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ErrorState } from '../components/ErrorState';
 import { Icon, type IconName } from '../components/Icon';
 import { ImageCarousel } from '../components/ImageCarousel';
@@ -22,10 +23,11 @@ import { MemberPressable } from '../components/MemberPressable';
 import { MessageComposer } from '../components/MessageComposer';
 import { QueryStateView } from '../components/QueryStateView';
 import { formatCalendarDate } from '../lib/dates';
-import type { ErrorCopyOverrides } from '../lib/errorCopy';
+import { describeError, type ErrorCopyOverrides } from '../lib/errorCopy';
 import type { ItemDetail, ItemViewerState } from '../lib/items';
 import { DELETED_USER_NAME } from '../lib/parse';
 import { WEB_SITE } from '../lib/webOnly';
+import { useDeleteItemMutation } from '../query/useDeleteItemMutation';
 import { isItemId, useItemDetailQuery } from '../query/useItemDetailQuery';
 import { useSession } from '../session/SessionProvider';
 import { colors, radii, spacing, typography } from '../theme';
@@ -168,7 +170,7 @@ function describeAffordance(
   isRecipient: boolean,
 ): Affordance {
   if (viewer.is_owner) {
-    const notes = ['This is your item. Manage it on meutch.com.'];
+    const notes: string[] = [];
 
     if (item.is_giveaway && item.interested_count !== null) {
       notes.push(describeInterest(item.interested_count));
@@ -230,6 +232,73 @@ function describeAffordance(
     actionLabel: 'Request to Borrow',
     notes: [`Borrow requests are coming to the app soon. ${WEB_ONLY_NOTE}`],
   };
+}
+
+function OwnerActions({ itemId }: { itemId: string }) {
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const deleteItem = useDeleteItemMutation();
+
+  const close = () => {
+    setConfirming(false);
+    deleteItem.reset();
+  };
+
+  const confirm = () => {
+    deleteItem.mutate(
+      { id: itemId },
+      {
+        onSuccess: () => {
+          setConfirming(false);
+
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace('/(tabs)');
+          }
+        },
+      },
+    );
+  };
+
+  return (
+    <View style={styles.ownerActions}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push(`/item/${itemId}/edit`)}
+        style={styles.ownerButton}
+        testID="item-edit"
+      >
+        <Icon color={colors.text} name="pen" size={14} />
+        <Text style={styles.ownerButtonLabel}>Edit</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setConfirming(true)}
+        style={[styles.ownerButton, styles.deleteButton]}
+        testID="item-delete"
+      >
+        <Icon color={colors.danger} name="trash" size={14} />
+        <Text style={[styles.ownerButtonLabel, styles.deleteLabel]}>
+          Delete
+        </Text>
+      </Pressable>
+      <ConfirmDialog
+        confirmLabel="Delete"
+        destructive
+        error={
+          deleteItem.isError ? describeError(deleteItem.error).message : null
+        }
+        message="This can't be undone."
+        onCancel={close}
+        onConfirm={confirm}
+        pending={deleteItem.isPending}
+        pendingLabel="Deleting..."
+        title="Delete this item?"
+        visible={confirming}
+      />
+    </View>
+  );
 }
 
 type ItemDetailBodyProps = {
@@ -352,7 +421,10 @@ function ItemDetailBody({
         </View>
       ) : null}
 
-      {recipient || affordance.actionLabel || affordance.notes.length > 0 ? (
+      {recipient ||
+      viewer.is_owner ||
+      affordance.actionLabel ||
+      affordance.notes.length > 0 ? (
         <View style={styles.actionCard} testID="item-affordance">
           {recipient ? (
             <MessageComposer
@@ -387,6 +459,8 @@ function ItemDetailBody({
               {note}
             </Text>
           ))}
+
+          {viewer.is_owner ? <OwnerActions itemId={item.id} /> : null}
         </View>
       ) : null}
     </KeyboardAwareScrollView>
@@ -531,6 +605,12 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing[24],
   },
+  deleteButton: {
+    borderColor: colors.danger,
+  },
+  deleteLabel: {
+    color: colors.danger,
+  },
   description: {
     color: colors.text,
     ...typography.body,
@@ -550,6 +630,25 @@ const styles = StyleSheet.create({
   name: {
     color: colors.text,
     ...typography.value,
+  },
+  ownerActions: {
+    flexDirection: 'row',
+    gap: spacing[8],
+  },
+  ownerButton: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing[8],
+    justifyContent: 'center',
+    paddingVertical: spacing[12],
+  },
+  ownerButtonLabel: {
+    color: colors.text,
+    ...typography.label,
   },
   ownerName: {
     color: colors.text,

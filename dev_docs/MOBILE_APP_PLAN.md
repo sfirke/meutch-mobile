@@ -204,7 +204,7 @@ Verification: `npm run verify` (97 suites, 997 tests); backend targeted pytest (
 
 ### PR 13: Item Posting And Editing
 
-Split into a backend PR and two mobile PRs: 13a (create, edit, delete with the text fields) and 13b (photos), stacked on 13a. Photos come from the library and the camera; reordering is hand-built drag and drop on the installed gesture-handler and reanimated, with no sortable library.
+Split into a backend PR and three mobile PRs: 13a (create, edit, delete with the text fields), 13b (photos), and 13c (a Create menu on every tab), the latter two stacked on 13a. Photos come from the library and the camera; reordering is hand-built drag and drop on the installed gesture-handler and reanimated, with no sortable library.
 
 #### Backend ([meutch#557](https://github.com/sfirke/meutch/pull/557), must merge first)
 
@@ -232,6 +232,16 @@ Verification: `npm run verify` (112 suites, 1108 tests). Headless web screenshot
 
 Needs a human: on a device, library multi-select, camera capture, an iPhone HEIC photo, permission denial, and the drag feel; confirmation that staging uploads go to a non-production bucket before any write testing against staging.
 
+#### PR 13c: Create Menu
+
+Stacked on 13a. The web app's nav bar gained a Create menu on every page ([meutch#546](https://github.com/sfirke/meutch/pull/546)); this mirrors it so listing an item is one tap from anywhere, not only from My items.
+
+- [x] `CreateMenu`: a header "+" that opens an `OptionSheet` titled Create with one row, "List an item", pushing `/item/new`; the entries are a small array so "Create a request" is a one-line addition in PR 16
+- [x] `OptionSheet` takes an optional `value` so it can act as an action menu with no selected row
+- [x] `headerRight` on the tab group's `screenOptions` puts the menu on all five tabs; My items reuses it in place of its own "+". The pushed stacks do not get it, so the create and edit forms stay without it, as on the web
+
+Verification: `npm run verify` (122 suites, 1229 tests). Headless web screenshots of the Feed and Browse headers with the "+", the open Create sheet, and My items.
+
 ### PR 14: Loans
 
 - request to borrow, approve, deny, cancel, owner cancel, mark returned, extend the due date; loan detail's web-only notes (added in PR 10) become real actions here
@@ -244,6 +254,7 @@ Needs a human: on a device, library multi-select, camera capture, an iPhone HEIC
 ### PR 16: Request Writes
 
 - create, edit, and delete requests
+- "Create a request" joins the Create menu from PR 13c
 - respond with one of my items (`/requests/<id>/respond/<item_id>`), fulfill
 
 ### PR 17: Sign Up And Onboarding

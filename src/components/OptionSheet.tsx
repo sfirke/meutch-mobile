@@ -23,7 +23,8 @@ type OptionSheetProps<T extends string> = {
   visible: boolean;
   title: string;
   options: OptionSheetOption<T>[];
-  value: T;
+  /** Omit for an action menu: no row is then marked selected. */
+  value?: T;
   onSelect: (value: T) => void;
   onClose: () => void;
 };

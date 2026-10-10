@@ -50,6 +50,16 @@ describe('<OptionSheet />', () => {
     ).toBeTruthy();
   });
 
+  test('marks nothing selected without a value', () => {
+    renderSheet({ value: undefined });
+
+    expect(screen.queryByRole('button', { selected: true })).toBeNull();
+    expect(screen.queryByTestId('icon-check')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Alpha', selected: false }),
+    ).toBeTruthy();
+  });
+
   test('calls onSelect then onClose when an option is pressed', () => {
     const order: string[] = [];
     const onSelect = jest.fn(() => order.push('select'));

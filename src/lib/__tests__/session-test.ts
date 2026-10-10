@@ -319,6 +319,32 @@ describe('createSessionClient', () => {
     );
   });
 
+  test('discardSession clears the session locally without calling the API', async () => {
+    const apiFetch = jest.fn() as jest.MockedFunction<ApiFetch>;
+    const { storage, getValue } = createMockStorage(createTokenBundle());
+    const listener = jest.fn();
+
+    apiFetch.mockResolvedValueOnce(
+      createMockResponse({ user: createTokenBundle().user }),
+    );
+
+    const client = createSessionClient({ apiFetchImpl: apiFetch, storage });
+    await client.restoreSession();
+    apiFetch.mockClear();
+    client.subscribe(listener);
+
+    await client.discardSession();
+
+    expect(getValue()).toBeNull();
+    expect(storage.clear).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith(null);
+    expect(client.getCurrentUser()).toBeNull();
+    expect(apiFetch).not.toHaveBeenCalled();
+    await expect(client.authenticatedApiFetch('/feed')).rejects.toBeInstanceOf(
+      SessionRequiredError,
+    );
+  });
+
   test('throws when an authenticated request is attempted without a session', async () => {
     const apiFetch = jest.fn() as jest.MockedFunction<ApiFetch>;
     const { storage } = createMockStorage();

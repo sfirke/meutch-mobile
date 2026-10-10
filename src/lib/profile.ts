@@ -1,4 +1,11 @@
-import { buildJsonRequestInit, readJsonOrThrow, type ApiFetch } from './api';
+import {
+  buildJsonRequestInit,
+  buildMultipartRequestInit,
+  isApiError,
+  readJsonOrThrow,
+  UPLOAD_REQUEST_TIMEOUT_MS,
+  type ApiFetch,
+} from './api';
 import {
   isNullableString,
   isNumber,
@@ -13,6 +20,41 @@ export const DIGEST_FREQUENCIES = ['none', 'daily', 'weekly'] as const;
 
 export type DigestFrequency = (typeof DIGEST_FREQUENCIES)[number];
 
+// Mirrors `UserWebLink.PLATFORM_CHOICES` in the backend.
+export const LINK_PLATFORMS = [
+  'bluesky',
+  'facebook',
+  'instagram',
+  'linkedin',
+  'mastodon',
+  'threads',
+  'tiktok',
+  'x',
+  'blog',
+  'website',
+  'other',
+] as const;
+
+export type LinkPlatform = (typeof LINK_PLATFORMS)[number];
+
+export const LINK_PLATFORM_LABELS: Record<LinkPlatform, string> = {
+  bluesky: 'Bluesky',
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  linkedin: 'LinkedIn',
+  mastodon: 'Mastodon',
+  threads: 'Threads',
+  tiktok: 'TikTok',
+  x: 'X (Twitter)',
+  blog: 'Blog',
+  website: 'Website',
+  other: 'Other',
+};
+
+export const MAX_WEB_LINKS = 5;
+
+export const NAME_MAX_LENGTH = 50;
+
 export type WebLink = {
   id: string;
   platform_type: string;
@@ -21,6 +63,29 @@ export type WebLink = {
   url: string;
   display_order: number;
 };
+
+/** Write shape for one link in `PATCH /me/profile`. */
+export type WebLinkInput = {
+  platform: LinkPlatform;
+  custom_name: string | null;
+  url: string;
+};
+
+export type ProfilePhotoChange =
+  { kind: 'new'; uri: string } | { kind: 'remove' };
+
+/** Only the keys present are sent; `links` replaces the whole set. */
+export type ProfileUpdate = {
+  first_name?: string;
+  last_name?: string;
+  about_me?: string;
+  links?: WebLinkInput[];
+  photo?: ProfilePhotoChange;
+};
+
+export type LinkFieldErrors = Partial<
+  Record<'platform' | 'custom_name' | 'url', string>
+>;
 
 export type UserProfile = {
   id: string;
@@ -35,6 +100,11 @@ export type UserProfile = {
   has_location: boolean;
   geocoding_failed: boolean;
   web_links: WebLink[];
+};
+
+export type ProfileUpdateResult = {
+  user: UserProfile;
+  imageUploadFailed: boolean;
 };
 
 export type UserSettings = {
@@ -209,20 +279,180 @@ export async function fetchProfile(
   return parseUserProfile(payload.user);
 }
 
+export function toWebLinkInput(link: WebLink): WebLinkInput {
+  const platform = matchEnum(link.platform_type, LINK_PLATFORMS);
+
+  if (platform === null) {
+    return {
+      platform: 'other',
+      custom_name: link.platform_name ?? link.display_name,
+      url: link.url,
+    };
+  }
+
+  return {
+    platform,
+    custom_name: platform === 'other' ? link.platform_name : null,
+    url: link.url,
+  };
+}
+
+const URL_SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+export function normalizeLinkUrl(url: string): string {
+  const trimmed = url.trim();
+
+  if (trimmed === '' || URL_SCHEME_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+
+  return `https://${trimmed}`;
+}
+
+/** React Native's FormData file part; `uri` is a local file, sent untouched. */
+type FilePart = { uri: string; name: string; type: string };
+
+function buildProfileFormData(update: ProfileUpdate, uri: string): FormData {
+  const formData = new FormData();
+
+  if (update.first_name !== undefined) {
+    formData.append('first_name', update.first_name);
+  }
+  if (update.last_name !== undefined) {
+    formData.append('last_name', update.last_name);
+  }
+  if (update.about_me !== undefined) {
+    formData.append('about_me', update.about_me);
+  }
+  if (update.links !== undefined) {
+    // The backend parses a single JSON-string part for a list field.
+    formData.append('links', JSON.stringify(update.links));
+  }
+
+  const part: FilePart = { uri, name: 'profile.jpg', type: 'image/jpeg' };
+  formData.append('profile_image', part as unknown as Blob);
+
+  return formData;
+}
+
+function buildProfileJsonBody(update: ProfileUpdate): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+
+  if (update.first_name !== undefined) {
+    body.first_name = update.first_name;
+  }
+  if (update.last_name !== undefined) {
+    body.last_name = update.last_name;
+  }
+  if (update.about_me !== undefined) {
+    body.about_me = update.about_me;
+  }
+  if (update.links !== undefined) {
+    body.links = update.links;
+  }
+  if (update.photo?.kind === 'remove') {
+    body.delete_image = true;
+  }
+
+  return body;
+}
+
+export async function updateProfile(
+  fetchImpl: ApiFetch,
+  update: ProfileUpdate,
+): Promise<ProfileUpdateResult> {
+  const init =
+    update.photo?.kind === 'new'
+      ? buildMultipartRequestInit(
+          buildProfileFormData(update, update.photo.uri),
+          { method: 'PATCH', timeoutMs: UPLOAD_REQUEST_TIMEOUT_MS },
+        )
+      : buildJsonRequestInit(buildProfileJsonBody(update), {
+          method: 'PATCH',
+        });
+  const response = await fetchImpl('/me/profile', init);
+  const payload = await readJsonOrThrow<{
+    user: unknown;
+    image_upload_failed?: unknown;
+  }>(response);
+
+  return {
+    user: parseUserProfile(payload.user),
+    imageUploadFailed: payload.image_upload_failed === true,
+  };
+}
+
 export async function updateAboutMe(
   fetchImpl: ApiFetch,
   aboutMe: string,
 ): Promise<UserProfile> {
-  const response = await fetchImpl(
-    '/me/profile',
-    buildJsonRequestInit({ about_me: aboutMe }, { method: 'PATCH' }),
-  );
-  const payload = await readJsonOrThrow<{
-    user: unknown;
-    image_upload_failed: boolean;
-  }>(response);
+  return (await updateProfile(fetchImpl, { about_me: aboutMe })).user;
+}
 
-  return parseUserProfile(payload.user);
+const LINK_ERROR_FIELDS = ['platform', 'custom_name', 'url'] as const;
+
+function firstMessage(value: unknown): string | null {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    const [first] = value;
+
+    return typeof first === 'string' ? first : null;
+  }
+
+  return null;
+}
+
+/**
+ * Splits `details.links` from a 422. Row errors arrive keyed by index
+ * (`{ "0": { url: [msg] } }`); list errors such as "more than 5" arrive as a
+ * message array.
+ */
+export function readLinkErrors(error: unknown): {
+  rows: Record<number, LinkFieldErrors>;
+  general: string | null;
+} {
+  const rows: Record<number, LinkFieldErrors> = {};
+
+  if (!isApiError(error)) {
+    return { rows, general: null };
+  }
+
+  const detail = error.details?.links;
+  let general = firstMessage(detail);
+
+  if (general !== null || !isObject(detail) || Array.isArray(detail)) {
+    return { rows, general };
+  }
+
+  Object.entries(detail).forEach(([key, rowDetail]) => {
+    const index = Number(key);
+
+    if (!Number.isInteger(index) || index < 0 || !isObject(rowDetail)) {
+      return;
+    }
+
+    const rowErrors: LinkFieldErrors = {};
+
+    LINK_ERROR_FIELDS.forEach((field) => {
+      const message = firstMessage(rowDetail[field]);
+
+      if (message !== null) {
+        rowErrors[field] = message;
+      }
+    });
+
+    // e.g. a row that is not an object at all.
+    general ??= firstMessage(rowDetail._schema);
+
+    if (Object.keys(rowErrors).length > 0) {
+      rows[index] = rowErrors;
+    }
+  });
+
+  return { rows, general };
 }
 
 export async function fetchSettings(

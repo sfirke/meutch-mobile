@@ -424,6 +424,12 @@ export function createSessionClient(options?: {
       await setSession(null);
     },
 
+    // Drops the session locally without calling the API, e.g. after the
+    // account was deleted and its tokens are already invalid.
+    async discardSession() {
+      await setSession(null);
+    },
+
     async refreshUser() {
       if (!currentSession) {
         throw new SessionRequiredError();

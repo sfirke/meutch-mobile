@@ -42,7 +42,10 @@ const ITEM_ID = '5e6f7a8b-9c0d-4e5f-8a6b-7c8d9e0f1a2b';
 function mockSession(overrides: Partial<SessionValue>) {
   mockedUseSession.mockReturnValue({
     authenticatedApiFetch: emptyApiFetch(),
+    discardSession: jest.fn(),
+    errorCode: null,
     errorMessage: null,
+    notice: null,
     refreshUser: jest.fn(),
     signIn: jest.fn(),
     signOut: jest.fn(),

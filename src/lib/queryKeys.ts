@@ -162,6 +162,7 @@ export const loanKeys = {
   list: (filters: LoanListFilters) =>
     [...loanKeys.all, 'list', { role: filters.role }] as const,
   detail: (id: string) => [...loanKeys.all, 'detail', id] as const,
+  summary: () => [...loanKeys.all, 'summary'] as const,
 };
 
 export const messageKeys = {

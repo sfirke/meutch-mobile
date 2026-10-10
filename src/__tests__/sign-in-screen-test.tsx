@@ -27,7 +27,10 @@ const signIn = jest.fn<ReturnType<SessionValue['signIn']>, [string, string]>();
 function mockSession(overrides: Partial<SessionValue>) {
   mockedUseSession.mockReturnValue({
     authenticatedApiFetch: jest.fn(),
+    discardSession: jest.fn(),
+    errorCode: null,
     errorMessage: null,
+    notice: null,
     refreshUser: jest.fn(),
     signIn,
     signOut: jest.fn(),

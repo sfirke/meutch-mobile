@@ -1,4 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -7,6 +8,7 @@ import { ItemForm } from '../components/ItemForm';
 import { QueryStateView } from '../components/QueryStateView';
 import { useDiscardGuard } from '../hooks/useDiscardGuard';
 import type { ErrorCopyOverrides } from '../lib/errorCopy';
+import { hasPhotoChanges, type PhotoDraft } from '../lib/itemPhotos';
 import type { ItemDetail } from '../lib/items';
 import { isItemId, useItemDetailQuery } from '../query/useItemDetailQuery';
 import { useUpdateItemMutation } from '../query/useUpdateItemMutation';
@@ -36,6 +38,15 @@ function EditForm({ item }: EditFormProps) {
   const router = useRouter();
   const updateItem = useUpdateItemMutation();
   const guard = useDiscardGuard();
+  // The form reads these once on mount, so pin them to the same snapshot.
+  const [initialPhotos] = useState<PhotoDraft[]>(() =>
+    item.images.map((image) => ({
+      kind: 'existing',
+      id: image.id,
+      url: image.url,
+    })),
+  );
+  const [initialIds] = useState(() => item.images.map((image) => image.id));
 
   return (
     <>
@@ -49,11 +60,17 @@ function EditForm({ item }: EditFormProps) {
           is_giveaway: item.is_giveaway,
           giveaway_visibility: item.giveaway_visibility,
         }}
+        initialPhotos={initialPhotos}
         onClearError={() => updateItem.reset()}
         onDirtyChange={guard.onDirtyChange}
-        onSubmit={(input) =>
+        onSubmit={(input, photos) =>
           updateItem.mutate(
-            { id: item.id, input },
+            {
+              id: item.id,
+              input,
+              // A text-only edit stays JSON.
+              changes: hasPhotoChanges(photos, initialIds) ? photos : undefined,
+            },
             {
               onSuccess: () => {
                 guard.allowLeave();

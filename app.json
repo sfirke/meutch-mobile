@@ -34,7 +34,14 @@
         }
       ],
       "expo-router",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Meutch uses your photo library so you can add photos to the items you list.",
+          "cameraPermission": "Meutch uses your camera so you can photograph the items you list."
+        }
+      ]
     ],
     "extra": {
       "eas": {

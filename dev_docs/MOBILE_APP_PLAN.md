@@ -226,9 +226,13 @@ Verification: `npm run verify` (112 suites, 1108 tests). Headless web screenshot
 
 #### PR 13b: Photos
 
-- [ ] Stage 5, foundations: per-request timeouts and `buildMultipartRequestInit` in `src/lib/api.ts`; `expo-image-picker` and `expo-image-manipulator`; pure reorder math; `FormData`-aware test utilities; `camera` and `image` icons
-- [ ] Stage 6: `PhotoDraft` model, `preparePhoto` (resize to 1600px, JPEG, which also converts HEIC), `buildItemFormData`; `PhotoGrid` with cover badge, remove, count, add tile (camera or library), long-press drag to reorder, and "Move earlier" / "Move later" accessibility actions
-- [ ] Stage 7: wire photos into `ItemForm` and the screens; one multipart request per save; assemble, screenshots, manual checks, draft PR stacked on 13a
+- [x] Stage 5, foundations: per-request timeouts and `buildMultipartRequestInit` in `src/lib/api.ts`; `expo-image-picker` and `expo-image-manipulator`; pure reorder math; `FormData`-aware test utilities; `camera` and `photos` icons; copy for the backend's 413
+- [x] Stage 6: `PhotoDraft` model, `preparePhoto` (resize to 1600px, JPEG, which also converts HEIC), `buildItemFormData`; `PhotoGrid` with cover badge, remove, count, add tile (camera or library), long-press drag to reorder, and "Move earlier" / "Move later" accessibility actions
+- [x] Stage 7: photos wired into `ItemForm` and the screens; one multipart request per save, JSON when nothing about photos changed; assembled, screenshots, manual checks, draft PR stacked on 13a
+
+Changes from the plan: `preparePhoto` lives in `src/lib/photoPicker.ts` beside the picker calls rather than in `itemPhotos.ts`, so the grid and the form-data code could be built in parallel; the drag commits through `scheduleOnRN` because `runOnJS` is deprecated in reanimated 4; `GestureHandlerRootView` now wraps the app root; the gesture-handler, worklets, and reanimated mocks are global in `jest.setup.js`.
+
+Verification: `npm run verify` (116 suites, 1179 tests). Headless web screenshots of the form with its empty photo section and of the edit form prefilled with an existing photo (cover badge, remove, add tile, count). Against a local backend on meutch#557 with generated JPEGs: a multipart create with two photos returned 201 with both in order; a replay with the same token returned 200 with the existing item and no extra images; one PATCH that deleted one image, added one, and reordered returned the expected order; an over-capacity PATCH was rejected with the item untouched.
 
 Needs a human: on a device, library multi-select, camera capture, an iPhone HEIC photo, permission denial, and the drag feel; confirmation that staging uploads go to a non-production bucket before any write testing against staging.
 

@@ -1,5 +1,5 @@
 import { isApiError } from './api';
-import { describeError } from './errorCopy';
+import { describeError, type ErrorCopyOverrides } from './errorCopy';
 
 export type ValidationErrors<Field extends string> = {
   fields: Partial<Record<Field, string>>;
@@ -51,6 +51,7 @@ export function readValidationErrors<Field extends string>(
 export function buildGeneralMessage(
   error: unknown,
   validation: ValidationErrors<string>,
+  overrides?: ErrorCopyOverrides,
 ): string | null {
   if (!error) {
     return null;
@@ -65,5 +66,5 @@ export function buildGeneralMessage(
     return null;
   }
 
-  return describeError(error).message;
+  return describeError(error, overrides).message;
 }

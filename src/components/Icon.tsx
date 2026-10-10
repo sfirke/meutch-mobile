@@ -7,6 +7,8 @@ export type IconName =
   | 'feed'
   | 'browse'
   | 'image'
+  | 'camera'
+  | 'photos'
   | 'giveaway'
   | 'request'
   | 'loan'
@@ -45,6 +47,8 @@ export const ICON_GLYPHS: Record<IconName, string> = {
   feed: 'house',
   browse: 'compass',
   image: 'image',
+  camera: 'camera',
+  photos: 'images',
   giveaway: 'gift',
   request: 'hand',
   loan: 'right-left',

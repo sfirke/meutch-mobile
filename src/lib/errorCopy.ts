@@ -11,6 +11,7 @@ export type ErrorCopyKey =
   | 'INVALID_ACTION'
   | 'CONFLICT'
   | 'VALIDATION_ERROR'
+  | 'PAYLOAD_TOO_LARGE'
   | 'OFFLINE'
   | 'TIMEOUT'
   | 'SESSION_EXPIRED'
@@ -59,6 +60,12 @@ const MAINTENANCE_COPY: ErrorCopy = {
   canRetry: true,
 };
 
+const PAYLOAD_TOO_LARGE_COPY: ErrorCopy = {
+  title: 'Photos are too large',
+  message: 'Try fewer or smaller photos.',
+  canRetry: false,
+};
+
 const OFFLINE_COPY: ErrorCopy = {
   title: 'You appear to be offline',
   message: 'Check your connection and try again.',
@@ -92,6 +99,11 @@ function classify(error: unknown): { key: ErrorCopyKey; copy: ErrorCopy } {
   }
 
   if (isApiError(error)) {
+    // A proxy may answer 413 with a non-JSON body, which reads as API_ERROR.
+    if (error.code === 'PAYLOAD_TOO_LARGE' || error.status === 413) {
+      return { key: 'PAYLOAD_TOO_LARGE', copy: PAYLOAD_TOO_LARGE_COPY };
+    }
+
     switch (error.code) {
       case 'RATE_LIMIT_EXCEEDED':
         return { key: 'RATE_LIMIT_EXCEEDED', copy: RATE_LIMIT_COPY };
@@ -169,3 +181,14 @@ export function readFieldError(error: unknown, field: string): string | null {
 
   return typeof detail === 'string' ? detail : null;
 }
+
+/** For photo-upload screens: `describeError(error, UPLOAD_ERROR_OVERRIDES)`. */
+export const UPLOAD_ERROR_OVERRIDES: ErrorCopyOverrides = {
+  TIMEOUT: {
+    title: "Upload didn't finish",
+    message: 'Check your connection and try again. Your photos were not saved.',
+  },
+  OFFLINE: {
+    message: 'Check your connection and try again. Your photos were not saved.',
+  },
+};

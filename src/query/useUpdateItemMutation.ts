@@ -5,6 +5,7 @@ import {
   type ItemDetailResponse,
   type ItemWriteInput,
 } from '../lib/items';
+import type { PhotoChanges } from '../lib/itemPhotos';
 import { itemKeys } from '../lib/queryKeys';
 import { useSession } from '../session/SessionProvider';
 import { markItemListsStale } from './itemCacheUpdates';
@@ -12,6 +13,7 @@ import { markItemListsStale } from './itemCacheUpdates';
 export type UpdateItemVariables = {
   id: string;
   input: ItemWriteInput;
+  changes?: PhotoChanges;
 };
 
 export function useUpdateItemMutation() {
@@ -19,7 +21,8 @@ export function useUpdateItemMutation() {
   const queryClient = useQueryClient();
 
   return useMutation<ItemDetailResponse, Error, UpdateItemVariables>({
-    mutationFn: ({ id, input }) => updateItem(authenticatedApiFetch, id, input),
+    mutationFn: ({ id, input, changes }) =>
+      updateItem(authenticatedApiFetch, id, input, changes),
     onSuccess: (response) => {
       const detailKey = itemKeys.detail(response.item.id);
 

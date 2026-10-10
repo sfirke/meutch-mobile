@@ -24,9 +24,9 @@ export function NewItemScreen() {
         error={createItem.error}
         onClearError={() => createItem.reset()}
         onDirtyChange={guard.onDirtyChange}
-        onSubmit={(input) =>
+        onSubmit={(input, photos) =>
           createItem.mutate(
-            { input, creationToken },
+            { input, creationToken, photos: photos.photos },
             {
               onSuccess: (response) => {
                 guard.allowLeave();

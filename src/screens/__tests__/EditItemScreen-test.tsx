@@ -32,6 +32,10 @@ jest.mock('expo-router', () => ({
   useNavigation: () => mockNavigation,
 }));
 
+jest.mock('expo-router/react-navigation', () => ({
+  usePreventRemove: jest.fn(),
+}));
+
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
 
 const ITEM_ID = 'b2222222-2222-4222-8222-222222222222';

@@ -54,6 +54,20 @@ jest.mock('expo-router', () => ({
   useNavigation: () => mockNavigation,
 }));
 
+jest.mock('expo-router/react-navigation', () => ({
+  usePreventRemove: (
+    prevent: boolean,
+    callback: (event: { data: LeaveEvent['data'] }) => void,
+  ) => {
+    mockNavigation.addListener('beforeRemove', (event: LeaveEvent) => {
+      if (prevent) {
+        event.preventDefault();
+        callback({ data: event.data });
+      }
+    });
+  },
+}));
+
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
 
 const NEW_ID = 'b2222222-2222-4222-8222-222222222222';

@@ -1,13 +1,14 @@
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { HeaderCancelButton } from '../components/HeaderCancelButton';
 import { ItemForm } from '../components/ItemForm';
 import { useDiscardGuard } from '../hooks/useDiscardGuard';
 import { createCreationToken } from '../lib/creationToken';
 import { useCreateItemMutation } from '../query/useCreateItemMutation';
-import { colors, spacing, typography } from '../theme';
+import { colors } from '../theme';
 
 export function NewItemScreen() {
   const router = useRouter();
@@ -24,15 +25,7 @@ export function NewItemScreen() {
           // iOS draws no back button for the first screen of a nested stack.
           headerLeft:
             Platform.OS === 'ios'
-              ? () => (
-                  <Pressable
-                    accessibilityRole="button"
-                    hitSlop={spacing[8]}
-                    onPress={() => router.back()}
-                  >
-                    <Text style={styles.cancel}>Cancel</Text>
-                  </Pressable>
-                )
+              ? () => <HeaderCancelButton onPress={() => router.back()} />
               : undefined,
         }}
       />
@@ -68,10 +61,6 @@ export function NewItemScreen() {
 }
 
 const styles = StyleSheet.create({
-  cancel: {
-    ...typography.body,
-    color: colors.primaryDark,
-  },
   screen: {
     backgroundColor: colors.background,
     flex: 1,

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
+import { useScrollBottomPadding } from '../hooks/useScrollBottomPadding';
 import type { GiveawayVisibility, ItemWriteInput } from '../lib/items';
 import { buildGeneralMessage, readValidationErrors } from '../lib/validation';
 import { useCategoriesQuery } from '../query/useCategoriesQuery';
@@ -202,6 +203,7 @@ export function ItemForm({
   const [initial] = useState(() => toInput(toFormState(initialValues)));
   const [form, setForm] = useState(() => toFormState(initialValues));
   const tags = useTagsQuery();
+  const paddingBottom = useScrollBottomPadding();
   const profile = useProfileQuery();
 
   const input = toInput(form);
@@ -234,7 +236,7 @@ export function ItemForm({
   return (
     <KeyboardAwareScrollView
       bottomOffset={spacing[16]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom }]}
       keyboardShouldPersistTaps="handled"
       testID={testID}
     >
@@ -369,7 +371,6 @@ export function ItemForm({
 const styles = StyleSheet.create({
   content: {
     gap: spacing[8],
-    paddingBottom: spacing[24],
     paddingHorizontal: spacing[16],
     paddingTop: spacing[16],
   },

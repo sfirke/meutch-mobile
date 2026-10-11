@@ -43,6 +43,15 @@ describe('describeError', () => {
     expect(result.title).toMatch(/unavailable/i);
   });
 
+  test("maps a network failure from Expo's fetch to offline copy", () => {
+    const result = describeError(
+      new Error('fetch failed: The Internet connection appears to be offline.'),
+    );
+
+    expect(result.title).toBe('You appear to be offline');
+    expect(result.canRetry).toBe(true);
+  });
+
   test('maps a TypeError to retryable offline copy', () => {
     const result = describeError(new TypeError('Network request failed'));
 

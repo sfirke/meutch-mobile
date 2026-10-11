@@ -1,3 +1,6 @@
+import { convertFormDataAsync } from 'expo/src/winter/fetch/convertFormData';
+import { File } from 'expo-file-system';
+
 import {
   buildItemFormData,
   hasPhotoChanges,
@@ -37,8 +40,8 @@ const newTwo: PhotoDraft = {
   uri: 'file:///cache/two.jpg',
 };
 
-function file(uri: string, index: number) {
-  return { uri, name: `photo-${index}.jpg`, type: 'image/jpeg' };
+function file(uri: string) {
+  return new File(uri);
 }
 
 // jest-expo stringifies RN file descriptors in `entries()`, so record the
@@ -117,8 +120,8 @@ describe('buildItemFormData', () => {
       ['is_giveaway', 'true'],
       ['giveaway_visibility', 'public'],
       ['creation_token', 'token-1'],
-      ['images', file('file:///cache/one.jpg', 0)],
-      ['images', file('file:///cache/two.jpg', 1)],
+      ['images', file('file:///cache/one.jpg')],
+      ['images', file('file:///cache/two.jpg')],
     ]);
   });
 
@@ -136,8 +139,8 @@ describe('buildItemFormData', () => {
       ['tags', 'tools'],
       ['is_giveaway', 'true'],
       ['giveaway_visibility', 'public'],
-      ['images', file('file:///cache/one.jpg', 0)],
-      ['images', file('file:///cache/two.jpg', 1)],
+      ['images', file('file:///cache/one.jpg')],
+      ['images', file('file:///cache/two.jpg')],
       ['image_order', ID_B],
       ['image_order', 'new-0'],
       ['image_order', ID_A],
@@ -173,7 +176,21 @@ describe('buildItemFormData', () => {
       ['name', 'Cordless drill'],
       ['category_id', CATEGORY_ID],
       ['is_giveaway', 'false'],
-      ['images', file('file:///cache/one.jpg', 0)],
+      ['images', file('file:///cache/one.jpg')],
     ]);
+  });
+
+  // The app's fetch is Expo's, which throws on a part it cannot read.
+  test("is a body Expo's fetch can encode", async () => {
+    const parts = appendedParts(() =>
+      buildItemFormData(input, { photos: [newOne], deletedImageIds: [] }),
+    );
+    const { body } = await convertFormDataAsync({
+      entries: () => parts,
+    } as unknown as FormData);
+    const text = new TextDecoder().decode(body);
+
+    expect(text).toContain('name="images"; filename="one.jpg"');
+    expect(text).toContain('content-type: image/jpeg');
   });
 });

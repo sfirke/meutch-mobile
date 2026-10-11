@@ -34,7 +34,8 @@
         }
       ],
       "expo-router",
-      "expo-image"
+      "expo-image",
+      "expo-font"
     ],
     "extra": {
       "eas": {

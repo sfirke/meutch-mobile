@@ -7,19 +7,31 @@ type LeaveEvent = {
   data: { action: { type: string } };
 };
 
-const mockUnsubscribe = jest.fn();
 const mockListeners: Record<string, (event: LeaveEvent) => void> = {};
 const mockNavigation = {
   addListener: jest.fn(
     (name: string, listener: (event: LeaveEvent) => void) => {
       mockListeners[name] = listener;
-      return mockUnsubscribe;
+      return () => undefined;
     },
   ),
   dispatch: jest.fn(),
 };
 
 jest.mock('expo-router', () => ({ useNavigation: () => mockNavigation }));
+jest.mock('expo-router/react-navigation', () => ({
+  usePreventRemove: (
+    prevent: boolean,
+    callback: (event: { data: LeaveEvent['data'] }) => void,
+  ) => {
+    mockNavigation.addListener('beforeRemove', (event: LeaveEvent) => {
+      if (prevent) {
+        event.preventDefault();
+        callback({ data: event.data });
+      }
+    });
+  },
+}));
 
 const ACTION = { type: 'GO_BACK' };
 
@@ -74,10 +86,19 @@ describe('useDiscardGuard', () => {
     expect(leave().preventDefault).not.toHaveBeenCalled();
   });
 
-  test('unsubscribes on unmount', () => {
-    const { unmount } = renderHook(() => useDiscardGuard());
+  test('replays a leave made in the same tick as allowLeave', () => {
+    const { result } = renderHook(() => useDiscardGuard());
 
-    unmount();
-    expect(mockUnsubscribe).toHaveBeenCalled();
+    act(() => result.current.onDirtyChange(true));
+    act(() => {
+      result.current.allowLeave();
+      mockListeners.beforeRemove({
+        preventDefault: jest.fn(),
+        data: { action: ACTION },
+      });
+    });
+
+    expect(result.current.dialog.visible).toBe(false);
+    expect(mockNavigation.dispatch).toHaveBeenCalledWith(ACTION);
   });
 });

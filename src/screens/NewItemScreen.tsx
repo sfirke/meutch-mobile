@@ -1,8 +1,9 @@
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { HeaderCancelButton } from '../components/HeaderCancelButton';
 import { ItemForm } from '../components/ItemForm';
 import { useDiscardGuard } from '../hooks/useDiscardGuard';
 import { createCreationToken } from '../lib/creationToken';
@@ -18,7 +19,16 @@ export function NewItemScreen() {
 
   return (
     <View style={styles.screen}>
-      <Stack.Screen options={{ title: 'List an item' }} />
+      <Stack.Screen
+        options={{
+          title: 'List an item',
+          // iOS draws no back button for the first screen of a nested stack.
+          headerLeft:
+            Platform.OS === 'ios'
+              ? () => <HeaderCancelButton onPress={() => router.back()} />
+              : undefined,
+        }}
+      />
 
       <ItemForm
         error={createItem.error}

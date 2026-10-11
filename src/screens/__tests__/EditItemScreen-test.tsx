@@ -25,11 +25,21 @@ const mockNavigation = {
 };
 
 jest.mock('expo-router', () => ({
-  Stack: { Screen: jest.fn(() => null) },
+  Stack: {
+    Screen: ({
+      options,
+    }: {
+      options?: { headerLeft?: () => React.ReactNode };
+    }) => options?.headerLeft?.() ?? null,
+  },
   useRouter: () => ({ replace: mockReplace, back: mockBack }),
   useLocalSearchParams: jest.fn(),
   useFocusEffect: jest.fn(),
   useNavigation: () => mockNavigation,
+}));
+
+jest.mock('expo-router/react-navigation', () => ({
+  usePreventRemove: jest.fn(),
 }));
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
@@ -126,6 +136,14 @@ describe('edit item screen', () => {
       await screen.findByText('You can only edit your own items.'),
     ).toBeTruthy();
     expect(screen.queryByTestId('item-name')).toBeNull();
+  });
+
+  test('offers a Cancel button in the header', async () => {
+    renderScreen();
+    await screen.findByTestId('item-name');
+
+    fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+    expect(mockBack).toHaveBeenCalled();
   });
 
   test('prefills the form from the item', async () => {

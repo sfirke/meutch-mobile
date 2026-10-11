@@ -1,5 +1,6 @@
 import { useNavigation, type NativeStackNavigationProp } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePreventRemove } from 'expo-router/react-navigation';
+import { useCallback, useEffect, useState } from 'react';
 
 // expo-router vendors React Navigation without exporting its base types.
 type Navigation = NativeStackNavigationProp<Record<string, object | undefined>>;
@@ -11,48 +12,31 @@ type NavigationAction = Parameters<Navigation['dispatch']>[0];
  */
 export function useDiscardGuard() {
   const navigation = useNavigation<Navigation>();
-  const dirty = useRef(false);
-  const leaving = useRef(false);
+  const [dirty, setDirty] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [blocked, setBlocked] = useState<NavigationAction | null>(null);
 
-  useEffect(
-    () =>
-      navigation.addListener('beforeRemove', (event) => {
-        if (!dirty.current || leaving.current) {
-          return;
-        }
+  // usePreventRemove rather than a bare beforeRemove listener: the native
+  // stack has to know up front, or an iOS swipe pops the screen regardless.
+  usePreventRemove(dirty && !leaving, ({ data }) => setBlocked(data.action));
 
-        event.preventDefault();
-        setBlocked(event.data.action);
-      }),
-    [navigation],
-  );
-
-  const onDirtyChange = useCallback((value: boolean) => {
-    dirty.current = value;
-  }, []);
-
-  const allowLeave = useCallback(() => {
-    leaving.current = true;
-  }, []);
-
-  const confirm = () => {
-    const action = blocked;
-
-    setBlocked(null);
-    leaving.current = true;
-    if (action) {
-      navigation.dispatch(action);
+  // The guard only lifts on the next render, so a leave that was allowed or
+  // confirmed is replayed here once it has.
+  useEffect(() => {
+    if (leaving && blocked) {
+      navigation.dispatch(blocked);
     }
-  };
+  }, [leaving, blocked, navigation]);
+
+  const allowLeave = useCallback(() => setLeaving(true), []);
 
   return {
-    onDirtyChange,
+    onDirtyChange: setDirty,
     allowLeave,
     dialog: {
-      visible: blocked !== null,
+      visible: blocked !== null && !leaving,
       onCancel: () => setBlocked(null),
-      onConfirm: confirm,
+      onConfirm: allowLeave,
     },
   };
 }

@@ -1,8 +1,6 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
-import { normalizeTurns, toPixelCrop, type Rect } from './cropMath';
-
 export const PHOTO_MAX_DIMENSION = 1600;
 export const PHOTO_JPEG_QUALITY = 0.8;
 
@@ -29,45 +27,6 @@ export async function preparePhoto(asset: PickerAsset): Promise<PickedPhoto> {
   if (Math.max(width, height) > PHOTO_MAX_DIMENSION) {
     context.resize(
       width >= height
-        ? { width: PHOTO_MAX_DIMENSION }
-        : { height: PHOTO_MAX_DIMENSION },
-    );
-  }
-
-  const image = await context.renderAsync();
-  const saved = await image.saveAsync({
-    format: SaveFormat.JPEG,
-    compress: PHOTO_JPEG_QUALITY,
-  });
-
-  return { uri: saved.uri, width: saved.width, height: saved.height };
-}
-
-export type PhotoEdit = {
-  /** Clockwise quarter turns. */
-  quarterTurns: number;
-  /** Fractions (0-1) of the rotated image. */
-  crop: Rect;
-};
-
-/** Rotates, then crops, a local or remote photo into a new JPEG. */
-export async function applyPhotoEdit(
-  uri: string,
-  edit: PhotoEdit,
-): Promise<PickedPhoto> {
-  const source = ImageManipulator.manipulate(uri);
-  const turns = normalizeTurns(edit.quarterTurns);
-
-  if (turns !== 0) source.rotate(turns * 90);
-
-  // Rendered first because the crop needs the rotated image's pixel size.
-  const rotated = await source.renderAsync();
-  const crop = toPixelCrop(edit.crop, rotated);
-  const context = ImageManipulator.manipulate(rotated).crop(crop);
-
-  if (Math.max(crop.width, crop.height) > PHOTO_MAX_DIMENSION) {
-    context.resize(
-      crop.width >= crop.height
         ? { width: PHOTO_MAX_DIMENSION }
         : { height: PHOTO_MAX_DIMENSION },
     );

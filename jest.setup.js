@@ -38,17 +38,10 @@ jest.mock('expo-image-manipulator', () => {
     width: 1600,
     height: 1200,
   }));
-  // The source is a uri, or an image returned by an earlier renderAsync.
-  const manipulate = jest.fn((source) => {
-    const uri = typeof source === 'string' ? source : source.uri;
+  const manipulate = jest.fn((uri) => {
     const ctx = {
       resize: jest.fn(() => ctx),
-      rotate: jest.fn(() => ctx),
-      crop: jest.fn(() => ctx),
       renderAsync: jest.fn(async () => ({
-        uri,
-        width: 1600,
-        height: 1200,
         saveAsync: jest.fn(async () => ({ uri, width: 1600, height: 1200 })),
       })),
     };
@@ -85,18 +78,6 @@ require('react-native-gesture-handler/jestSetup');
 jest.mock('react-native-worklets', () =>
   jest.requireActual('react-native-worklets/src/mock'),
 );
-jest.mock('react-native-reanimated', () => {
-  const mock = jest.requireActual('react-native-reanimated/mock');
-  const { useRef } = require('react');
-
-  // The mock makes a new shared value on every render; keep the first, as the
-  // real hook does.
-  const useSharedValue = (init) => {
-    const fresh = mock.useSharedValue(init);
-    const ref = useRef(fresh);
-
-    return ref.current;
-  };
-
-  return { ...mock, useSharedValue };
-});
+jest.mock('react-native-reanimated', () =>
+  jest.requireActual('react-native-reanimated/mock'),
+);

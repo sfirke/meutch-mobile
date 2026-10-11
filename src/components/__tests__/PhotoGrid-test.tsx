@@ -219,72 +219,13 @@ it('ignores moves past either end', () => {
   expect(onChange).not.toHaveBeenCalled();
 });
 
-// Opens the editor on a photo, rotates it, and saves.
-async function rotateInEditor(index: number) {
-  fireEvent.press(screen.getByLabelText(`Edit photo ${index + 1}`));
-  fireEvent(screen.getByTestId('photo-editor-stage'), 'layout', {
-    nativeEvent: { layout: { x: 0, y: 0, width: 360, height: 600 } },
-  });
-  fireEvent(screen.getByTestId('photo-editor-image'), 'load', {
-    nativeEvent: { source: { width: 400, height: 300 } },
-  });
-  fireEvent.press(screen.getByLabelText('Rotate right'));
-  await act(async () => {
-    fireEvent.press(screen.getByTestId('photo-editor-done'));
-  });
-}
-
-it('replaces an edited uploaded photo in place and reports its id', async () => {
-  const { onChange, onRemoveExisting } = renderGrid();
-
-  expect(screen.queryByTestId('photo-editor')).toBeNull();
-  await rotateInEditor(2);
-
-  expect(onChange).toHaveBeenCalledWith([
-    three[0],
-    three[1],
-    { kind: 'new', key: expect.any(String), uri: 'https://example.com/c.jpg' },
-  ]);
-  expect(onRemoveExisting).toHaveBeenCalledWith('c');
-  expect(screen.queryByTestId('photo-editor')).toBeNull();
-});
-
-it('replaces an edited new photo without reporting an id', async () => {
-  const { onChange, onRemoveExisting } = renderGrid();
-
-  await rotateInEditor(1);
-
-  const edited = onChange.mock.lastCall[0][1];
-
-  expect(edited).toMatchObject({ kind: 'new', uri: 'file:///b.jpg' });
-  expect(edited.key).not.toBe('b');
-  expect(onRemoveExisting).not.toHaveBeenCalled();
-});
-
-it('leaves the photos alone when the editor is cancelled', () => {
-  const { onChange } = renderGrid();
-
-  fireEvent.press(screen.getByLabelText('Edit photo 1'));
-  fireEvent.press(screen.getByTestId('photo-editor-cancel'));
-
-  expect(screen.queryByTestId('photo-editor')).toBeNull();
-  expect(onChange).not.toHaveBeenCalled();
-});
-
-it('offers no edit for a photo without a url', () => {
-  renderGrid({ photos: [{ kind: 'existing', id: 'x', url: null }] });
-
-  expect(screen.queryByLabelText('Edit photo 1')).toBeNull();
-});
-
-it('disables remove, edit, and add when disabled', () => {
+it('disables remove and add when disabled', () => {
   const { onChange } = renderGrid({ disabled: true });
 
   const remove = screen.getByLabelText('Remove photo 1');
   const add = screen.getByLabelText('Add photo');
   expect(remove).toBeDisabled();
   expect(add).toBeDisabled();
-  expect(screen.getByLabelText('Edit photo 1')).toBeDisabled();
 
   fireEvent.press(remove);
   fireEvent.press(add);

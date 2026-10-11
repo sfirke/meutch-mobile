@@ -21,7 +21,7 @@ Build a single React Native app for Android and iOS that lets Meutch members do 
 - Expo Router for navigation
 - TanStack Query for server state
 - Expo Secure Store for tokens, behind a small session layer
-- EAS for builds, with Expo Go as the first development loop
+- EAS for builds, with development builds as the development loop
 
 ## Backend Status
 
@@ -301,7 +301,7 @@ Mitigation: each PR lists the backend change it needs. Land the change in `meutc
 
 ### Expo Go is limited
 
-Mitigation: use Expo Go for speed, with EAS already configured so moving to development builds is procedural.
+Mitigation: the app moved to development builds once it needed native modules Expo Go lacks. See [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ### Staging holds a copy of production data
 

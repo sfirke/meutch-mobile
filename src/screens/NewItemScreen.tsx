@@ -21,8 +21,7 @@ export function NewItemScreen() {
       <Stack.Screen
         options={{
           title: 'List an item',
-          // iOS draws no back button for the first screen of a nested stack,
-          // and the guard switches the swipe off once the form is dirty.
+          // iOS draws no back button for the first screen of a nested stack.
           headerLeft:
             Platform.OS === 'ios'
               ? () => (

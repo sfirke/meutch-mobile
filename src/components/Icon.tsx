@@ -36,7 +36,12 @@ export type IconName =
   | 'read'
   | 'plus'
   | 'pen'
-  | 'trash';
+  | 'trash'
+  | 'crop'
+  | 'rotateLeft'
+  | 'rotateRight'
+  | 'zoomIn'
+  | 'zoomOut';
 
 /**
  * FontAwesome 6 Free solid glyph names. Covered by Icon-test.tsx, which
@@ -77,6 +82,11 @@ export const ICON_GLYPHS: Record<IconName, string> = {
   plus: 'plus',
   pen: 'pen',
   trash: 'trash',
+  crop: 'crop-simple',
+  rotateLeft: 'rotate-left',
+  rotateRight: 'rotate-right',
+  zoomIn: 'magnifying-glass-plus',
+  zoomOut: 'magnifying-glass-minus',
 };
 
 export type IconProps = {

@@ -2,6 +2,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
 import {
+  applyPhotoEdit,
   PHOTO_JPEG_QUALITY,
   pickFromLibrary,
   preparePhoto,
@@ -143,5 +144,65 @@ describe('takePhoto', () => {
       kind: 'picked',
       photos: [{ uri: 'file:///c.jpg', width: 1600, height: 1200 }],
     });
+  });
+});
+
+describe('applyPhotoEdit', () => {
+  const half = { x: 0.25, y: 0.25, width: 0.5, height: 0.5 };
+
+  function contexts() {
+    return manipulate.mock.results.map((result) => result.value);
+  }
+
+  it('rotates, then crops the rotated image in pixels and saves JPEG', async () => {
+    const photo = await applyPhotoEdit('https://example.com/a.jpg', {
+      quarterTurns: -1,
+      crop: half,
+    });
+    const [source, cropped] = contexts();
+
+    expect(manipulate).toHaveBeenNthCalledWith(1, 'https://example.com/a.jpg');
+    expect(source.rotate).toHaveBeenCalledWith(270);
+    // The mock renders every image at 1600x1200.
+    expect(cropped.crop).toHaveBeenCalledWith({
+      originX: 400,
+      originY: 300,
+      width: 800,
+      height: 600,
+    });
+    expect(cropped.resize).not.toHaveBeenCalled();
+    expect(await lastSave()).toHaveBeenCalledWith({
+      format: SaveFormat.JPEG,
+      compress: PHOTO_JPEG_QUALITY,
+    });
+    expect(photo.uri).toBe('https://example.com/a.jpg');
+  });
+
+  it('does not rotate an upright photo', async () => {
+    await applyPhotoEdit('file:///a.jpg', { quarterTurns: 4, crop: half });
+
+    expect(contexts()[0].rotate).not.toHaveBeenCalled();
+  });
+
+  it('downscales a crop that is still over the size limit', async () => {
+    manipulate.mockImplementationOnce(() => {
+      const context: Record<string, jest.Mock> = {
+        rotate: jest.fn(() => context),
+        renderAsync: jest.fn(async () => ({
+          uri: 'file:///big.jpg',
+          width: 3000,
+          height: 6000,
+        })),
+      };
+
+      return context;
+    });
+
+    await applyPhotoEdit('file:///big.jpg', {
+      quarterTurns: 0,
+      crop: { x: 0, y: 0, width: 1, height: 1 },
+    });
+
+    expect(contexts()[1].resize).toHaveBeenCalledWith({ height: 1600 });
   });
 });

@@ -1,13 +1,13 @@
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ItemForm } from '../components/ItemForm';
 import { useDiscardGuard } from '../hooks/useDiscardGuard';
 import { createCreationToken } from '../lib/creationToken';
 import { useCreateItemMutation } from '../query/useCreateItemMutation';
-import { colors } from '../theme';
+import { colors, spacing, typography } from '../theme';
 
 export function NewItemScreen() {
   const router = useRouter();
@@ -18,7 +18,25 @@ export function NewItemScreen() {
 
   return (
     <View style={styles.screen}>
-      <Stack.Screen options={{ title: 'List an item' }} />
+      <Stack.Screen
+        options={{
+          title: 'List an item',
+          // iOS draws no back button for the first screen of a nested stack,
+          // and the guard switches the swipe off once the form is dirty.
+          headerLeft:
+            Platform.OS === 'ios'
+              ? () => (
+                  <Pressable
+                    accessibilityRole="button"
+                    hitSlop={spacing[8]}
+                    onPress={() => router.back()}
+                  >
+                    <Text style={styles.cancel}>Cancel</Text>
+                  </Pressable>
+                )
+              : undefined,
+        }}
+      />
 
       <ItemForm
         error={createItem.error}
@@ -51,6 +69,10 @@ export function NewItemScreen() {
 }
 
 const styles = StyleSheet.create({
+  cancel: {
+    ...typography.body,
+    color: colors.primaryDark,
+  },
   screen: {
     backgroundColor: colors.background,
     flex: 1,

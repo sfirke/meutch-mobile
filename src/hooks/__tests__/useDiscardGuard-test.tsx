@@ -16,7 +16,10 @@ const mockNavigation = {
     },
   ),
   dispatch: jest.fn(),
+  setOptions: jest.fn(),
+  getParent: jest.fn(() => mockParent),
 };
+const mockParent = { setOptions: jest.fn() };
 
 jest.mock('expo-router', () => ({ useNavigation: () => mockNavigation }));
 jest.mock('expo-router/react-navigation', () => ({
@@ -84,6 +87,28 @@ describe('useDiscardGuard', () => {
     });
 
     expect(leave().preventDefault).not.toHaveBeenCalled();
+  });
+
+  test('switches the back gesture off only while guarding', () => {
+    const { result } = renderHook(() => useDiscardGuard());
+
+    expect(mockNavigation.setOptions).not.toHaveBeenCalled();
+
+    act(() => result.current.onDirtyChange(true));
+    expect(mockNavigation.setOptions).toHaveBeenLastCalledWith({
+      gestureEnabled: false,
+    });
+    expect(mockParent.setOptions).toHaveBeenLastCalledWith({
+      gestureEnabled: false,
+    });
+
+    act(() => result.current.onDirtyChange(false));
+    expect(mockNavigation.setOptions).toHaveBeenLastCalledWith({
+      gestureEnabled: undefined,
+    });
+    expect(mockParent.setOptions).toHaveBeenLastCalledWith({
+      gestureEnabled: undefined,
+    });
   });
 
   test('replays a leave made in the same tick as allowLeave', () => {

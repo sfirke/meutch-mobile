@@ -44,6 +44,8 @@ const mockNavigation = {
     },
   ),
   dispatch: jest.fn(),
+  setOptions: jest.fn(),
+  getParent: jest.fn(() => undefined),
 };
 
 jest.mock('expo-router', () => ({

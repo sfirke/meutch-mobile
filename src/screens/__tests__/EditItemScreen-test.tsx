@@ -22,6 +22,8 @@ const mockBack = jest.fn();
 const mockNavigation = {
   addListener: jest.fn(() => () => undefined),
   dispatch: jest.fn(),
+  setOptions: jest.fn(),
+  getParent: jest.fn(() => undefined),
 };
 
 jest.mock('expo-router', () => ({

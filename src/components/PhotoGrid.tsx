@@ -19,6 +19,7 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { MAX_ITEM_PHOTOS, type PhotoDraft } from '../lib/itemPhotos';
+import { editPhoto, photoEditingAvailable } from '../lib/photoCropper';
 import {
   pickFromLibrary,
   takePhoto,
@@ -38,7 +39,7 @@ import { OptionSheet } from './OptionSheet';
 export type PhotoGridProps = {
   photos: PhotoDraft[];
   onChange: (photos: PhotoDraft[]) => void;
-  /** Called alongside onChange when an existing (uploaded) photo is removed. */
+  /** Called alongside onChange when an uploaded photo is removed or edited. */
   onRemoveExisting?: (id: string) => void;
   disabled?: boolean;
   testID?: string;
@@ -73,7 +74,7 @@ function draftUri(photo: PhotoDraft): string | null {
   return photo.kind === 'existing' ? photo.url : photo.uri;
 }
 
-/** Editable photo grid for the item form: add, remove, and reorder. */
+/** Editable photo grid for the item form: add, edit, remove, and reorder. */
 export function PhotoGrid({
   photos,
   onChange,
@@ -85,6 +86,7 @@ export function PhotoGrid({
   const [sheetVisible, setSheetVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [denied, setDenied] = useState<Source | null>(null);
+  const [editFailed, setEditFailed] = useState(false);
 
   // Picking is async; append to the latest photos, not the ones at tap time.
   const photosRef = useRef(photos);
@@ -113,6 +115,35 @@ export function PhotoGrid({
     const photo = photos[index];
     onChange(photos.filter((_, i) => i !== index));
     if (photo.kind === 'existing') onRemoveExisting?.(photo.id);
+  };
+
+  // An edited photo is a new upload in the same place; an uploaded original is
+  // deleted.
+  const edit = async (index: number) => {
+    const original = photos[index];
+    const uri = draftUri(original);
+    if (!uri || busy) return;
+
+    setEditFailed(false);
+    setBusy(true);
+    try {
+      const edited = await editPhoto(uri);
+      const current = photosRef.current;
+      if (!edited || !current.includes(original)) return;
+
+      onChange(
+        current.map((photo) =>
+          photo === original
+            ? { kind: 'new', key: newDraftKey(), uri: edited.uri }
+            : photo,
+        ),
+      );
+      if (original.kind === 'existing') onRemoveExisting?.(original.id);
+    } catch {
+      setEditFailed(true);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const pick = async (source: Source) => {
@@ -158,9 +189,11 @@ export function PhotoGrid({
             cellStyle={cellStyle}
             count={total}
             disabled={disabled}
+            editDisabled={disabled || busy}
             index={index}
             key={draftKey(photo)}
             layout={layout}
+            onEdit={edit}
             onMove={move}
             onRemove={remove}
             uri={draftUri(photo)}
@@ -217,6 +250,14 @@ export function PhotoGrid({
         </View>
       ) : null}
 
+      {editFailed ? (
+        <View style={styles.denied} testID="photo-edit-failed">
+          <Text style={styles.deniedText}>
+            That photo could not be opened for editing.
+          </Text>
+        </View>
+      ) : null}
+
       <OptionSheet<SheetValue>
         onClose={() => setSheetVisible(false)}
         onSelect={handleSelectSource}
@@ -236,6 +277,8 @@ type PhotoCellProps = {
   layout: GridLayout;
   cellStyle: { width: number; height: number } | null;
   disabled: boolean;
+  editDisabled: boolean;
+  onEdit: (index: number) => void;
   onMove: (from: number, to: number) => void;
   onRemove: (index: number) => void;
 };
@@ -247,6 +290,8 @@ function PhotoCell({
   layout,
   cellStyle,
   disabled,
+  editDisabled,
+  onEdit,
   onMove,
   onRemove,
 }: PhotoCellProps) {
@@ -338,11 +383,33 @@ function PhotoCell({
           disabled={disabled}
           hitSlop={6}
           onPress={() => onRemove(index)}
-          style={[styles.remove, disabled && styles.dimmed]}
+          style={[
+            styles.overlayButton,
+            styles.remove,
+            disabled && styles.dimmed,
+          ]}
           testID={`photo-remove-${index}`}
         >
           <Icon color={colors.onPrimaryText} name="clear" size={12} />
         </Pressable>
+        {uri && photoEditingAvailable ? (
+          <Pressable
+            accessibilityLabel={`Edit photo ${index + 1}`}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: editDisabled }}
+            disabled={editDisabled}
+            hitSlop={6}
+            onPress={() => onEdit(index)}
+            style={[
+              styles.overlayButton,
+              styles.edit,
+              editDisabled && styles.dimmed,
+            ]}
+            testID={`photo-edit-${index}`}
+          >
+            <Icon color={colors.onPrimaryText} name="crop" size={12} />
+          </Pressable>
+        ) : null}
       </Animated.View>
     </GestureDetector>
   );
@@ -382,7 +449,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  remove: {
+  overlayButton: {
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 12,
@@ -390,8 +457,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'absolute',
     right: spacing[4],
-    top: spacing[4],
     width: 24,
+  },
+  remove: {
+    top: spacing[4],
+  },
+  edit: {
+    bottom: spacing[4],
   },
   addTile: {
     alignItems: 'center',

@@ -7,6 +7,7 @@ import {
 } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Linking } from 'react-native';
+import * as ImageCropPicker from 'react-native-image-crop-picker';
 
 import type { PhotoDraft } from '../../lib/itemPhotos';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
@@ -18,6 +19,7 @@ const launchLibrary = ImagePicker.launchImageLibraryAsync as jest.Mock;
 const requestLibrary =
   ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock;
 const requestCamera = ImagePicker.requestCameraPermissionsAsync as jest.Mock;
+const openCropper = ImageCropPicker.openCropper as jest.Mock;
 
 const existing = (id: string): PhotoDraft => ({
   kind: 'existing',
@@ -219,13 +221,81 @@ it('ignores moves past either end', () => {
   expect(onChange).not.toHaveBeenCalled();
 });
 
-it('disables remove and add when disabled', () => {
+async function editPhotoAt(index: number) {
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText(`Edit photo ${index + 1}`));
+  });
+}
+
+it('replaces an edited uploaded photo in place and reports its id', async () => {
+  const { onChange, onRemoveExisting } = renderGrid();
+
+  await editPhotoAt(2);
+
+  expect(openCropper).toHaveBeenCalledWith(
+    expect.objectContaining({
+      path: 'https://example.com/c.jpg',
+      freeStyleCropEnabled: true,
+    }),
+  );
+  expect(onChange).toHaveBeenCalledWith([
+    three[0],
+    three[1],
+    { kind: 'new', key: expect.any(String), uri: 'https://example.com/c.jpg' },
+  ]);
+  expect(onRemoveExisting).toHaveBeenCalledWith('c');
+});
+
+it('replaces an edited new photo without reporting an id', async () => {
+  const { onChange, onRemoveExisting } = renderGrid();
+
+  await editPhotoAt(1);
+
+  const edited = onChange.mock.lastCall[0][1];
+
+  expect(edited).toMatchObject({ kind: 'new', uri: 'file:///b.jpg' });
+  expect(edited.key).not.toBe('b');
+  expect(onRemoveExisting).not.toHaveBeenCalled();
+});
+
+it('leaves the photos alone when the cropper is cancelled', async () => {
+  openCropper.mockRejectedValueOnce(
+    Object.assign(new Error('cancelled'), { code: 'E_PICKER_CANCELLED' }),
+  );
+  const { onChange } = renderGrid();
+
+  await editPhotoAt(0);
+
+  expect(onChange).not.toHaveBeenCalled();
+  expect(screen.queryByTestId('photo-edit-failed')).toBeNull();
+});
+
+it('shows a message when the cropper fails', async () => {
+  openCropper.mockRejectedValueOnce(
+    Object.assign(new Error('missing'), { code: 'E_CROPPER_IMAGE_NOT_FOUND' }),
+  );
+  const { onChange } = renderGrid();
+
+  await editPhotoAt(0);
+
+  expect(onChange).not.toHaveBeenCalled();
+  expect(screen.getByTestId('photo-edit-failed')).toBeTruthy();
+});
+
+it('offers no edit for a photo without a url', () => {
+  renderGrid({ photos: [{ kind: 'existing', id: 'x', url: null }] });
+
+  expect(screen.queryByLabelText('Edit photo 1')).toBeNull();
+});
+
+it('disables remove, edit, and add when disabled', () => {
   const { onChange } = renderGrid({ disabled: true });
 
   const remove = screen.getByLabelText('Remove photo 1');
   const add = screen.getByLabelText('Add photo');
   expect(remove).toBeDisabled();
   expect(add).toBeDisabled();
+  expect(screen.getByLabelText('Edit photo 1')).toBeDisabled();
 
   fireEvent.press(remove);
   fireEvent.press(add);

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
+import { useScrollBottomPadding } from '../hooks/useScrollBottomPadding';
 import { UPLOAD_ERROR_OVERRIDES } from '../lib/errorCopy';
 import {
   hasPhotoChanges,
@@ -227,6 +228,7 @@ export function ItemForm({
   // Whether the last submit uploaded photos; picks the pending and error copy.
   const [submittedNewPhotos, setSubmittedNewPhotos] = useState(false);
   const tags = useTagsQuery();
+  const paddingBottom = useScrollBottomPadding();
   const profile = useProfileQuery();
 
   const input = toInput(form);
@@ -277,7 +279,7 @@ export function ItemForm({
   return (
     <KeyboardAwareScrollView
       bottomOffset={spacing[16]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom }]}
       keyboardShouldPersistTaps="handled"
       testID={testID}
     >
@@ -428,7 +430,6 @@ export function ItemForm({
 const styles = StyleSheet.create({
   content: {
     gap: spacing[8],
-    paddingBottom: spacing[24],
     paddingHorizontal: spacing[16],
     paddingTop: spacing[16],
   },

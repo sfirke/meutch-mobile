@@ -22,6 +22,7 @@ import { LinkedText } from '../components/LinkedText';
 import { MemberPressable } from '../components/MemberPressable';
 import { MessageComposer } from '../components/MessageComposer';
 import { QueryStateView } from '../components/QueryStateView';
+import { useScrollBottomPadding } from '../hooks/useScrollBottomPadding';
 import { formatCalendarDate } from '../lib/dates';
 import { describeError, type ErrorCopyOverrides } from '../lib/errorCopy';
 import type { ItemDetail, ItemViewerState } from '../lib/items';
@@ -320,6 +321,7 @@ function ItemDetailBody({
 }: ItemDetailBodyProps) {
   const banner = buildStatusBanner(item, viewer, isRecipient);
   const affordance = describeAffordance(item, viewer, isRecipient);
+  const paddingBottom = useScrollBottomPadding();
   const description = item.description?.trim() || null;
   const subject = useMemo(() => ({ itemId: item.id }), [item.id]);
   // Availability and circles are left to the server, which 400s or 403s.
@@ -328,7 +330,7 @@ function ItemDetailBody({
   return (
     <KeyboardAwareScrollView
       bottomOffset={spacing[16]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={{ paddingBottom }}
       keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl
@@ -601,9 +603,6 @@ const styles = StyleSheet.create({
   chipText: {
     color: colors.secondary,
     ...typography.itemMeta,
-  },
-  content: {
-    paddingBottom: spacing[24],
   },
   deleteButton: {
     borderColor: colors.danger,

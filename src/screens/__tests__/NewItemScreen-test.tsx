@@ -49,11 +49,31 @@ const mockNavigation = {
 };
 
 jest.mock('expo-router', () => ({
-  Stack: { Screen: jest.fn(() => null) },
+  Stack: {
+    Screen: ({
+      options,
+    }: {
+      options?: { headerLeft?: () => React.ReactNode };
+    }) => options?.headerLeft?.() ?? null,
+  },
   useRouter: () => ({ replace: mockReplace, back: mockBack }),
   useLocalSearchParams: jest.fn(() => ({})),
   useFocusEffect: jest.fn(),
   useNavigation: () => mockNavigation,
+}));
+
+jest.mock('expo-router/react-navigation', () => ({
+  usePreventRemove: (
+    prevent: boolean,
+    callback: (event: { data: LeaveEvent['data'] }) => void,
+  ) => {
+    mockNavigation.addListener('beforeRemove', (event: LeaveEvent) => {
+      if (prevent) {
+        event.preventDefault();
+        callback({ data: event.data });
+      }
+    });
+  },
 }));
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
@@ -262,6 +282,14 @@ describe('new item screen', () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
+  test('offers a Cancel button in the header', async () => {
+    renderScreen();
+    await settle();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+    expect(mockBack).toHaveBeenCalled();
+  });
+
   test('leaves a clean form without asking', async () => {
     renderScreen();
     await settle();
@@ -280,7 +308,11 @@ describe('new item screen', () => {
     expect(screen.getByText('Discard this item?')).toBeTruthy();
     expect(screen.getByText("Your changes won't be saved.")).toBeTruthy();
 
-    fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.press(
+      within(screen.getByTestId('confirm-dialog')).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
     expect(mockNavigation.dispatch).not.toHaveBeenCalled();
     expect(screen.queryByText('Discard this item?')).toBeNull();
 

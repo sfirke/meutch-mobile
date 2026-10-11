@@ -1,4 +1,12 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { colors, radii, spacing, typography } from '../theme';
 import { Icon } from './Icon';
@@ -29,6 +37,8 @@ export function OptionSheet<T extends string>({
   onSelect,
   onClose,
 }: OptionSheetProps<T>) {
+  const { height } = useWindowDimensions();
+
   return (
     <Modal
       animationType="fade"
@@ -47,41 +57,47 @@ export function OptionSheet<T extends string>({
           <Text accessibilityRole="header" style={styles.title}>
             {title}
           </Text>
-          {options.map((option) => {
-            const selected = option.value === value;
-            const disabled = option.disabled === true;
+          <ScrollView
+            bounces={false}
+            keyboardShouldPersistTaps="handled"
+            style={{ maxHeight: height * 0.6 }}
+          >
+            {options.map((option) => {
+              const selected = option.value === value;
+              const disabled = option.disabled === true;
 
-            return (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={
-                  disabled ? { selected, disabled: true } : { selected }
-                }
-                disabled={disabled}
-                key={option.value}
-                onPress={() => {
-                  onSelect(option.value);
-                  onClose();
-                }}
-                style={styles.row}
-                testID={`option-${option.value}`}
-              >
-                <View style={[styles.body, disabled && styles.disabled]}>
-                  <Text
-                    style={[styles.label, selected && styles.labelSelected]}
-                  >
-                    {option.label}
-                  </Text>
-                  {option.hint ? (
-                    <Text style={styles.hint}>{option.hint}</Text>
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={
+                    disabled ? { selected, disabled: true } : { selected }
+                  }
+                  disabled={disabled}
+                  key={option.value}
+                  onPress={() => {
+                    onSelect(option.value);
+                    onClose();
+                  }}
+                  style={styles.row}
+                  testID={`option-${option.value}`}
+                >
+                  <View style={[styles.body, disabled && styles.disabled]}>
+                    <Text
+                      style={[styles.label, selected && styles.labelSelected]}
+                    >
+                      {option.label}
+                    </Text>
+                    {option.hint ? (
+                      <Text style={styles.hint}>{option.hint}</Text>
+                    ) : null}
+                  </View>
+                  {selected ? (
+                    <Icon color={colors.primaryDark} name="check" size={16} />
                   ) : null}
-                </View>
-                {selected ? (
-                  <Icon color={colors.primaryDark} name="check" size={16} />
-                ) : null}
-              </Pressable>
-            );
-          })}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
       </View>
     </Modal>

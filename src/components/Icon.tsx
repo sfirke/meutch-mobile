@@ -31,7 +31,10 @@ export type IconName =
   | 'sort'
   | 'filter'
   | 'unread'
-  | 'read';
+  | 'read'
+  | 'plus'
+  | 'pen'
+  | 'trash';
 
 /**
  * FontAwesome 6 Free solid glyph names. Covered by Icon-test.tsx, which
@@ -67,6 +70,9 @@ export const ICON_GLYPHS: Record<IconName, string> = {
   filter: 'filter',
   unread: 'envelope',
   read: 'envelope-open',
+  plus: 'plus',
+  pen: 'pen',
+  trash: 'trash',
 };
 
 export type IconProps = {

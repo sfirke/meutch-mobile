@@ -1,10 +1,14 @@
 import type { ApiFetch } from '../api';
 import { isApiError } from '../api';
 import {
+  createItem,
+  deleteItem,
   fetchItemDetail,
   fetchItems,
   fetchMyItems,
   MY_ITEM_KINDS,
+  updateItem,
+  type ItemWriteInput,
 } from '../items';
 
 function createMockResponse(body: unknown, status = 200): Response {
@@ -578,5 +582,162 @@ describe('fetchItemDetail', () => {
     expect(isApiError(error)).toBe(true);
     expect(isApiError(error) && error.code).toBe('NOT_FOUND');
     expect(isApiError(error) && error.status).toBe(404);
+  });
+});
+
+describe('item writes', () => {
+  const input: ItemWriteInput = {
+    name: 'Cordless drill',
+    description: null,
+    category_id: 'c3333333-3333-4333-8333-333333333333',
+    tags: ['power', 'tools'],
+    is_giveaway: false,
+    giveaway_visibility: null,
+  };
+  const detailBody = {
+    item: createItemSummary({
+      images: [],
+      current_loan: null,
+      claimed_by: null,
+      viewer_interest_status: null,
+      interested_count: null,
+    }),
+    viewer: {
+      is_owner: true,
+      shares_circle_with_owner: true,
+      is_active_borrower: false,
+    },
+  };
+
+  function mockFetch(body: unknown, status = 200) {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(createMockResponse(body, status));
+
+    return fetchImpl;
+  }
+
+  function getInit(fetchImpl: jest.MockedFunction<ApiFetch>) {
+    return fetchImpl.mock.calls[0][1] as RequestInit;
+  }
+
+  function errorBody(code: string, message: string, details = {}) {
+    return { error: { code, message, details } };
+  }
+
+  test('createItem posts the exact body with the creation token', async () => {
+    const fetchImpl = mockFetch(detailBody, 201);
+
+    const { item, viewer } = await createItem(fetchImpl, input, 'token-1');
+    const init = getInit(fetchImpl);
+
+    expect(getRequestPath(fetchImpl)).toBe('/items');
+    expect(init.method).toBe('POST');
+    expect(init.headers).toMatchObject({
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    });
+    expect(JSON.parse(init.body as string)).toEqual({
+      ...input,
+      creation_token: 'token-1',
+    });
+    expect(item.id).toBe(ITEM_ID);
+    expect(viewer.is_owner).toBe(true);
+  });
+
+  test('createItem returns the existing item on a 200 replay', async () => {
+    const fetchImpl = mockFetch(detailBody, 200);
+
+    const { item } = await createItem(fetchImpl, input, 'token-1');
+
+    expect(item.name).toBe('Cordless drill');
+  });
+
+  test('createItem rejects a 422 with details', async () => {
+    const fetchImpl = mockFetch(
+      errorBody('VALIDATION_ERROR', 'Invalid.', { name: ['Required.'] }),
+      422,
+    );
+
+    const error = await createItem(fetchImpl, input, 't').catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(isApiError(error)).toBe(true);
+    expect(isApiError(error) && error.status).toBe(422);
+    expect(isApiError(error) && error.details).toEqual({
+      name: ['Required.'],
+    });
+  });
+
+  test('updateItem patches the body without a creation token', async () => {
+    const fetchImpl = mockFetch(detailBody);
+    const giveaway: ItemWriteInput = {
+      ...input,
+      is_giveaway: true,
+      giveaway_visibility: 'public',
+      tags: [],
+    };
+
+    const { item } = await updateItem(fetchImpl, 'id/with space', giveaway);
+    const init = getInit(fetchImpl);
+
+    expect(getRequestPath(fetchImpl)).toBe('/items/id%2Fwith%20space');
+    expect(init.method).toBe('PATCH');
+    expect(init.headers).toMatchObject({
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    });
+    expect(JSON.parse(init.body as string)).toEqual(giveaway);
+    expect(item.id).toBe(ITEM_ID);
+  });
+
+  test('updateItem rejects a 422 with details', async () => {
+    const fetchImpl = mockFetch(
+      errorBody('VALIDATION_ERROR', 'Invalid.', { tags: ['Too many.'] }),
+      422,
+    );
+
+    const error = await updateItem(fetchImpl, ITEM_ID, input).catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(isApiError(error) && error.details).toEqual({
+      tags: ['Too many.'],
+    });
+  });
+
+  test('deleteItem sends DELETE and parses the result', async () => {
+    const fetchImpl = mockFetch({ deleted: true, item_id: ITEM_ID });
+
+    const result = await deleteItem(fetchImpl, ITEM_ID);
+
+    expect(getRequestPath(fetchImpl)).toBe(`/items/${ITEM_ID}`);
+    expect(getInit(fetchImpl).method).toBe('DELETE');
+    expect(getInit(fetchImpl).headers).toMatchObject({
+      Accept: 'application/json',
+    });
+    expect(result).toEqual({ deleted: true, item_id: ITEM_ID });
+  });
+
+  test('deleteItem rejects a 409 with the server message', async () => {
+    const message = 'This item has an active loan and cannot be deleted.';
+    const fetchImpl = mockFetch(errorBody('CONFLICT', message), 409);
+
+    const error = await deleteItem(fetchImpl, ITEM_ID).catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(isApiError(error) && error.code).toBe('CONFLICT');
+    expect(isApiError(error) && error.status).toBe(409);
+    expect(error).toHaveProperty('message', message);
+  });
+
+  test('deleteItem rejects a malformed result', async () => {
+    const fetchImpl = mockFetch({ deleted: 'yes' });
+
+    await expect(deleteItem(fetchImpl, ITEM_ID)).rejects.toThrow(
+      'Invalid item payload.',
+    );
   });
 });

@@ -204,8 +204,40 @@ Verification: `npm run verify` (97 suites, 997 tests); backend targeted pytest (
 
 ### PR 13: Item Posting And Editing
 
-- create, edit, and delete items
-- image upload, reorder, and delete
+Split into a backend PR and two mobile PRs: 13a (create, edit, delete with the text fields) and 13b (photos), stacked on 13a. Photos come from the library and the camera; reordering is hand-built drag and drop on the installed gesture-handler and reanimated, with no sortable library.
+
+#### Backend ([meutch#557](https://github.com/sfirke/meutch/pull/557), must merge first)
+
+- [x] `POST /items` accepts an optional `creation_token` (UUID): the first request returns 201, a replay of the same token returns 200 with the existing item, so a retry after a timeout cannot create a duplicate
+- [x] `PATCH /items/<id>` accepts multipart `images`, `delete_image_ids`, and `image_order` (existing ids or `new-N`, consuming uploads in order) and applies everything in one transaction; capacity is checked before any upload; a JSON PATCH behaves as before
+- [x] an unknown `category_id` is a 422 on `category_id` ("Choose a category.") instead of a server error
+- [x] docs: `dev_docs/API_PR8s.md` (local only; the backend ignores `dev_docs/`) and `CHANGELOG.md`
+
+#### PR 13a: Create, Edit, And Delete
+
+- [x] Stage 1, foundations: `createItem`, `updateItem`, `deleteItem` in `src/lib/items.ts`; `fetchTags` with a day-long cached query (categories reuse PR 8a's `useCategoriesQuery`, sorted by name in `ItemForm`); `ConfirmDialog` (a `Modal`, since `Alert.alert` does nothing on web); `TagInput`; a scrollable `OptionSheet`; the 422 helpers moved out of Settings into `src/lib/validation.ts` and `FieldError`; `expo-crypto` for the creation token; `plus`, `pen`, `trash` icons and a `danger` colour
+- [x] Stage 2: `useCreateItemMutation`, `useUpdateItemMutation`, `useDeleteItemMutation` (set the detail cache, mark item lists and the feed stale without refetching); `ItemForm` (name, description with counter, category sheet, tags, Lend / Give away, My circles / Public with a no-location hint)
+- [x] Stage 3: `/item/new` and `/item/[id]/edit` screens with a leave-confirmation on a dirty form (`useDiscardGuard`, on `usePreventRemove`); Edit and Delete on item detail (delete shows the server's 409 in the dialog); a "+" header action and empty-state buttons on My items; My items and the feed refetch on focus so they pick up writes
+- [x] Stage 4: assembled, screenshots, manual checks against a local backend, draft PR
+
+Changes from the plan: the tags hook keeps a day-long `staleTime` but no `gcTime` override, which kept Jest alive; My items and the feed gained `useRefreshOnFocus`, which the plan had not called for but which the stale-without-refetch strategy needs since stack screens stay mounted; the backend's over-capacity and upload-failure errors are 400 `BAD_REQUEST`, not 422, and `describeError` already shows them verbatim.
+
+Verification: `npm run verify` (112 suites, 1108 tests). Headless web screenshots of the new form, the give-away controls with the no-location hint, the category sheet, the edit form prefilled, the empty My items state with its button, the owner's Edit and Delete, and the delete dialog showing a 409. Against a local backend on meutch#557: create returned 201, a replay with the same token returned 200 with the same id and one item in My items, an edit with a type change, an unknown category returned 422 on `category_id`, delete returned 200 then 404, and deleting an item on loan returned the 409 message.
+
+Changes from device QA: `useDiscardGuard` moved from a bare `beforeRemove` listener to `usePreventRemove`, because the native stack could not see the listener and an iOS swipe-back popped a dirty form anyway. The swipe stays enabled, so it raises the discard dialog after the previous screen shows briefly. Both forms gained a header Cancel button on iOS (`HeaderCancelButton`). Item detail and `ItemForm` add the bottom safe-area inset to their scroll padding (`useScrollBottomPadding`), which had left the last row inside the home indicator area.
+
+Follow-ups, each its own PR:
+
+- [ ] **Header back button on iOS:** iOS draws a back button only when the previous screen is in the same stack, so every screen opened into its own nested stack has none and can only be left by swiping: item, request, and loan detail, the message thread, circle detail, member profile, and the four profile sub-screens. Add one shared header button in the stack layouts.
+- [ ] **Bottom safe-area padding:** apply `useScrollBottomPadding` to the request detail, loan detail, circle detail, and member profile screens, which still end their scroll content with a fixed 24pt.
+
+#### PR 13b: Photos
+
+- [ ] Stage 5, foundations: per-request timeouts and `buildMultipartRequestInit` in `src/lib/api.ts`; `expo-image-picker` and `expo-image-manipulator`; pure reorder math; `FormData`-aware test utilities; `camera` and `image` icons
+- [ ] Stage 6: `PhotoDraft` model, `preparePhoto` (resize to 1600px, JPEG, which also converts HEIC), `buildItemFormData`; `PhotoGrid` with cover badge, remove, count, add tile (camera or library), long-press drag to reorder, and "Move earlier" / "Move later" accessibility actions
+- [ ] Stage 7: wire photos into `ItemForm` and the screens; one multipart request per save; assemble, screenshots, manual checks, draft PR stacked on 13a
+
+Needs a human: on a device, library multi-select, camera capture, an iPhone HEIC photo, permission denial, and the drag feel; confirmation that staging uploads go to a non-production bucket before any write testing against staging.
 
 ### PR 14: Loans
 

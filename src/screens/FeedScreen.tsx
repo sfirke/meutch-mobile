@@ -25,6 +25,7 @@ import { describeError } from '../lib/errorCopy';
 import type { FeedEvent, FeedPage } from '../lib/feed';
 import { feedKeys, type FeedListFilters } from '../lib/queryKeys';
 import { getFeedEventKey, useFeedQuery } from '../query/useFeedQuery';
+import { useRefreshOnFocus } from '../query/useRefreshOnFocus';
 import { useSession } from '../session/SessionProvider';
 import { colors, radii, spacing, typography } from '../theme';
 
@@ -62,6 +63,9 @@ export function FeedScreen() {
     isRefetchError,
     refetch,
   } = useFeedQuery(authenticatedApiFetch, listFilters);
+  const feedKey = useMemo(() => feedKeys.list(listFilters), [listFilters]);
+
+  useRefreshOnFocus(feedKey);
 
   // Captured once, not per row, so every visible card renders relative
   // times against the same instant instead of each computing its own.
@@ -150,20 +154,18 @@ export function FeedScreen() {
 
     // A plain refetch() re-requests every loaded page sequentially; trim to
     // the first page first so pull-to-refresh costs one request, not N.
-    queryClient.setQueryData<InfiniteData<FeedPage, number>>(
-      feedKeys.list(listFilters),
-      (data) =>
-        data
-          ? {
-              pages: data.pages.slice(0, 1),
-              pageParams: data.pageParams.slice(0, 1),
-            }
-          : data,
+    queryClient.setQueryData<InfiniteData<FeedPage, number>>(feedKey, (data) =>
+      data
+        ? {
+            pages: data.pages.slice(0, 1),
+            pageParams: data.pageParams.slice(0, 1),
+          }
+        : data,
     );
 
     await refetch();
     setIsRefreshing(false);
-  }, [listFilters, queryClient, refetch]);
+  }, [feedKey, queryClient, refetch]);
 
   const renderEmpty = useCallback(() => {
     if (activeFilterCount > 0) {

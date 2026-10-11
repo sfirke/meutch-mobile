@@ -1,9 +1,10 @@
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { Stack, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -12,6 +13,7 @@ import {
 } from 'react-native';
 
 import { EmptyState } from '../components/EmptyState';
+import { Icon } from '../components/Icon';
 import { ItemCard } from '../components/ItemCard';
 import { PagingFooter } from '../components/PagingFooter';
 import { QueryStateView } from '../components/QueryStateView';
@@ -20,8 +22,8 @@ import { SegmentedControl } from '../components/SegmentedControl';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import type { ItemListPage, ItemSummary, MyItemKind } from '../lib/items';
 import { itemKeys } from '../lib/queryKeys';
-import { webOnlyNote } from '../lib/webOnly';
 import { useMyItemsQuery } from '../query/useMyItemsQuery';
+import { useRefreshOnFocus } from '../query/useRefreshOnFocus';
 import { colors, spacing, typography } from '../theme';
 
 export const SEARCH_DEBOUNCE_MS = 350;
@@ -37,16 +39,14 @@ const KIND_OPTIONS: { value: MyItemKind; label: string }[] = [
   { value: 'past_giveaways', label: 'Given away' },
 ];
 
-const LIST_ITEM_NOTE = webOnlyNote('List an item');
-
 const EMPTY_COPY: Record<MyItemKind, { title: string; message: string }> = {
   lending: {
     title: 'Nothing listed to lend',
-    message: `Items you list for lending show up here. ${LIST_ITEM_NOTE}`,
+    message: 'Items you list for lending show up here.',
   },
   active_giveaways: {
     title: 'No giveaways in progress',
-    message: `Items you're giving away show up here until they're claimed. ${LIST_ITEM_NOTE}`,
+    message: "Items you're giving away show up here until they're claimed.",
   },
   past_giveaways: {
     title: 'Nothing given away recently',
@@ -82,6 +82,17 @@ export function MyItemsScreen({
     items,
     refetch,
   } = useMyItemsQuery({ kind, q: searchQuery });
+
+  const itemsKey = useMemo(
+    () => itemKeys.mine({ kind, q: searchQuery }),
+    [kind, searchQuery],
+  );
+
+  useRefreshOnFocus(itemsKey);
+
+  const handleListItem = useCallback(() => {
+    router.push('/item/new');
+  }, [router]);
 
   const handleClearSearch = useCallback(() => {
     setSearchText('');
@@ -121,7 +132,7 @@ export function MyItemsScreen({
     setIsRefreshing(true);
     // `refetch()` re-requests every loaded page, so drop the tail first.
     queryClient.setQueryData<InfiniteData<ItemListPage>>(
-      itemKeys.mine({ kind, q: searchQuery }),
+      itemsKey,
       (current) =>
         current && {
           pages: current.pages.slice(0, 1),
@@ -132,7 +143,7 @@ export function MyItemsScreen({
     void refetch().finally(() => {
       setIsRefreshing(false);
     });
-  }, [kind, queryClient, refetch, searchQuery]);
+  }, [itemsKey, queryClient, refetch]);
 
   const renderItem = useCallback(
     ({ item, index }: ListRenderItemInfo<ItemSummary>) => {
@@ -165,8 +176,15 @@ export function MyItemsScreen({
 
     const copy = EMPTY_COPY[kind];
 
-    return <EmptyState message={copy.message} title={copy.title} />;
-  }, [handleClearSearch, kind, searchQuery]);
+    return (
+      <EmptyState
+        actionLabel={kind === 'past_giveaways' ? undefined : 'List an item'}
+        message={copy.message}
+        onAction={kind === 'past_giveaways' ? undefined : handleListItem}
+        title={copy.title}
+      />
+    );
+  }, [handleClearSearch, handleListItem, kind, searchQuery]);
 
   // A placeholder page that is itself empty is the *previous* query's answer,
   // so it must never be shown as this one's result.
@@ -174,7 +192,21 @@ export function MyItemsScreen({
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'My items' }} />
+      <Stack.Screen
+        options={{
+          title: 'My items',
+          headerRight: () => (
+            <Pressable
+              accessibilityLabel="List an item"
+              accessibilityRole="button"
+              hitSlop={spacing[8]}
+              onPress={handleListItem}
+            >
+              <Icon color={colors.primaryDark} name="plus" size={20} />
+            </Pressable>
+          ),
+        }}
+      />
 
       <View style={styles.segmentRow}>
         <SegmentedControl

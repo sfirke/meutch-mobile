@@ -1,4 +1,4 @@
-import { readJsonOrThrow, type ApiFetch } from './api';
+import { buildJsonRequestInit, readJsonOrThrow, type ApiFetch } from './api';
 import {
   buildQueryString,
   isNullableNumber,
@@ -412,4 +412,72 @@ export async function fetchItemDetail(
   });
 
   return parseItemDetailResponse(await readJsonOrThrow<unknown>(response));
+}
+
+export type ItemWriteInput = {
+  name: string;
+  description: string | null;
+  category_id: string;
+  tags: string[];
+  is_giveaway: boolean;
+  /** `null` when the item is not a giveaway. */
+  giveaway_visibility: GiveawayVisibility | null;
+};
+
+export type DeleteItemResult = {
+  deleted: boolean;
+  item_id: string;
+};
+
+function parseDeleteItemResult(value: unknown): DeleteItemResult {
+  if (
+    !isObject(value) ||
+    typeof value.deleted !== 'boolean' ||
+    !isString(value.item_id)
+  ) {
+    throw new Error(INVALID_ITEM);
+  }
+
+  return { deleted: value.deleted, item_id: value.item_id };
+}
+
+export async function createItem(
+  fetchImpl: ApiFetch,
+  input: ItemWriteInput,
+  creationToken: string,
+): Promise<ItemDetailResponse> {
+  const response = await fetchImpl(
+    '/items',
+    buildJsonRequestInit(
+      { ...input, creation_token: creationToken },
+      { method: 'POST' },
+    ),
+  );
+
+  return parseItemDetailResponse(await readJsonOrThrow<unknown>(response));
+}
+
+export async function updateItem(
+  fetchImpl: ApiFetch,
+  id: string,
+  input: ItemWriteInput,
+): Promise<ItemDetailResponse> {
+  const response = await fetchImpl(
+    `/items/${encodeURIComponent(id)}`,
+    buildJsonRequestInit(input, { method: 'PATCH' }),
+  );
+
+  return parseItemDetailResponse(await readJsonOrThrow<unknown>(response));
+}
+
+export async function deleteItem(
+  fetchImpl: ApiFetch,
+  id: string,
+): Promise<DeleteItemResult> {
+  const response = await fetchImpl(`/items/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { Accept: 'application/json' },
+  });
+
+  return parseDeleteItemResult(await readJsonOrThrow<unknown>(response));
 }

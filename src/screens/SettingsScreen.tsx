@@ -3,17 +3,17 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
+import { FieldError } from '../components/FieldError';
 import { QueryStateView } from '../components/QueryStateView';
 import { clampRadius, RadiusInput } from '../components/RadiusInput';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { SwitchRow } from '../components/SwitchRow';
-import { isApiError } from '../lib/api';
-import { describeError } from '../lib/errorCopy';
 import {
   DIGEST_FREQUENCIES,
   type DigestFrequency,
   type UserSettings,
 } from '../lib/profile';
+import { buildGeneralMessage, readValidationErrors } from '../lib/validation';
 import { useSettingsQuery } from '../query/useSettingsQuery';
 import { useUpdateSettingsMutation } from '../query/useUpdateSettingsMutation';
 import { colors, radii, spacing, typography } from '../theme';
@@ -90,89 +90,8 @@ const SOURCE_CONTROLS: {
   },
 ];
 
-type ValidationErrors = {
-  fields: Partial<Record<keyof UserSettings, string>>;
-  /** Messages for keys the form has no field for, e.g. a schema-level error. */
-  unknownFields: string[];
-};
-
-function readFirstMessage(value: unknown): string | null {
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  if (Array.isArray(value) && typeof value[0] === 'string') {
-    return value[0];
-  }
-
-  return null;
-}
-
-/** Splits a 422's `details` into per-field copy and anything unrecognised. */
-function readValidationErrors(error: unknown): ValidationErrors {
-  const fields: Partial<Record<keyof UserSettings, string>> = {};
-  const unknownFields: string[] = [];
-
-  if (!isApiError(error) || !error.details) {
-    return { fields, unknownFields };
-  }
-
-  for (const [key, value] of Object.entries(error.details)) {
-    const message = readFirstMessage(value);
-
-    if (!message) {
-      continue;
-    }
-
-    if ((SETTINGS_FIELDS as readonly string[]).includes(key)) {
-      fields[key as keyof UserSettings] = message;
-    } else {
-      unknownFields.push(message);
-    }
-  }
-
-  return { fields, unknownFields };
-}
-
-function buildGeneralMessage(
-  error: unknown,
-  validation: ValidationErrors,
-): string | null {
-  if (!error) {
-    return null;
-  }
-
-  if (validation.unknownFields.length > 0) {
-    return validation.unknownFields.join(' ');
-  }
-
-  // Field messages are already rendered beside their inputs.
-  if (Object.keys(validation.fields).length > 0) {
-    return null;
-  }
-
-  return describeError(error).message;
-}
-
 function isSameSettings(a: UserSettings, b: UserSettings): boolean {
   return SETTINGS_FIELDS.every((field) => a[field] === b[field]);
-}
-
-type FieldErrorProps = {
-  field: keyof UserSettings;
-  message?: string;
-};
-
-function FieldError({ field, message }: FieldErrorProps) {
-  if (!message) {
-    return null;
-  }
-
-  return (
-    <Text style={styles.errorText} testID={`field-error-${field}`}>
-      {message}
-    </Text>
-  );
 }
 
 type DisableOverlayProps = {
@@ -249,7 +168,10 @@ function SettingsForm({ settings }: SettingsFormProps) {
     });
   };
 
-  const validation = readValidationErrors(updateSettings.error);
+  const validation = readValidationErrors(
+    updateSettings.error,
+    SETTINGS_FIELDS,
+  );
   const generalMessage = buildGeneralMessage(updateSettings.error, validation);
   const digestDisabled = form.digest_frequency === 'none';
   const saveDisabled = !isDirty || updateSettings.isPending;

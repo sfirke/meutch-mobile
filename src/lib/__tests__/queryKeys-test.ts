@@ -6,6 +6,7 @@ import {
   loanKeys,
   messageKeys,
   profileKeys,
+  referenceKeys,
   requestKeys,
 } from '../queryKeys';
 
@@ -246,6 +247,10 @@ describe('query keys', () => {
     expect(profileKeys.settings()).toEqual(['profile', 'settings']);
   });
 
+  test('reference keys nest under a shared prefix', () => {
+    expect(referenceKeys.tags()).toEqual(['reference', 'tags']);
+  });
+
   test('every family all prefix is a prefix of its other keys', () => {
     const families: { all: readonly unknown[]; keys: unknown[][] }[] = [
       {
@@ -300,6 +305,10 @@ describe('query keys', () => {
       {
         all: profileKeys.all,
         keys: [[...profileKeys.me()], [...profileKeys.settings()]],
+      },
+      {
+        all: referenceKeys.all,
+        keys: [[...referenceKeys.tags()]],
       },
     ];
 

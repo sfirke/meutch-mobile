@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Modal } from 'react-native';
+import { Modal, ScrollView } from 'react-native';
 
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import { OptionSheet } from '../OptionSheet';
@@ -50,6 +50,16 @@ describe('<OptionSheet />', () => {
     ).toBeTruthy();
   });
 
+  test('marks nothing selected without a value', () => {
+    renderSheet({ value: undefined });
+
+    expect(screen.queryByRole('button', { selected: true })).toBeNull();
+    expect(screen.queryByTestId('icon-check')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Alpha', selected: false }),
+    ).toBeTruthy();
+  });
+
   test('calls onSelect then onClose when an option is pressed', () => {
     const order: string[] = [];
     const onSelect = jest.fn(() => order.push('select'));
@@ -76,6 +86,34 @@ describe('<OptionSheet />', () => {
 
     screen.UNSAFE_getByType(Modal).props.onRequestClose();
 
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test('renders a long list inside a ScrollView', () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({
+      value: `v${i}`,
+      label: `Option ${i}`,
+    }));
+    renderSheet({ options: many, value: 'v20' });
+
+    expect(screen.UNSAFE_getByType(ScrollView)).toBeTruthy();
+    many.forEach((o) => expect(screen.getByText(o.label)).toBeTruthy());
+  });
+
+  test('keeps selection and callbacks working with a long list', () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({
+      value: `v${i}`,
+      label: `Option ${i}`,
+    }));
+    const { onSelect, onClose } = renderSheet({ options: many, value: 'v20' });
+
+    expect(
+      screen.getByRole('button', { name: 'Option 20', selected: true }),
+    ).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('option-v24'));
+
+    expect(onSelect).toHaveBeenCalledWith('v24');
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

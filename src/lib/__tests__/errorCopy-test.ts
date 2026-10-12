@@ -1,5 +1,5 @@
 import { ApiError, RequestTimeoutError } from '../api';
-import { describeError } from '../errorCopy';
+import { describeError, UPLOAD_ERROR_OVERRIDES } from '../errorCopy';
 import { SessionExpiredError, SessionRequiredError } from '../session';
 
 function apiError(code: string, message: string, status: number): ApiError {
@@ -41,6 +41,15 @@ describe('describeError', () => {
 
     expect(result.canRetry).toBe(true);
     expect(result.title).toMatch(/unavailable/i);
+  });
+
+  test("maps a network failure from Expo's fetch to offline copy", () => {
+    const result = describeError(
+      new Error('fetch failed: The Internet connection appears to be offline.'),
+    );
+
+    expect(result.title).toBe('You appear to be offline');
+    expect(result.canRetry).toBe(true);
   });
 
   test('maps a TypeError to retryable offline copy', () => {
@@ -187,5 +196,36 @@ describe('describeError', () => {
     });
 
     expect(result.title).not.toBe('This item is gone');
+  });
+
+  test('maps the backend 413 code to the too-large copy', () => {
+    const result = describeError(
+      apiError('PAYLOAD_TOO_LARGE', 'The request body exceeds.', 413),
+    );
+
+    expect(result.title).toBe('Photos are too large');
+    expect(result.message).toBe('Try fewer or smaller photos.');
+    expect(result.canRetry).toBe(false);
+  });
+
+  test('maps a non-JSON 413 (API_ERROR) to the too-large copy', () => {
+    const result = describeError(apiError('API_ERROR', 'Failed.', 413));
+
+    expect(result.title).toBe('Photos are too large');
+  });
+
+  test('UPLOAD_ERROR_OVERRIDES rewrites timeout and offline copy', () => {
+    const timeout = describeError(
+      new RequestTimeoutError(),
+      UPLOAD_ERROR_OVERRIDES,
+    );
+    const offline = describeError(
+      new TypeError('Network request failed'),
+      UPLOAD_ERROR_OVERRIDES,
+    );
+
+    expect(timeout.title).toBe("Upload didn't finish");
+    expect(timeout.message).toContain('Your photos were not saved.');
+    expect(offline.message).toContain('Your photos were not saved.');
   });
 });

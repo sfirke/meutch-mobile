@@ -17,7 +17,14 @@ const mockPush = jest.fn();
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
-  Stack: { Screen: () => null },
+  useFocusEffect: jest.fn(),
+  Stack: {
+    Screen: ({
+      options,
+    }: {
+      options?: { headerRight?: () => React.ReactNode };
+    }) => options?.headerRight?.() ?? null,
+  },
 }));
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
@@ -255,26 +262,29 @@ describe('<MyItemsScreen />', () => {
     ]);
   });
 
-  test('shows the empty state for each segment with the web-only note', async () => {
+  test('shows the empty state for each segment with a List an item action', async () => {
     routeItems(() => jsonResponse(buildItemsPage([])));
 
     renderWithProviders(<MyItemsScreen />);
 
     expect(await screen.findByText('Nothing listed to lend')).toBeTruthy();
     expect(
-      screen.getByText(
-        'Items you list for lending show up here. List an item on meutch.com.',
-      ),
+      screen.getByText('Items you list for lending show up here.'),
     ).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'List an item' }));
+    expect(mockPush).toHaveBeenCalledWith('/item/new');
+    mockPush.mockClear();
 
     fireEvent.press(screen.getByRole('tab', { name: 'Giving away' }));
 
     expect(await screen.findByText('No giveaways in progress')).toBeTruthy();
     expect(
       screen.getByText(
-        "Items you're giving away show up here until they're claimed. List an item on meutch.com.",
+        "Items you're giving away show up here until they're claimed.",
       ),
     ).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'List an item' }));
+    expect(mockPush).toHaveBeenCalledWith('/item/new');
 
     fireEvent.press(screen.getByRole('tab', { name: 'Given away' }));
 
@@ -284,6 +294,19 @@ describe('<MyItemsScreen />', () => {
         'Giveaways you handed off in the last 90 days show up here.',
       ),
     ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'List an item' })).toBeNull();
+  });
+
+  test('the header Create menu opens the new item form', async () => {
+    routeItems(() => jsonResponse(buildItemsPage([drill])));
+
+    renderWithProviders(<MyItemsScreen />);
+    expect(await screen.findByText('Cordless drill')).toBeTruthy();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Create' }));
+    fireEvent.press(screen.getByRole('button', { name: 'List an item' }));
+
+    expect(mockPush).toHaveBeenCalledWith('/item/new');
   });
 
   test('shows the no-matches state, and Clear search restores the list', async () => {

@@ -1,10 +1,11 @@
 import { Tabs } from 'expo-router/js-tabs';
 import { StyleSheet } from 'react-native';
 
+import { CreateMenu } from '../../src/components/CreateMenu';
 import { Icon } from '../../src/components/Icon';
 import { RequireSession } from '../../src/components/RequireSession';
 import { useInboxUnreadCount } from '../../src/query/useInboxUnreadCount';
-import { colors } from '../../src/theme';
+import { colors, spacing } from '../../src/theme';
 
 export default function TabsLayout() {
   // Derived from the cached inbox page 1; there is no unread-count endpoint.
@@ -14,6 +15,8 @@ export default function TabsLayout() {
     <RequireSession>
       <Tabs
         screenOptions={{
+          headerRight: () => <CreateMenu />,
+          headerRightContainerStyle: styles.headerRight,
           headerStyle: styles.header,
           headerTintColor: colors.text,
           tabBarActiveTintColor: colors.primaryDark,
@@ -74,5 +77,8 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   header: {
     backgroundColor: colors.background,
+  },
+  headerRight: {
+    paddingRight: spacing[16],
   },
 });

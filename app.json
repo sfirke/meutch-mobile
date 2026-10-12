@@ -42,7 +42,8 @@
           "cameraPermission": "Meutch uses your camera so you can photograph the items you list."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

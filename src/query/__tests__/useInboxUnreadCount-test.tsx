@@ -44,6 +44,7 @@ function conversation(
       is_read: unreadCount === 0,
       sender: otherUser,
       recipient: viewer,
+      loan_extension_request: null,
     },
     unread_count: unreadCount,
     is_archived: false,

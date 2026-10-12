@@ -229,7 +229,7 @@ Changes from device QA: `useDiscardGuard` moved from a bare `beforeRemove` liste
 Follow-ups, each its own PR:
 
 - [ ] **Header back button on iOS:** iOS draws a back button only when the previous screen is in the same stack, so every screen opened into its own nested stack has none and can only be left by swiping: item, request, and loan detail, the message thread, circle detail, member profile, and the four profile sub-screens. Add one shared header button in the stack layouts.
-- [ ] **Bottom safe-area padding:** apply `useScrollBottomPadding` to the request detail, loan detail, circle detail, and member profile screens, which still end their scroll content with a fixed 24pt.
+- [ ] **Bottom safe-area padding:** apply `useScrollBottomPadding` to the request detail, circle detail, and member profile screens, which still end their scroll content with a fixed 24pt (loan detail got it in PR 14a).
 
 #### PR 13b: Photos
 
@@ -269,12 +269,18 @@ Split into a backend PR and two mobile PRs: 14a (the classic actions) and 14b (e
 
 #### PR 14a: Loan Actions
 
-- [ ] Stage 1, foundations: the date picker dependency and its Jest mock; `DateField` (native picker, `YYYY-MM-DD` input on web); calendar-date helpers in `src/lib/dates.ts`; `LoanMutationResponse` and the write functions in `src/lib/loans.ts`; one cache helper for every loan mutation (invalidate loans, the item detail, item lists and the feed, and messages)
-- [ ] Stage 2: `useRequestLoanMutation`, `useLoanActionMutation` (approve, deny, cancel, owner cancel, complete), `useExtendLoanMutation`; `RequestLoanScreen` at `/item/[id]/request` and `ExtendLoanScreen` at `/loan/[id]/extend` on the full-screen form pattern from 13a
-- [ ] Stage 3: `LoanActions` on loan detail (borrower: cancel a pending request; owner: approve, deny, change dates on pending; mark returned, change due date, cancel loan on approved), each confirmed through `ConfirmDialog` with the server's message in the dialog; "Request to Borrow" enabled on item detail and the active borrower's note becomes a "View loan" link; the thread banner opens the loan
-- [ ] Stage 4: assembled, screenshots, manual checks against a local backend, draft PR
+- [x] Stage 1, foundations: the date picker dependency and its Jest mock; `DateField` (native picker, `YYYY-MM-DD` input on web); calendar-date helpers in `src/lib/dates.ts`; `LoanMutationResponse` and the write functions in `src/lib/loans.ts`; one cache helper for every loan mutation (invalidate loans, the item detail, item lists and the feed, and messages)
+- [x] Stage 2: `useRequestLoanMutation`, `useLoanActionMutation` (approve, deny, cancel, owner cancel, complete), `useExtendLoanMutation`; `RequestLoanScreen` at `/item/[id]/request` and `ExtendLoanScreen` at `/loan/[id]/extend` on the full-screen form pattern from 13a
+- [x] Stage 3: `LoanActions` on loan detail (borrower: cancel a pending request; owner: approve, deny, change dates on pending; mark returned, change due date, cancel loan on approved), each confirmed through `ConfirmDialog` with the server's message in the dialog; "Request to Borrow" enabled on item detail and the active borrower's note becomes a "View loan" link; the thread banner opens the loan
+- [x] Stage 4: assembled, screenshots, manual checks against a local backend, draft PR ([#27](https://github.com/sfirke/meutch-mobile/pull/27))
 
 Permission rules are not reimplemented in the client: the server's 403 and 409 messages show as returned.
+
+Changes from the plan: the five bodyless actions share one `performLoanAction` and one `useLoanActionMutation` rather than a function and hook each; a second borrow request for the same item is a 400 (`BAD_REQUEST`), not a 409, and the app shows its message as it does for other write failures; loan 403s say why ("You are not authorized to extend this loan."), so the loan screens pass the server's message through `forbiddenMessageOverride` instead of the generic "You don't have permission" copy; the cache helper refetches only the loan and the item on screen and marks loan lists, item lists, the feed, and messages stale, so screens with `useRefreshOnFocus` refetch when next shown; loan detail also took the bottom safe-area padding from the 13a follow-up.
+
+Verification: `npm run verify` (137 suites, 1411 tests). Headless web screenshots of loan detail as the borrower of a pending request with its cancel dialog, as the owner of a pending request (Approve, Deny, Change due date) with the deny dialog and the same dialog showing a 409, as the owner of an overdue approved loan (Mark returned, Change due date, Cancel loan) with the Mark returned dialog, and as the borrower of an approved loan (no actions yet); the request form; the change due date form; item detail with Request to Borrow enabled and with the borrower's View loan row; the thread banner. Against a local backend on meutch `main` with two seeded users: request 201, approve 200, owner extend 200 with `is_extension: true` (the borrower's extend 403), complete 200; request 201 then deny 200; request 201, a second request 400 "You already have a pending request for this item.", cancel 200; request, approve, then owner-cancel by the borrower 403 and by the owner 200; a 9-character message and an end date before the start date each 422 on their field.
+
+Needs a human: the date picker is a native module, so a new development build is needed before device QA on iOS and Android; the web screenshots cover only the `YYYY-MM-DD` fallback input. On a device: the iOS spinner sheet and the Android dialog, their minimum dates, and the discard guard on swipe-back.
 
 #### PR 14b: Extension Requests
 

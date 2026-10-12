@@ -142,13 +142,14 @@ describe('<LoanDetailScreen />', () => {
     expect(screen.getByText(/^Requested /)).toBeTruthy();
   });
 
-  test('shows who lent the item and no actions for an approved borrower', async () => {
+  test('shows who lent the item and lets an approved borrower ask for more time', async () => {
     renderScreen();
 
     expect(await screen.findByText('Borrowed from')).toBeTruthy();
     expect(screen.getByText('Ana Example')).toBeTruthy();
     expect(screen.queryByText('Lent to')).toBeNull();
-    expect(screen.queryByTestId(/^loan-action-/)).toBeNull();
+    expect(screen.getByTestId('loan-action-request-extension')).toBeTruthy();
+    expect(screen.getAllByTestId(/^loan-action-/)).toHaveLength(1);
     expect(screen.queryByText(/on meutch\.com\.$/)).toBeNull();
   });
 

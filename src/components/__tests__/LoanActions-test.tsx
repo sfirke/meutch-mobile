@@ -5,7 +5,7 @@ import {
   within,
 } from '@testing-library/react-native';
 
-import type { LoanDetail } from '../../lib/loans';
+import type { LoanDetail, LoanExtensionRequest } from '../../lib/loans';
 import type { UserSummary } from '../../lib/parse';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import {
@@ -29,6 +29,7 @@ jest.mock('expo-router', () => ({
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
 
 const LOAN_ID = 'd4444444-4444-4444-8444-444444444444';
+const EXTENSION_ID = 'c3333333-3333-4333-8333-333333333333';
 
 const owner: UserSummary = {
   id: 'a1111111-1111-4111-8111-111111111111',
@@ -72,6 +73,29 @@ function buildLoan(overrides?: Partial<LoanDetail>): LoanDetail {
   };
 }
 
+function buildExtension(
+  overrides?: Partial<LoanExtensionRequest>,
+): LoanExtensionRequest {
+  return {
+    id: EXTENSION_ID,
+    status: 'pending',
+    previous_end_date: '2026-06-08',
+    proposed_end_date: '2026-06-15',
+    message: 'Still finishing the shelves.',
+    created_at: '2026-06-05T09:00:00+00:00',
+    responded_at: null,
+    ...overrides,
+  };
+}
+
+/** An approved loan with the owner's answer still outstanding. */
+function buildLoanWithExtension(overrides?: Partial<LoanExtensionRequest>) {
+  return buildLoan({
+    status: 'approved',
+    pending_extension_request: buildExtension(overrides),
+  });
+}
+
 function mutationResponse(loan: LoanDetail) {
   return {
     loan,
@@ -99,8 +123,15 @@ function renderActions(
   return authenticatedApiFetch;
 }
 
-function kinds(status: LoanDetail['status'], isBorrower: boolean) {
-  return describeLoanActions({ status }, isBorrower).map((a) => a.kind);
+function kinds(
+  status: LoanDetail['status'],
+  isBorrower: boolean,
+  pending_extension_request: LoanExtensionRequest | null = null,
+) {
+  return describeLoanActions(
+    { status, pending_extension_request },
+    isBorrower,
+  ).map((a) => a.kind);
 }
 
 beforeEach(() => {
@@ -116,8 +147,27 @@ describe('describeLoanActions', () => {
     expect(kinds('pending', false)).toEqual(['approve', 'deny', 'extend']);
   });
 
-  test('an approved borrower has nothing yet', () => {
-    expect(kinds('approved', true)).toEqual([]);
+  test('an approved borrower can ask for more time', () => {
+    expect(kinds('approved', true)).toEqual(['request-extension']);
+  });
+
+  test('an approved borrower with a pending extension waits', () => {
+    expect(kinds('approved', true, buildExtension())).toEqual([]);
+  });
+
+  test('a pending extension replaces the owner changing the due date', () => {
+    expect(kinds('approved', false, buildExtension())).toEqual([
+      'complete',
+      'owner-cancel',
+    ]);
+  });
+
+  test('a pending extension on a pending request changes nothing', () => {
+    expect(kinds('pending', false, buildExtension())).toEqual([
+      'approve',
+      'deny',
+      'extend',
+    ]);
   });
 
   test('an approved owner can mark returned, change the due date, or cancel', () => {
@@ -138,8 +188,8 @@ describe('describeLoanActions', () => {
 });
 
 describe('<LoanActions />', () => {
-  test('renders nothing for an approved borrower', () => {
-    renderActions(buildLoan({ status: 'approved' }), true);
+  test('renders nothing for a completed loan', () => {
+    renderActions(buildLoan({ status: 'completed' }), true);
 
     expect(screen.queryByRole('button')).toBeNull();
   });
@@ -285,6 +335,175 @@ describe('<LoanActions />', () => {
 
     expect(mockPush).toHaveBeenCalledWith(`/loan/${LOAN_ID}/extend`);
     expect(screen.queryByTestId('confirm-dialog')).toBeNull();
+    expect(authenticatedApiFetch).not.toHaveBeenCalled();
+  });
+
+  test('Ask for more time opens the request route without a dialog', () => {
+    const authenticatedApiFetch = renderActions(
+      buildLoan({ status: 'approved' }),
+      true,
+    );
+
+    fireEvent.press(screen.getByTestId('loan-action-request-extension'));
+
+    expect(mockPush).toHaveBeenCalledWith(`/loan/${LOAN_ID}/request-extension`);
+    expect(screen.queryByTestId('confirm-dialog')).toBeNull();
+    expect(authenticatedApiFetch).not.toHaveBeenCalled();
+  });
+
+  test('a borrower with a pending extension sees the note, not the button', () => {
+    renderActions(buildLoanWithExtension(), true);
+
+    expect(screen.getByTestId('loan-extension-pending-note')).toHaveTextContent(
+      'You asked to extend to Jun 15, 2026. Waiting for Ana.',
+    );
+    expect(screen.queryByTestId('loan-action-request-extension')).toBeNull();
+    expect(screen.queryByTestId('loan-extension-panel')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  test('the note falls back when the owner account is gone', () => {
+    renderActions(
+      buildLoan({
+        status: 'approved',
+        owner: null,
+        pending_extension_request: buildExtension(),
+      }),
+      true,
+    );
+
+    expect(screen.getByTestId('loan-extension-pending-note')).toHaveTextContent(
+      /Waiting for the owner\.$/,
+    );
+  });
+});
+
+describe('<LoanActions /> extension panel', () => {
+  test('shows the request and hides Change due date', () => {
+    renderActions(buildLoanWithExtension(), false);
+
+    const panel = screen.getByTestId('loan-extension-panel');
+
+    expect(within(panel).getByText('Extension requested')).toBeTruthy();
+    expect(
+      within(panel).getByText(
+        'Ben asked to extend to Jun 15, 2026 (7 more days)',
+      ),
+    ).toBeTruthy();
+    expect(
+      within(panel).getByText('\u201cStill finishing the shelves.\u201d'),
+    ).toBeTruthy();
+    expect(
+      within(panel).getByTestId('loan-extension-approve'),
+    ).toHaveTextContent('Approve extension');
+    expect(within(panel).getByTestId('loan-extension-deny')).toHaveTextContent(
+      'Deny extension',
+    );
+    expect(screen.queryByTestId('loan-action-extend')).toBeNull();
+    expect(screen.getByTestId('loan-action-complete')).toHaveTextContent(
+      'Mark returned',
+    );
+    expect(screen.getByTestId('loan-action-owner-cancel')).toHaveTextContent(
+      'Cancel loan',
+    );
+  });
+
+  test('counts a single extra day in the singular and omits an empty note', () => {
+    renderActions(
+      buildLoanWithExtension({ proposed_end_date: '2026-06-09', message: '' }),
+      false,
+    );
+
+    const panel = screen.getByTestId('loan-extension-panel');
+
+    expect(
+      within(panel).getByText(
+        'Ben asked to extend to Jun 9, 2026 (1 more day)',
+      ),
+    ).toBeTruthy();
+    expect(within(panel).queryByText(/\u201c/)).toBeNull();
+  });
+
+  test('approving asks first, then posts without a body and closes', async () => {
+    const loan = buildLoanWithExtension();
+    const authenticatedApiFetch = renderActions(loan, false, {
+      [`POST /loan-extension-requests/${EXTENSION_ID}/approve`]:
+        mutationResponse({
+          ...loan,
+          end_date: '2026-06-15',
+          pending_extension_request: null,
+        }),
+    });
+
+    fireEvent.press(screen.getByTestId('loan-extension-approve'));
+
+    const dialog = screen.getByTestId('confirm-dialog');
+
+    expect(within(dialog).getByText('Approve the extension?')).toBeTruthy();
+    expect(
+      within(dialog).getByText('The due date moves to Jun 15, 2026.'),
+    ).toBeTruthy();
+    expect(within(dialog).getByText('Approve')).toBeTruthy();
+    expect(authenticatedApiFetch).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByTestId('confirm-dialog-confirm'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('confirm-dialog')).toBeNull();
+    });
+    expect(authenticatedApiFetch).toHaveBeenCalledTimes(1);
+    expect(authenticatedApiFetch.mock.calls[0][0]).toBe(
+      `/loan-extension-requests/${EXTENSION_ID}/approve`,
+    );
+    expect(authenticatedApiFetch.mock.calls[0][1]?.method).toBe('POST');
+    expect(authenticatedApiFetch.mock.calls[0][1]?.body).toBeUndefined();
+  });
+
+  test('a 409 on deny keeps the dialog open with the server message', async () => {
+    renderActions(buildLoanWithExtension(), false, {
+      [`POST /loan-extension-requests/${EXTENSION_ID}/deny`]: jsonResponse(
+        {
+          error: {
+            code: 'CONFLICT',
+            message: 'This extension request was already answered.',
+          },
+        },
+        409,
+      ),
+    });
+
+    fireEvent.press(screen.getByTestId('loan-extension-deny'));
+
+    const dialog = screen.getByTestId('confirm-dialog');
+
+    expect(within(dialog).getByText('Deny the extension?')).toBeTruthy();
+    expect(
+      within(dialog).getByText('The due date stays Jun 8, 2026.'),
+    ).toBeTruthy();
+    fireEvent.press(screen.getByTestId('confirm-dialog-confirm'));
+
+    expect(await screen.findByTestId('confirm-dialog-error')).toHaveTextContent(
+      'This extension request was already answered.',
+    );
+    expect(screen.getByTestId('confirm-dialog')).toBeTruthy();
+  });
+
+  test('closing the dialog sends nothing', async () => {
+    const authenticatedApiFetch = renderActions(
+      buildLoanWithExtension(),
+      false,
+    );
+
+    fireEvent.press(screen.getByTestId('loan-extension-deny'));
+    fireEvent.press(
+      within(screen.getByTestId('confirm-dialog')).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('confirm-dialog')).toBeNull();
+    });
     expect(authenticatedApiFetch).not.toHaveBeenCalled();
   });
 });

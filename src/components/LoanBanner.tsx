@@ -2,14 +2,16 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatCalendarDate } from '../lib/dates';
-import { describeLoanStatus } from '../lib/loans';
+import { describeLoanStatus, type LoanExtensionRequest } from '../lib/loans';
 import type { LoanSummary } from '../lib/parse';
 import { colors, radii, spacing, typography } from '../theme';
 import { Icon } from './Icon';
 import { loanToneColors } from './loanTone';
 
 export type LoanBannerProps = {
-  loan: LoanSummary;
+  loan: LoanSummary & {
+    pending_extension_request?: LoanExtensionRequest | null;
+  };
 };
 
 // Thread footer banner for a pending/approved loan tied to the conversation.
@@ -21,6 +23,11 @@ export function LoanBanner({ loan }: LoanBannerProps) {
   const datesLine = startDate && endDate ? `${startDate} to ${endDate}` : null;
   const { label, tone } = describeLoanStatus(loan);
   const toneColor = loanToneColors[tone];
+  const extension =
+    loan.status === 'approved' ? loan.pending_extension_request : null;
+  const extensionDate = extension
+    ? formatCalendarDate(extension.proposed_end_date)
+    : null;
 
   return (
     <Pressable
@@ -38,6 +45,11 @@ export function LoanBanner({ loan }: LoanBannerProps) {
       <View style={styles.copy}>
         <Text style={styles.label}>{label}</Text>
         {datesLine ? <Text style={styles.dates}>{datesLine}</Text> : null}
+        {extensionDate ? (
+          <Text style={styles.extension} testID="loan-banner-extension">
+            More time requested until {extensionDate}
+          </Text>
+        ) : null}
       </View>
       <Icon color={colors.secondary} name="chevron" size={12} />
     </Pressable>
@@ -60,6 +72,10 @@ const styles = StyleSheet.create({
   },
   dates: {
     color: colors.secondary,
+    ...typography.itemMeta,
+  },
+  extension: {
+    color: loanToneColors.warning,
     ...typography.itemMeta,
   },
   label: {

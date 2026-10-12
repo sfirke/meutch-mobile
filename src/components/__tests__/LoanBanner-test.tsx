@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
+import type { LoanExtensionRequest } from '../../lib/loans';
 import type { LoanSummary } from '../../lib/parse';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import { LoanBanner } from '../LoanBanner';
@@ -21,7 +22,21 @@ const borrower: LoanSummary['borrower'] = {
   profile_viewable: false,
 };
 
-function buildLoan(overrides: Partial<LoanSummary> = {}): LoanSummary {
+type BannerLoan = LoanSummary & {
+  pending_extension_request?: LoanExtensionRequest | null;
+};
+
+const extensionRequest: LoanExtensionRequest = {
+  id: 'c3333333-3333-4333-8333-333333333333',
+  status: 'pending',
+  previous_end_date: '2026-06-10',
+  proposed_end_date: '2026-06-17',
+  message: 'A few more days, please.',
+  created_at: '2026-06-08T12:00:00Z',
+  responded_at: null,
+};
+
+function buildLoan(overrides: Partial<BannerLoan> = {}): BannerLoan {
   return {
     id: 'b2222222-2222-4222-8222-222222222222',
     start_date: '2026-06-03',
@@ -72,5 +87,48 @@ describe('<LoanBanner />', () => {
     render(<LoanBanner loan={buildLoan({ start_date: 'not-a-date' })} />);
 
     expect(screen.queryByText(/to Jun 10, 2026/)).toBeNull();
+  });
+
+  test('shows the requested end date for an approved loan', () => {
+    render(
+      <LoanBanner
+        loan={buildLoan({
+          status: 'approved',
+          pending_extension_request: extensionRequest,
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('loan-banner-extension')).toHaveTextContent(
+      'More time requested until Jun 17, 2026',
+    );
+  });
+
+  test('omits the extension line when there is no pending request', () => {
+    render(
+      <LoanBanner
+        loan={buildLoan({
+          status: 'approved',
+          pending_extension_request: null,
+        })}
+      />,
+    );
+    expect(screen.queryByTestId('loan-banner-extension')).toBeNull();
+
+    render(<LoanBanner loan={buildLoan({ status: 'approved' })} />);
+    expect(screen.queryByTestId('loan-banner-extension')).toBeNull();
+  });
+
+  test('omits the extension line for a pending loan', () => {
+    render(
+      <LoanBanner
+        loan={buildLoan({
+          status: 'pending',
+          pending_extension_request: extensionRequest,
+        })}
+      />,
+    );
+
+    expect(screen.queryByTestId('loan-banner-extension')).toBeNull();
   });
 });

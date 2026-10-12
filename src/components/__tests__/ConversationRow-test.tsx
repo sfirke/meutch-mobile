@@ -40,6 +40,7 @@ function buildConversation(
       is_read: true,
       sender: otherUser,
       recipient: currentUser,
+      loan_extension_request: null,
     },
     unread_count: 0,
     is_archived: false,
@@ -89,6 +90,7 @@ describe('<ConversationRow />', () => {
             is_read: true,
             sender: currentUser,
             recipient: otherUser,
+            loan_extension_request: null,
           },
         })}
         currentUserId={currentUser.id}

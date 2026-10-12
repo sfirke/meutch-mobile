@@ -34,6 +34,7 @@ function buildMessage(overrides: Partial<MessageSummary> = {}): MessageSummary {
     is_read: true,
     sender,
     recipient,
+    loan_extension_request: null,
     ...overrides,
   };
 }

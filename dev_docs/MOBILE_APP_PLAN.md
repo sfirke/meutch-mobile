@@ -260,12 +260,12 @@ Loan detail, My loans, item detail, and the thread banner are read-only in the a
 
 Split into a backend PR and two mobile PRs: 14a (the classic actions) and 14b (extension requests), the latter stacked on 14a and blocked on the backend PR. Dates use `@react-native-community/datetimepicker`, a native module, with a plain `YYYY-MM-DD` input on web. In the thread, the loan banner only links to loan detail: no message cards and no actions in the thread.
 
-#### Backend (`api-loan-extension-requests`, must merge before 14b)
+#### Backend ([meutch#565](https://github.com/sfirke/meutch/pull/565), must merge before 14b)
 
-- [ ] `LoanExtensionRequestSchema` (id, status, previous and proposed end dates, message, created and responded at); a nullable `pending_extension_request` on loan list and detail reads and on the thread's `active_loan`, but not on item detail's `current_loan`, which non-participants can see; a nullable `loan_extension_request` on messages
-- [ ] `POST /loans/<id>/extension-requests` (201), `POST /loan-extension-requests/<id>/approve` and `/deny`, each returning `{loan, message}` through the existing service functions; the create payload rejects a past `proposed_end_date` and requires a 10 to 1000 character message
-- [ ] fixes found on the way: eager-load extension requests on loan reads, `profile_viewable` on mutation responses, and a past `start_date` on a new loan request is a 422 like the web form
-- [ ] tests, `CHANGELOG.md`
+- [x] `LoanExtensionRequestSchema` (id, status, previous and proposed end dates, message, created and responded at); a nullable `pending_extension_request` on loan list and detail reads and on the thread's `active_loan`, but not on item detail's `current_loan`, which non-participants can see; a nullable `loan_extension_request` on messages
+- [x] `POST /loans/<id>/extension-requests` (201), `POST /loan-extension-requests/<id>/approve` and `/deny`, each returning `{loan, message}` through the existing service functions; the create payload rejects a past `proposed_end_date` and requires a 10 to 1000 character message
+- [x] fixes found on the way: eager-load extension requests on loan reads, `profile_viewable` on mutation responses, and a past `start_date` on a new loan request is a 422 like the web form
+- [x] tests, `CHANGELOG.md`
 
 #### PR 14a: Loan Actions
 
@@ -286,9 +286,15 @@ Needs a human: the date picker is a native module, so a new development build is
 
 Stacked on 14a; cannot merge until the backend PR does.
 
-- [ ] Stage 5: `LoanExtensionRequest` type and parser; `pending_extension_request` on loans and the thread's `active_loan`; `requestLoanExtension`, `approveLoanExtension`, `denyLoanExtension`; `useRequestExtensionMutation`, `useExtensionDecisionMutation`
-- [ ] Stage 6: `RequestExtensionScreen` at `/loan/[id]/request-extension` (proposed date no earlier than the later of the day after the current due date and today; a required 10 to 1000 character message); on approved loans the borrower sees "Ask for more time" or "You asked to extend to <date>", and the owner sees the proposed date, extra days, the borrower's note, and Approve / Deny, with "Change due date" hidden while a request is pending; the thread banner adds "More time requested until <date>"
-- [ ] Stage 7: assembled, screenshots, manual checks against a local backend on the backend branch, draft PR stacked on 14a
+- [x] Stage 5: `LoanExtensionRequest` type and parser; `pending_extension_request` on loans and the thread's `active_loan`; `requestLoanExtension`, `approveLoanExtension`, `denyLoanExtension`; `useRequestExtensionMutation`, `useExtensionDecisionMutation`
+- [x] Stage 6: `RequestExtensionScreen` at `/loan/[id]/request-extension` (proposed date no earlier than the later of the day after the current due date and today; a required 10 to 1000 character message); on approved loans the borrower sees "Ask for more time" or "You asked to extend to <date>", and the owner sees the proposed date, extra days, the borrower's note, and Approve / Deny, with "Change due date" hidden while a request is pending; the thread banner adds "More time requested until <date>"
+- [x] Stage 7: assembled, screenshots, manual checks against a local backend on the backend branch, draft PR stacked on 14a ([#28](https://github.com/sfirke/meutch-mobile/pull/28))
+
+Changes from the plan: a missing `pending_extension_request` or `loan_extension_request` key parses as `null`, so the branch runs against a backend without meutch#565 (the fields simply stay empty); `useExtensionDecisionMutation` takes no loan id, since the extension id is enough; the owner's panel shows the extra days relative to the current due date, and a request the owner has already overtaken by extending the loan gets the server's 409 in the approve dialog rather than a client-side rule; the extension type and parser live in `src/lib/loans.ts` and `messages.ts` imports them, a cycle that is harmless because neither module calls the other while loading.
+
+Verification: `npm run verify` (140 suites, 1463 tests). Headless web screenshots of loan detail as the borrower of an approved loan with "Ask for more time" and, while a request is pending, the "You asked to extend to" note; the request form; the owner's extension panel with the proposed date, extra days, and the borrower's note, its deny dialog, and the same dialog showing a 409; the thread banner's "More time requested until" line. Against a local backend on meutch#565 with two seeded users: request extension 201 with the pending request in the response, a second request 409, the borrower's approve 403, the owner's approve 200 with the due date moved and no pending request, approving again 409; request then deny 200 with the due date unchanged; request, then the owner extending past it 200 with the request auto-approved so approving it afterwards is a 409; a past proposed date and a short message each 422 on their field, a date not after the due date 409; a past start date on a new loan request 422.
+
+Needs a human: 14b cannot merge until meutch#565 does, and the branch is stacked on 14a. The date picker is a native module (added in 14a), so a new development build is needed before device QA on iOS and Android; the web screenshots cover only the `YYYY-MM-DD` fallback input.
 
 ### PR 15: Giveaways
 

@@ -32,6 +32,17 @@ const ITEM_ID = 'e5555555-5555-4555-8555-555555555555';
 const REQUEST_ID = 'f6666666-6666-4666-8666-666666666666';
 const CIRCLE_ID = 'a7777777-7777-4777-8777-777777777777';
 const LOAN_ID = 'b8888888-8888-4888-8888-888888888888';
+const EXTENSION_ID = 'c9999999-9999-4999-8999-999999999999';
+
+const extension = {
+  id: EXTENSION_ID,
+  status: 'pending',
+  previous_end_date: '2026-06-08',
+  proposed_end_date: '2026-06-15',
+  message: 'Could I keep it another week?',
+  created_at: '2026-06-04T09:00:00',
+  responded_at: null,
+};
 
 const viewer = {
   id: VIEWER_ID,
@@ -165,6 +176,7 @@ describe('fetchConversations', () => {
           is_read: false,
           sender: otherUser,
           recipient: viewer,
+          loan_extension_request: null,
         },
         unread_count: 2,
         is_archived: false,
@@ -443,9 +455,42 @@ describe('fetchMessageThread', () => {
           is_read: false,
           sender: otherUser,
           recipient: viewer,
+          loan_extension_request: null,
         },
       ],
     });
+  });
+
+  test('parses a message extension request', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse(
+        createThread({
+          messages: [createMessage({ loan_extension_request: extension })],
+        }),
+      ),
+    );
+
+    const thread = await fetchMessageThread(fetchImpl, MESSAGE_ID);
+
+    expect(thread.messages[0].loan_extension_request).toEqual(extension);
+  });
+
+  test('rejects a malformed message extension request', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse(
+        createThread({
+          messages: [createMessage({ loan_extension_request: { id: 1 } })],
+        }),
+      ),
+    );
+
+    await expect(fetchMessageThread(fetchImpl, MESSAGE_ID)).rejects.toThrow(
+      'Invalid message payload.',
+    );
   });
 
   test('parses an active loan', async () => {
@@ -473,7 +518,55 @@ describe('fetchMessageThread', () => {
       end_date: '2026-06-08',
       status: 'pending',
       borrower: otherUser,
+      pending_extension_request: null,
     });
+  });
+
+  test('parses an active loan with a pending extension', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse(
+        createThread({
+          active_loan: {
+            id: LOAN_ID,
+            start_date: '2026-06-01',
+            end_date: '2026-06-08',
+            status: 'approved',
+            borrower: otherUser,
+            pending_extension_request: extension,
+          },
+        }),
+      ),
+    );
+
+    const thread = await fetchMessageThread(fetchImpl, MESSAGE_ID);
+
+    expect(thread.active_loan?.status).toBe('approved');
+    expect(thread.active_loan?.pending_extension_request).toEqual(extension);
+  });
+
+  test('rejects a malformed active loan extension', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse(
+        createThread({
+          active_loan: {
+            id: LOAN_ID,
+            start_date: '2026-06-01',
+            end_date: '2026-06-08',
+            status: 'approved',
+            borrower: otherUser,
+            pending_extension_request: { status: 'pending' },
+          },
+        }),
+      ),
+    );
+
+    await expect(fetchMessageThread(fetchImpl, MESSAGE_ID)).rejects.toThrow(
+      'Invalid conversation thread payload.',
+    );
   });
 
   test('treats an absent active loan like a null one', async () => {

@@ -89,3 +89,23 @@ jest.mock('react-native-worklets', () =>
 jest.mock('react-native-reanimated', () =>
   jest.requireActual('react-native-reanimated/mock'),
 );
+
+// The date picker's native view is unavailable under Jest. The stand-in
+// exposes its value/minimumDate as props and relays `change` events to
+// onChange, so tests can fireEvent(picker, 'change', event, date).
+jest.mock('@react-native-community/datetimepicker', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const DateTimePicker = ({ value, minimumDate, onChange }) =>
+    React.createElement(View, {
+      testID: 'date-time-picker',
+      value,
+      minimumDate,
+      onChange,
+    });
+  return {
+    __esModule: true,
+    default: DateTimePicker,
+    DateTimePickerAndroid: { open: jest.fn(), dismiss: jest.fn() },
+  };
+});

@@ -1,5 +1,9 @@
 import { ApiError, RequestTimeoutError } from '../api';
-import { describeError, UPLOAD_ERROR_OVERRIDES } from '../errorCopy';
+import {
+  describeError,
+  forbiddenMessageOverride,
+  UPLOAD_ERROR_OVERRIDES,
+} from '../errorCopy';
 import { SessionExpiredError, SessionRequiredError } from '../session';
 
 function apiError(code: string, message: string, status: number): ApiError {
@@ -227,5 +231,22 @@ describe('describeError', () => {
     expect(timeout.title).toBe("Upload didn't finish");
     expect(timeout.message).toContain('Your photos were not saved.');
     expect(offline.message).toContain('Your photos were not saved.');
+  });
+});
+
+describe('forbiddenMessageOverride', () => {
+  test('passes a 403 message through describeError', () => {
+    const error = apiError('FORBIDDEN', 'You are not the borrower.', 403);
+
+    expect(describeError(error, forbiddenMessageOverride(error)).message).toBe(
+      'You are not the borrower.',
+    );
+  });
+
+  test('is undefined for other errors', () => {
+    expect(forbiddenMessageOverride(apiError('CONFLICT', 'Nope', 409))).toBe(
+      undefined,
+    );
+    expect(forbiddenMessageOverride(new Error('x'))).toBeUndefined();
   });
 });

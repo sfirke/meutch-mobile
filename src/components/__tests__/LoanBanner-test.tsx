@@ -1,8 +1,14 @@
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import type { LoanSummary } from '../../lib/parse';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import { LoanBanner } from '../LoanBanner';
+
+const mockPush = jest.fn();
+
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
 
@@ -45,12 +51,15 @@ describe('<LoanBanner />', () => {
     expect(screen.getByText('Jun 3, 2026 to Jun 10, 2026')).toBeTruthy();
   });
 
-  test('renders the web-only note', () => {
+  test('opens the loan detail when pressed', () => {
+    mockPush.mockClear();
     render(<LoanBanner loan={buildLoan()} />);
 
-    expect(
-      screen.getByText('Approve, deny, or extend this loan on meutch.com.'),
-    ).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'View loan' }));
+
+    expect(mockPush).toHaveBeenCalledWith(
+      '/loan/b2222222-2222-4222-8222-222222222222',
+    );
   });
 
   test('does not render an identity for the borrower', () => {

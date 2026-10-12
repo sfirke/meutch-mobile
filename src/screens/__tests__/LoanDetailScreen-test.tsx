@@ -19,6 +19,7 @@ const mockPush = jest.fn();
 
 jest.mock('expo-router', () => ({
   Stack: { Screen: jest.fn(() => null) },
+  useFocusEffect: jest.fn(),
   useLocalSearchParams: jest.fn(),
   useRouter: () => ({ push: mockPush }),
 }));
@@ -140,48 +141,49 @@ describe('<LoanDetailScreen />', () => {
     expect(screen.getByText(/^Requested /)).toBeTruthy();
   });
 
-  test('shows the borrower who lent the item and their approved action', async () => {
+  test('shows who lent the item and no actions for an approved borrower', async () => {
     renderScreen();
 
     expect(await screen.findByText('Borrowed from')).toBeTruthy();
     expect(screen.getByText('Ana Example')).toBeTruthy();
     expect(screen.queryByText('Lent to')).toBeNull();
-    expect(screen.getByText('Ask for more time on meutch.com.')).toBeTruthy();
+    expect(screen.queryByTestId(/^loan-action-/)).toBeNull();
+    expect(screen.queryByText(/on meutch\.com\.$/)).toBeNull();
   });
 
-  test('offers a pending borrower a cancel note', async () => {
+  test('lets a pending borrower cancel the request', async () => {
     renderScreen({ loan: { status: 'pending', due_state: null } });
 
-    expect(
-      await screen.findByText('Cancel this request on meutch.com.'),
-    ).toBeTruthy();
+    expect(await screen.findByTestId('loan-action-cancel')).toBeTruthy();
     expect(screen.getByText('Loan request pending')).toBeTruthy();
+    expect(screen.getAllByTestId(/^loan-action-/)).toHaveLength(1);
   });
 
-  test('shows the lender who borrowed the item', async () => {
+  test('lets a lender approve, deny, or change the dates of a request', async () => {
     renderScreen({ as: 'lender', loan: { status: 'pending' } });
 
     expect(await screen.findByText('Lent to')).toBeTruthy();
     expect(screen.getByText('Ben Example')).toBeTruthy();
-    expect(
-      screen.getByText('Approve or deny this request on meutch.com.'),
-    ).toBeTruthy();
+    expect(screen.getByTestId('loan-action-approve')).toBeTruthy();
+    expect(screen.getByTestId('loan-action-deny')).toBeTruthy();
+    expect(screen.getByTestId('loan-action-extend')).toBeTruthy();
+    expect(screen.getAllByTestId(/^loan-action-/)).toHaveLength(3);
   });
 
-  test('offers an approved lender the return note', async () => {
+  test('lets an approved lender mark returned, change the due date, or cancel', async () => {
     renderScreen({ as: 'lender' });
 
-    expect(
-      await screen.findByText(
-        'Mark this loan returned or change its due date on meutch.com.',
-      ),
-    ).toBeTruthy();
+    expect(await screen.findByTestId('loan-action-complete')).toBeTruthy();
+    expect(screen.getByTestId('loan-action-extend')).toBeTruthy();
+    expect(screen.getByTestId('loan-action-owner-cancel')).toBeTruthy();
+    expect(screen.getAllByTestId(/^loan-action-/)).toHaveLength(3);
   });
 
-  test('has no web-only note for a completed loan', async () => {
+  test('has no actions for a completed loan', async () => {
     renderScreen({ loan: { status: 'completed', due_state: null } });
 
     expect(await screen.findByText('Completed')).toBeTruthy();
+    expect(screen.queryByTestId(/^loan-action-/)).toBeNull();
     expect(screen.queryByText(/on meutch\.com\.$/)).toBeNull();
   });
 

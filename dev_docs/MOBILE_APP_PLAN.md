@@ -42,7 +42,7 @@ Backend additions the mobile roadmap still needs, each noted on the PR that depe
 | Addition | Needed by |
 | --- | --- |
 | list a circle's pending join requests | PR 12 |
-| loan extension requests (borrower asks, owner approves or denies) | PR 14 |
+| loan extension requests (borrower asks, owner approves or denies); built on the web, needs API routes and schema fields | PR 14b |
 | circle recommendations and secret-circle lookup by ID | PR 17 |
 | an email confirmation endpoint, or a decision to open the web page | PR 17 |
 | `GET /categories/<id>/items`, `GET /tags/<id>/items` | PR 18 |
@@ -56,7 +56,7 @@ Backend additions the mobile roadmap still needs, each noted on the PR that depe
 
 ## PR Sequence
 
-Status: PRs 1 through 5.6, 7, 9, and 10 are merged. Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
+Status: PRs 1 through 5.6, 7, 8, 9, 10, and 13 are merged. Later PR order is a proposal and can be reshuffled; each later PR lists what it needs from the backend.
 
 ### PR 1: Repo Foundation (merged)
 
@@ -229,7 +229,7 @@ Changes from device QA: `useDiscardGuard` moved from a bare `beforeRemove` liste
 Follow-ups, each its own PR:
 
 - [ ] **Header back button on iOS:** iOS draws a back button only when the previous screen is in the same stack, so every screen opened into its own nested stack has none and can only be left by swiping: item, request, and loan detail, the message thread, circle detail, member profile, and the four profile sub-screens. Add one shared header button in the stack layouts.
-- [ ] **Bottom safe-area padding:** apply `useScrollBottomPadding` to the request detail, loan detail, circle detail, and member profile screens, which still end their scroll content with a fixed 24pt.
+- [ ] **Bottom safe-area padding:** apply `useScrollBottomPadding` to the request detail, circle detail, and member profile screens, which still end their scroll content with a fixed 24pt (loan detail got it in PR 14a).
 
 #### PR 13b: Photos
 
@@ -256,8 +256,39 @@ Verification: `npm run verify` (122 suites, 1229 tests). Headless web screenshot
 
 ### PR 14: Loans
 
-- request to borrow, approve, deny, cancel, owner cancel, mark returned, extend the due date; loan detail's web-only notes (added in PR 10) become real actions here
-- loan extension requests: the borrower asks for more time and the owner approves or denies (web #493). Backend: no API endpoints or loan-schema fields exist for this yet.
+Loan detail, My loans, item detail, and the thread banner are read-only in the app today; every loan action is a "do this on meutch.com" note. PR 14 makes them real actions. The seven classic actions (request, approve, deny, cancel, owner cancel, mark returned, extend) already have `/api/v1` endpoints. Loan extension requests are fully built on the web ([meutch#226](https://github.com/sfirke/meutch/issues/226)); only API routes and schema fields are missing, so the backend PR adds those and no migration.
+
+Split into a backend PR and two mobile PRs: 14a (the classic actions) and 14b (extension requests), the latter stacked on 14a and blocked on the backend PR. Dates use `@react-native-community/datetimepicker`, a native module, with a plain `YYYY-MM-DD` input on web. In the thread, the loan banner only links to loan detail: no message cards and no actions in the thread.
+
+#### Backend (`api-loan-extension-requests`, must merge before 14b)
+
+- [ ] `LoanExtensionRequestSchema` (id, status, previous and proposed end dates, message, created and responded at); a nullable `pending_extension_request` on loan list and detail reads and on the thread's `active_loan`, but not on item detail's `current_loan`, which non-participants can see; a nullable `loan_extension_request` on messages
+- [ ] `POST /loans/<id>/extension-requests` (201), `POST /loan-extension-requests/<id>/approve` and `/deny`, each returning `{loan, message}` through the existing service functions; the create payload rejects a past `proposed_end_date` and requires a 10 to 1000 character message
+- [ ] fixes found on the way: eager-load extension requests on loan reads, `profile_viewable` on mutation responses, and a past `start_date` on a new loan request is a 422 like the web form
+- [ ] tests, `CHANGELOG.md`
+
+#### PR 14a: Loan Actions
+
+- [x] Stage 1, foundations: the date picker dependency and its Jest mock; `DateField` (native picker, `YYYY-MM-DD` input on web); calendar-date helpers in `src/lib/dates.ts`; `LoanMutationResponse` and the write functions in `src/lib/loans.ts`; one cache helper for every loan mutation (invalidate loans, the item detail, item lists and the feed, and messages)
+- [x] Stage 2: `useRequestLoanMutation`, `useLoanActionMutation` (approve, deny, cancel, owner cancel, complete), `useExtendLoanMutation`; `RequestLoanScreen` at `/item/[id]/request` and `ExtendLoanScreen` at `/loan/[id]/extend` on the full-screen form pattern from 13a
+- [x] Stage 3: `LoanActions` on loan detail (borrower: cancel a pending request; owner: approve, deny, change dates on pending; mark returned, change due date, cancel loan on approved), each confirmed through `ConfirmDialog` with the server's message in the dialog; "Request to Borrow" enabled on item detail and the active borrower's note becomes a "View loan" link; the thread banner opens the loan
+- [x] Stage 4: assembled, screenshots, manual checks against a local backend, draft PR ([#27](https://github.com/sfirke/meutch-mobile/pull/27))
+
+Permission rules are not reimplemented in the client: the server's 403 and 409 messages show as returned.
+
+Changes from the plan: the five bodyless actions share one `performLoanAction` and one `useLoanActionMutation` rather than a function and hook each; a second borrow request for the same item is a 400 (`BAD_REQUEST`), not a 409, and the app shows its message as it does for other write failures; loan 403s say why ("You are not authorized to extend this loan."), so the loan screens pass the server's message through `forbiddenMessageOverride` instead of the generic "You don't have permission" copy; the cache helper refetches only the loan and the item on screen and marks loan lists, item lists, the feed, and messages stale, so screens with `useRefreshOnFocus` refetch when next shown; loan detail also took the bottom safe-area padding from the 13a follow-up.
+
+Verification: `npm run verify` (137 suites, 1411 tests). Headless web screenshots of loan detail as the borrower of a pending request with its cancel dialog, as the owner of a pending request (Approve, Deny, Change due date) with the deny dialog and the same dialog showing a 409, as the owner of an overdue approved loan (Mark returned, Change due date, Cancel loan) with the Mark returned dialog, and as the borrower of an approved loan (no actions yet); the request form; the change due date form; item detail with Request to Borrow enabled and with the borrower's View loan row; the thread banner. Against a local backend on meutch `main` with two seeded users: request 201, approve 200, owner extend 200 with `is_extension: true` (the borrower's extend 403), complete 200; request 201 then deny 200; request 201, a second request 400 "You already have a pending request for this item.", cancel 200; request, approve, then owner-cancel by the borrower 403 and by the owner 200; a 9-character message and an end date before the start date each 422 on their field.
+
+Needs a human: the date picker is a native module, so a new development build is needed before device QA on iOS and Android; the web screenshots cover only the `YYYY-MM-DD` fallback input. On a device: the iOS spinner sheet and the Android dialog, their minimum dates, and the discard guard on swipe-back.
+
+#### PR 14b: Extension Requests
+
+Stacked on 14a; cannot merge until the backend PR does.
+
+- [ ] Stage 5: `LoanExtensionRequest` type and parser; `pending_extension_request` on loans and the thread's `active_loan`; `requestLoanExtension`, `approveLoanExtension`, `denyLoanExtension`; `useRequestExtensionMutation`, `useExtensionDecisionMutation`
+- [ ] Stage 6: `RequestExtensionScreen` at `/loan/[id]/request-extension` (proposed date no earlier than the later of the day after the current due date and today; a required 10 to 1000 character message); on approved loans the borrower sees "Ask for more time" or "You asked to extend to <date>", and the owner sees the proposed date, extra days, the borrower's note, and Approve / Deny, with "Change due date" hidden while a request is pending; the thread banner adds "More time requested until <date>"
+- [ ] Stage 7: assembled, screenshots, manual checks against a local backend on the backend branch, draft PR stacked on 14a
 
 ### PR 15: Giveaways
 

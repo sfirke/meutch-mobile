@@ -1,7 +1,12 @@
 import {
+  addCalendarDays,
+  calendarDateFromLocalDate,
+  compareCalendarDates,
   formatCalendarDate,
   formatMonthYear,
+  localDateFromCalendarDate,
   parseCalendarDate,
+  todayCalendarDate,
 } from '../dates';
 
 /**
@@ -97,5 +102,92 @@ describe('formatMonthYear', () => {
 
   test('returns null for an out-of-range month', () => {
     expect(formatMonthYear('2026-13-01')).toBeNull();
+  });
+});
+
+describe('calendarDateFromLocalDate', () => {
+  test('zero-pads the month and day', () => {
+    expect(calendarDateFromLocalDate(new Date(2026, 0, 9))).toBe('2026-01-09');
+  });
+
+  test('reads the local day, not the UTC one', () => {
+    // 23:30 local on Jun 3 is Jun 4 in UTC for anyone west of Greenwich.
+    expect(calendarDateFromLocalDate(new Date(2026, 5, 3, 23, 30))).toBe(
+      '2026-06-03',
+    );
+  });
+});
+
+describe('localDateFromCalendarDate', () => {
+  test('builds local midnight on the written day', () => {
+    const date = localDateFromCalendarDate('2026-06-03');
+
+    expect(date).not.toBeNull();
+    expect(date?.getFullYear()).toBe(2026);
+    expect(date?.getMonth()).toBe(5);
+    expect(date?.getDate()).toBe(3);
+    expect(date?.getHours()).toBe(0);
+  });
+
+  test('returns null for junk', () => {
+    expect(localDateFromCalendarDate('2026-6-3')).toBeNull();
+  });
+});
+
+describe('todayCalendarDate', () => {
+  test('formats the given instant as a local date', () => {
+    expect(todayCalendarDate(new Date(2026, 9, 11, 8))).toBe('2026-10-11');
+  });
+
+  test('defaults to now', () => {
+    expect(todayCalendarDate()).toBe(calendarDateFromLocalDate(new Date()));
+  });
+});
+
+describe('addCalendarDays', () => {
+  test('adds days within a month', () => {
+    expect(addCalendarDays('2026-06-03', 7)).toBe('2026-06-10');
+  });
+
+  test('rolls over a month boundary', () => {
+    expect(addCalendarDays('2026-06-28', 5)).toBe('2026-07-03');
+  });
+
+  test('rolls over a year boundary', () => {
+    expect(addCalendarDays('2025-12-31', 1)).toBe('2026-01-01');
+  });
+
+  test('goes backwards with a negative count', () => {
+    expect(addCalendarDays('2026-03-01', -1)).toBe('2026-02-28');
+  });
+
+  test('lands on a leap day', () => {
+    expect(addCalendarDays('2028-02-28', 1)).toBe('2028-02-29');
+    expect(addCalendarDays('2028-02-29', 1)).toBe('2028-03-01');
+  });
+
+  test('zero days returns the same date', () => {
+    expect(addCalendarDays('2026-01-09', 0)).toBe('2026-01-09');
+  });
+
+  test('throws on an unparseable input', () => {
+    expect(() => addCalendarDays('yesterday', 1)).toThrow(
+      'Not a calendar date: yesterday',
+    );
+  });
+});
+
+describe('compareCalendarDates', () => {
+  test('orders earlier before later', () => {
+    expect(compareCalendarDates('2026-06-03', '2026-06-10')).toBeLessThan(0);
+    expect(compareCalendarDates('2026-06-10', '2026-06-03')).toBeGreaterThan(0);
+  });
+
+  test('treats equal dates as equal', () => {
+    expect(compareCalendarDates('2026-06-03', '2026-06-03')).toBe(0);
+  });
+
+  test('orders across a year boundary', () => {
+    expect(compareCalendarDates('2025-12-31', '2026-01-01')).toBeLessThan(0);
   });
 });

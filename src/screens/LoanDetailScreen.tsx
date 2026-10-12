@@ -14,9 +14,11 @@ import { Avatar } from '../components/Avatar';
 import { ErrorState } from '../components/ErrorState';
 import { Icon, type IconName } from '../components/Icon';
 import { ImagePlaceholder } from '../components/ImagePlaceholder';
+import { LoanActions } from '../components/LoanActions';
 import { loanToneColors } from '../components/loanTone';
 import { MemberPressable } from '../components/MemberPressable';
 import { QueryStateView } from '../components/QueryStateView';
+import { useScrollBottomPadding } from '../hooks/useScrollBottomPadding';
 import { formatCalendarDate } from '../lib/dates';
 import type { ErrorCopyOverrides } from '../lib/errorCopy';
 import {
@@ -25,9 +27,10 @@ import {
   type LoanDetail,
 } from '../lib/loans';
 import { DELETED_USER_NAME, type LoanStatus } from '../lib/parse';
+import { loanKeys } from '../lib/queryKeys';
 import { formatRelativeTime } from '../lib/relativeTime';
-import { webOnlyNote } from '../lib/webOnly';
 import { isLoanId, useLoanDetailQuery } from '../query/useLoanDetailQuery';
+import { useRefreshOnFocus } from '../query/useRefreshOnFocus';
 import { useSession } from '../session/SessionProvider';
 import { colors, radii, spacing, typography } from '../theme';
 
@@ -58,24 +61,6 @@ function statusIcon(status: LoanStatus | null): IconName {
   return status === 'approved' ? 'check' : 'loan';
 }
 
-/** The website-only action for this viewer, or null when there is none. */
-function webOnlyAction(
-  isBorrower: boolean,
-  status: LoanStatus | null,
-): string | null {
-  if (status === 'pending') {
-    return isBorrower ? 'Cancel this request' : 'Approve or deny this request';
-  }
-
-  if (status === 'approved') {
-    return isBorrower
-      ? 'Ask for more time'
-      : 'Mark this loan returned or change its due date';
-  }
-
-  return null;
-}
-
 type LoanDetailBodyProps = {
   loan: LoanDetail;
   isBorrower: boolean;
@@ -90,20 +75,23 @@ function LoanDetailBody({
   onRefresh,
 }: LoanDetailBodyProps) {
   const router = useRouter();
+  const paddingBottom = useScrollBottomPadding();
   const now = useMemo(() => new Date(), []);
+  // Returning from the thread or the extend screen shows fresh data.
+  const detailKey = useMemo(() => loanKeys.detail(loan.id), [loan.id]);
+  useRefreshOnFocus(detailKey);
   const status = describeLoanStatus(loan);
   const toneColor = loanToneColors[status.tone];
   const due = describeLoanDue(loan);
   const counterpart = isBorrower ? loan.owner : loan.borrower;
   const start = formatCalendarDate(loan.start_date);
   const end = formatCalendarDate(loan.end_date);
-  const action = webOnlyAction(isBorrower, loan.status);
   const messageId = loan.latest_conversation_message_id;
 
   return (
     <KeyboardAwareScrollView
       bottomOffset={spacing[16]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={{ paddingBottom }}
       keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl
@@ -198,11 +186,7 @@ function LoanDetailBody({
         </View>
       ) : null}
 
-      {action ? (
-        <View style={styles.actionCard}>
-          <Text style={styles.note}>{webOnlyNote(action)}</Text>
-        </View>
-      ) : null}
+      <LoanActions isBorrower={isBorrower} loan={loan} />
     </KeyboardAwareScrollView>
   );
 }
@@ -254,16 +238,6 @@ export function LoanDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  actionCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    gap: spacing[12],
-    marginHorizontal: spacing[16],
-    marginTop: spacing[16],
-    padding: spacing[16],
-  },
   banner: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -284,9 +258,6 @@ const styles = StyleSheet.create({
   body: {
     color: colors.text,
     ...typography.body,
-  },
-  content: {
-    paddingBottom: spacing[24],
   },
   conversationLabel: {
     color: colors.text,

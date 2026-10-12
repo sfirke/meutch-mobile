@@ -4,7 +4,6 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -12,8 +11,8 @@ import {
   type ListRenderItemInfo,
 } from 'react-native';
 
+import { CreateMenu } from '../components/CreateMenu';
 import { EmptyState } from '../components/EmptyState';
-import { Icon } from '../components/Icon';
 import { ItemCard } from '../components/ItemCard';
 import { PagingFooter } from '../components/PagingFooter';
 import { QueryStateView } from '../components/QueryStateView';
@@ -195,16 +194,7 @@ export function MyItemsScreen({
       <Stack.Screen
         options={{
           title: 'My items',
-          headerRight: () => (
-            <Pressable
-              accessibilityLabel="List an item"
-              accessibilityRole="button"
-              hitSlop={spacing[8]}
-              onPress={handleListItem}
-            >
-              <Icon color={colors.primaryDark} name="plus" size={20} />
-            </Pressable>
-          ),
+          headerRight: () => <CreateMenu />,
         }}
       />
 

@@ -90,6 +90,15 @@ const GENERIC_COPY: ErrorCopy = {
   canRetry: true,
 };
 
+// Expo's fetch rejects with an unexported FetchError whose message starts
+// "fetch failed"; React Native's fetch and browsers reject with a TypeError.
+function isNetworkFailure(error: unknown): boolean {
+  return (
+    error instanceof TypeError ||
+    (error instanceof Error && error.message.startsWith('fetch failed'))
+  );
+}
+
 function classify(error: unknown): { key: ErrorCopyKey; copy: ErrorCopy } {
   if (
     error instanceof SessionExpiredError ||
@@ -144,8 +153,7 @@ function classify(error: unknown): { key: ErrorCopyKey; copy: ErrorCopy } {
     return { key: 'TIMEOUT', copy: TIMEOUT_COPY };
   }
 
-  // React Native's fetch rejects with a TypeError when the device is offline.
-  if (error instanceof TypeError) {
+  if (isNetworkFailure(error)) {
     return { key: 'OFFLINE', copy: OFFLINE_COPY };
   }
 

@@ -1,4 +1,5 @@
-// Pure helpers for the drag-to-reorder photo grid. Safe to call from worklets.
+// Pure helpers for the drag-to-reorder photo grid. Each is a worklet, so the
+// drag gesture can call them on the UI thread.
 
 export type GridLayout = {
   columns: number;
@@ -8,6 +9,7 @@ export type GridLayout = {
 };
 
 export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
+  'worklet';
   const result: T[] = [];
   for (let i = 0; i < list.length; i++) result.push(list[i]);
   const n = list.length;
@@ -25,6 +27,7 @@ export function slotForPosition(
   y: number,
   count: number,
 ): number {
+  'worklet';
   if (count <= 0) return 0;
   let col = Math.floor(x / (layout.cellWidth + layout.gap));
   let row = Math.floor(y / (layout.cellHeight + layout.gap));
@@ -40,6 +43,7 @@ export function positionForSlot(
   layout: GridLayout,
   index: number,
 ): { x: number; y: number } {
+  'worklet';
   const col = index % layout.columns;
   const row = Math.floor(index / layout.columns);
   return {
@@ -52,6 +56,7 @@ export function slotCentre(
   layout: GridLayout,
   index: number,
 ): { x: number; y: number } {
+  'worklet';
   const p = positionForSlot(layout, index);
   return { x: p.x + layout.cellWidth / 2, y: p.y + layout.cellHeight / 2 };
 }

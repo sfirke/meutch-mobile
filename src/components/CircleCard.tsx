@@ -22,20 +22,6 @@ const TYPE_CHIP_META: Record<CircleType, TypeChipMeta> = {
   secret: { label: 'Secret', icon: 'lock' },
 };
 
-/** Coarse distance copy; never sort by the underlying number. */
-export function describeDistance(miles: number): string {
-  if (miles < 1) {
-    return 'less than a mile away';
-  }
-
-  const rounded = Math.round(miles * 10) / 10;
-  const formatted = Number.isInteger(rounded)
-    ? String(rounded)
-    : rounded.toFixed(1);
-
-  return `about ${formatted} mi away`;
-}
-
 function getMemberCountLabel(memberCount: number): string {
   return `${memberCount} member${memberCount === 1 ? '' : 's'}`;
 }
@@ -144,10 +130,9 @@ export function CircleCard({ circle, onPress }: CircleCardProps) {
           {getMemberCountLabel(circle.member_count)}
         </Text>
 
-        {circle.distance_miles !== null ? (
-          <Text style={styles.meta}>
-            {describeDistance(circle.distance_miles)}
-          </Text>
+        {/* distance is a deliberately coarse bucket; render verbatim. */}
+        {circle.distance ? (
+          <Text style={styles.meta}>{circle.distance}</Text>
         ) : null}
 
         {description ? (

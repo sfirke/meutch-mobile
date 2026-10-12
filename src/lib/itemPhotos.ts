@@ -1,3 +1,5 @@
+import { File } from 'expo-file-system';
+
 import type { ItemWriteInput } from './items';
 
 /** A photo on the item form: one already on the server, or one picked locally. */
@@ -9,9 +11,6 @@ export type PhotoDraft =
 export const MAX_ITEM_PHOTOS = 8;
 
 export type PhotoChanges = { photos: PhotoDraft[]; deletedImageIds: string[] };
-
-/** React Native's FormData file part; `uri` is a local file, sent untouched. */
-type FilePart = { uri: string; name: string; type: string };
 
 export function hasPhotoChanges(
   changes: PhotoChanges,
@@ -71,13 +70,9 @@ export function buildItemFormData(
       return;
     }
 
-    const part: FilePart = {
-      uri: photo.uri,
-      name: `photo-${newCount}.jpg`,
-      type: 'image/jpeg',
-    };
-
-    formData.append('images', part as unknown as Blob);
+    // Expo's fetch rejects React Native's `{ uri, name, type }` file parts. The
+    // part is named after the file, a `.jpg` written by the photo picker.
+    formData.append('images', new File(photo.uri) as unknown as Blob);
     imageOrder.push(`new-${newCount}`);
     newCount += 1;
   });

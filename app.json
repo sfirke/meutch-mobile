@@ -41,7 +41,8 @@
           "photosPermission": "Meutch uses your photo library so you can add photos to your items and your profile.",
           "cameraPermission": "Meutch uses your camera so you can photograph your items and take a profile photo."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {

@@ -37,6 +37,7 @@ export type IconName =
   | 'plus'
   | 'pen'
   | 'trash'
+  | 'crop'
   | 'warning';
 
 /**
@@ -78,6 +79,7 @@ export const ICON_GLYPHS: Record<IconName, string> = {
   plus: 'plus',
   pen: 'pen',
   trash: 'trash',
+  crop: 'crop-simple',
   warning: 'triangle-exclamation',
 };
 

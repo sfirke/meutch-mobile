@@ -50,6 +50,36 @@ jest.mock('expo-image-manipulator', () => {
   return { SaveFormat, manipulateAsync, ImageManipulator: { manipulate } };
 });
 
+jest.mock('react-native-image-crop-picker', () => ({
+  openCropper: jest.fn(async ({ path }) => ({
+    path,
+    width: 800,
+    height: 600,
+  })),
+}));
+
+// expo-file-system's native File is unavailable under Jest; this stand-in is
+// the Blob-like shape Expo's fetch reads an upload part from.
+jest.mock('expo-file-system', () => ({
+  File: class MockFile {
+    constructor(uri) {
+      this.uri = uri;
+    }
+
+    get name() {
+      return this.uri.slice(this.uri.lastIndexOf('/') + 1);
+    }
+
+    get type() {
+      return 'image/jpeg';
+    }
+
+    async bytes() {
+      return new Uint8Array([0xff, 0xd8, 0xff]);
+    }
+  },
+}));
+
 // Gesture handler, worklets, and reanimated have no native runtime under
 // Jest; use their official mocks.
 require('react-native-gesture-handler/jestSetup');

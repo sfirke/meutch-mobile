@@ -17,12 +17,13 @@ The `integration` name describes the role; the URL behind it is staging. Staging
 Required:
 
 1. Node 24 LTS, matching `.nvmrc`, and npm.
-2. Expo Go on at least one Android device.
+2. A development build of the app on at least one device (see [Expo And EAS](#expo-and-eas)).
 3. Access to the team's Expo account or organization.
+4. `eas-cli`, to create builds.
 
-Optional at first: Android Studio with an emulator, `eas-cli`, and `watchman`.
+Optional: Android Studio with an emulator, and `watchman`.
 
-Android is the simplest real-device path from Linux: Expo Go works immediately and EAS Android builds need no Apple tooling. Keep iOS in mind when choosing libraries, but don't let it drive setup.
+Android is the simplest real-device path from Linux: an EAS Android build needs no Apple tooling. iOS builds also run in the cloud, with no Mac, but need an Apple Developer Program membership.
 
 ## Running The Local Backend
 
@@ -53,20 +54,25 @@ Don't hardcode URLs; everything goes through `buildApiUrl` in `src/config/env.ts
 
 ## Expo And EAS
 
+Devices run a development build rather than Expo Go, so the app can use native modules Expo Go doesn't include. The build holds the native code; the JavaScript is still served from your machine, so reloading and `.env.local` work as usual.
+
 Day-to-day loop:
 
-1. `npx expo start`, then open the app in Expo Go.
+1. `npx expo start`, then open the Meutch development build and pick your dev server, or scan the QR code.
 2. Use LAN mode when the device and workstation share a network; `npx expo start --tunnel` only when LAN fails.
 
-`eas.json` defines three profiles: `development` (development client, local API), `preview` (installable internal build, staging API), and `production`. To build:
+`eas.json` defines three profiles: `development` (development client), `preview` (installable internal build, staging API), and `production`. To create a development build:
 
 ```bash
 npm install -g eas-cli
 eas login
-eas build --profile preview --platform android
+eas device:create                                # iOS only, once per device
+eas build --profile development --platform ios   # or android
 ```
 
-Move from Expo Go to a development build when you need a native module Expo Go lacks, want a more app-like QA flow, or are preparing internal distribution.
+Install it from the link or QR code on the build page. Android gets an APK. On iOS, EAS creates the signing certificate and provisioning profile when you sign in with your Apple account; turn on Developer Mode on the iPhone (Settings > Privacy & Security) before opening the app.
+
+Build again when a native dependency or the native config in `app.json` changes, from a branch that includes the change, and after registering a new iOS device. JavaScript-only changes need no new build.
 
 ## Auth And Session Contract
 

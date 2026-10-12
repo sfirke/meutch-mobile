@@ -1,9 +1,10 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ErrorState } from '../components/ErrorState';
+import { HeaderCancelButton } from '../components/HeaderCancelButton';
 import { ItemForm } from '../components/ItemForm';
 import { QueryStateView } from '../components/QueryStateView';
 import { useDiscardGuard } from '../hooks/useDiscardGuard';
@@ -97,6 +98,7 @@ function EditForm({ item }: EditFormProps) {
 export function EditItemScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const router = useRouter();
   const { data, error, isPending, isFetching, refetch } =
     useItemDetailQuery(rawId);
 
@@ -111,7 +113,15 @@ export function EditItemScreen() {
 
   return (
     <View style={styles.screen}>
-      <Stack.Screen options={{ title: TITLE }} />
+      <Stack.Screen
+        options={{
+          title: TITLE,
+          headerLeft:
+            Platform.OS === 'ios'
+              ? () => <HeaderCancelButton onPress={() => router.back()} />
+              : undefined,
+        }}
+      />
 
       <QueryStateView
         error={error}

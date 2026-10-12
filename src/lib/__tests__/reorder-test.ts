@@ -95,3 +95,16 @@ describe('grid slots', () => {
     expect(slotForPosition(layout, 0, 0, 0)).toBe(0);
   });
 });
+
+// The drag gesture calls these on the UI thread, which crashes the app unless
+// each carries the 'worklet' directive.
+describe('worklets', () => {
+  it.each([
+    ['moveItem', moveItem],
+    ['slotForPosition', slotForPosition],
+    ['positionForSlot', positionForSlot],
+    ['slotCentre', slotCentre],
+  ])('%s is a worklet', (_name, fn) => {
+    expect(fn).toHaveProperty('__workletHash');
+  });
+});

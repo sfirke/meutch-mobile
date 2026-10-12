@@ -17,7 +17,7 @@ function buildCircle(overrides: Partial<CircleDetail> = {}): CircleDetail {
     is_admin: false,
     has_pending_join_request: false,
     pending_join_request_count: 0,
-    distance_miles: null,
+    distance: null,
     can_view_members: true,
     is_last_member: false,
     pending_join_request: null,

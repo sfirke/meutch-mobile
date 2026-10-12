@@ -76,7 +76,9 @@ function createCircleSummary(overrides?: Record<string, unknown>) {
     is_admin: false,
     has_pending_join_request: false,
     pending_join_request_count: 0,
-    distance_miles: 1.25,
+    // Still sent for older app versions; this client ignores it.
+    distance_miles: 1,
+    distance: '1-2 mi',
     ...overrides,
   };
 }
@@ -199,7 +201,7 @@ describe('fetchCircles', () => {
         is_admin: false,
         has_pending_join_request: false,
         pending_join_request_count: 0,
-        distance_miles: 1.25,
+        distance: '1-2 mi',
       },
     ]);
   });
@@ -234,12 +236,12 @@ describe('fetchCircles', () => {
     );
   });
 
-  test('parses a null distance_miles', async () => {
+  test('parses a null distance', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
 
     fetchImpl.mockResolvedValueOnce(
       createMockResponse({
-        circles: [createCircleSummary({ distance_miles: null })],
+        circles: [createCircleSummary({ distance: null })],
         pagination: circlesPagination,
       }),
     );
@@ -249,14 +251,14 @@ describe('fetchCircles', () => {
       page: 1,
     });
 
-    expect(page.circles[0].distance_miles).toBeNull();
+    expect(page.circles[0].distance).toBeNull();
   });
 
-  test('treats an absent distance_miles the same as null', async () => {
+  test('treats an absent distance the same as null', async () => {
     const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
     const summary = createCircleSummary();
 
-    delete (summary as Record<string, unknown>).distance_miles;
+    delete (summary as Record<string, unknown>).distance;
 
     fetchImpl.mockResolvedValueOnce(
       createMockResponse({
@@ -270,7 +272,7 @@ describe('fetchCircles', () => {
       page: 1,
     });
 
-    expect(page.circles[0].distance_miles).toBeNull();
+    expect(page.circles[0].distance).toBeNull();
   });
 
   test('maps an unknown circle_type to null', async () => {

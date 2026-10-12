@@ -68,8 +68,8 @@ export type CircleSummary = {
   has_pending_join_request: boolean;
   /** Admin-only meaning; 0 for a non-admin viewer. */
   pending_join_request_count: number;
-  /** Rounded to 2dp by the server; `null` when either side is not geocoded. */
-  distance_miles: number | null;
+  /** Coarse range label such as "2-5 mi"; `null` when either side is not geocoded. */
+  distance: string | null;
 };
 
 export type CircleMember = {
@@ -144,7 +144,7 @@ export function parseCircleSummary(value: unknown): CircleSummary {
     circle_type: circleType,
     created_at: createdAt,
     description,
-    distance_miles: distanceMiles,
+    distance,
     has_pending_join_request: hasPendingJoinRequest,
     id,
     image_url: imageUrl,
@@ -173,7 +173,7 @@ export function parseCircleSummary(value: unknown): CircleSummary {
     typeof isAdmin !== 'boolean' ||
     typeof hasPendingJoinRequest !== 'boolean' ||
     !isNumber(pendingJoinRequestCount) ||
-    !isNullableNumber(distanceMiles)
+    !isNullableString(distance)
   ) {
     throw new Error(INVALID_CIRCLE);
   }
@@ -193,7 +193,7 @@ export function parseCircleSummary(value: unknown): CircleSummary {
     is_admin: isAdmin,
     has_pending_join_request: hasPendingJoinRequest,
     pending_join_request_count: pendingJoinRequestCount,
-    distance_miles: distanceMiles ?? null,
+    distance: distance ?? null,
   };
 }
 

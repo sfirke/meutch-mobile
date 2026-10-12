@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import type { CircleSummary } from '../../lib/circles';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
-import { CircleCard, describeDistance } from '../CircleCard';
+import { CircleCard } from '../CircleCard';
 import { ICON_GLYPHS } from '../Icon';
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
@@ -27,7 +27,7 @@ function buildCircle(overrides: Partial<CircleSummary> = {}): CircleSummary {
     is_admin: false,
     has_pending_join_request: false,
     pending_join_request_count: 0,
-    distance_miles: null,
+    distance: null,
     ...overrides,
   };
 }
@@ -82,28 +82,16 @@ describe('<CircleCard />', () => {
     expect(screen.queryByText('Secret')).toBeNull();
   });
 
-  test('omits distance text when distance_miles is null', () => {
-    render(<CircleCard circle={buildCircle({ distance_miles: null })} />);
+  test('renders distance verbatim when present', () => {
+    render(<CircleCard circle={buildCircle({ distance: '2-5 mi' })} />);
 
-    expect(screen.queryByText(/away/)).toBeNull();
+    expect(screen.getByText('2-5 mi')).toBeTruthy();
   });
 
-  test('shows "less than a mile away" for a sub-mile distance', () => {
-    render(<CircleCard circle={buildCircle({ distance_miles: 0.4 })} />);
+  test('omits distance when null', () => {
+    render(<CircleCard circle={buildCircle({ distance: null })} />);
 
-    expect(screen.getByText('less than a mile away')).toBeTruthy();
-  });
-
-  test('shows a whole-number distance with no decimal', () => {
-    render(<CircleCard circle={buildCircle({ distance_miles: 3 })} />);
-
-    expect(screen.getByText('about 3 mi away')).toBeTruthy();
-  });
-
-  test('shows a distance rounded to one decimal', () => {
-    render(<CircleCard circle={buildCircle({ distance_miles: 3.26 })} />);
-
-    expect(screen.getByText('about 3.3 mi away')).toBeTruthy();
+    expect(screen.queryByText(/\bmi\b/)).toBeNull();
   });
 
   test('shows the Admin status chip when is_admin is true, ahead of member', () => {
@@ -205,24 +193,5 @@ describe('<CircleCard />', () => {
     const button = screen.getByRole('button');
 
     expect(button.props.accessibilityLabel).toBe('Oak Street Tool Library');
-  });
-});
-
-describe('describeDistance', () => {
-  test('reads sub-mile distances as "less than a mile away"', () => {
-    expect(describeDistance(0.4)).toBe('less than a mile away');
-    expect(describeDistance(0)).toBe('less than a mile away');
-  });
-
-  test('drops the decimal for a whole number', () => {
-    expect(describeDistance(3)).toBe('about 3 mi away');
-  });
-
-  test('rounds to one decimal', () => {
-    expect(describeDistance(3.26)).toBe('about 3.3 mi away');
-  });
-
-  test('keeps a single decimal as given', () => {
-    expect(describeDistance(3.2)).toBe('about 3.2 mi away');
   });
 });

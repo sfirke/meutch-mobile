@@ -1,4 +1,5 @@
-import { readJsonOrThrow, type ApiFetch } from './api';
+import { buildJsonRequestInit, readJsonOrThrow, type ApiFetch } from './api';
+import { parseMessageSummary, type MessageSummary } from './messages';
 import {
   buildQueryString,
   isNullableNumber,
@@ -65,6 +66,34 @@ export type LoanDetailResponse = {
   loan: LoanDetail;
 };
 
+export const LOAN_ACTIONS = [
+  'approve',
+  'deny',
+  'cancel',
+  'owner-cancel',
+  'complete',
+] as const;
+
+export type LoanAction = (typeof LOAN_ACTIONS)[number];
+
+export type LoanRequestInput = {
+  start_date: string;
+  end_date: string;
+  message: string;
+};
+
+/** `message` is optional; send it only when non-empty. */
+export type LoanExtendInput = { new_end_date: string; message?: string };
+
+export type LoanMutationResponse = {
+  loan: LoanDetail;
+  message: MessageSummary;
+};
+
+export type LoanExtendResponse = LoanMutationResponse & {
+  is_extension: boolean;
+};
+
 export type FetchMyLoansOptions = {
   role: LoanRole;
   page: number;
@@ -79,6 +108,8 @@ export type FetchLoanDetailOptions = {
 const INVALID_LOAN = 'Invalid loan payload.';
 const INVALID_LOANS = 'Invalid loans payload.';
 const INVALID_LOAN_DETAIL = 'Invalid loan detail payload.';
+const INVALID_LOAN_MUTATION = 'Invalid loan mutation payload.';
+const INVALID_LOAN_EXTEND = 'Invalid loan extend payload.';
 
 function capitalize(value: string): string {
   return value.length === 0
@@ -233,6 +264,30 @@ export function parseLoanDetailResponse(value: unknown): LoanDetailResponse {
   return { loan: parseLoanDetail(value.loan) };
 }
 
+export function parseLoanMutationResponse(
+  value: unknown,
+): LoanMutationResponse {
+  if (!isObject(value)) {
+    throw new Error(INVALID_LOAN_MUTATION);
+  }
+
+  return {
+    loan: parseLoanDetail(value.loan),
+    message: parseMessageSummary(value.message),
+  };
+}
+
+export function parseLoanExtendResponse(value: unknown): LoanExtendResponse {
+  if (!isObject(value) || typeof value.is_extension !== 'boolean') {
+    throw new Error(INVALID_LOAN_EXTEND);
+  }
+
+  return {
+    ...parseLoanMutationResponse(value),
+    is_extension: value.is_extension,
+  };
+}
+
 export async function fetchMyLoans(
   fetchImpl: ApiFetch,
   options: FetchMyLoansOptions,
@@ -264,4 +319,47 @@ export async function fetchLoanDetail(
   });
 
   return parseLoanDetailResponse(await readJsonOrThrow<unknown>(response));
+}
+
+export async function requestLoan(
+  fetchImpl: ApiFetch,
+  itemId: string,
+  input: LoanRequestInput,
+): Promise<LoanMutationResponse> {
+  const response = await fetchImpl(
+    `/items/${encodeURIComponent(itemId)}/loan-requests`,
+    buildJsonRequestInit(input, { method: 'POST' }),
+  );
+
+  return parseLoanMutationResponse(await readJsonOrThrow<unknown>(response));
+}
+
+export async function performLoanAction(
+  fetchImpl: ApiFetch,
+  loanId: string,
+  action: LoanAction,
+): Promise<LoanMutationResponse> {
+  const response = await fetchImpl(
+    `/loans/${encodeURIComponent(loanId)}/${action}`,
+    { method: 'POST', headers: { Accept: 'application/json' } },
+  );
+
+  return parseLoanMutationResponse(await readJsonOrThrow<unknown>(response));
+}
+
+export async function extendLoan(
+  fetchImpl: ApiFetch,
+  loanId: string,
+  input: LoanExtendInput,
+): Promise<LoanExtendResponse> {
+  const message = input.message?.trim();
+  const body = message
+    ? { new_end_date: input.new_end_date, message }
+    : { new_end_date: input.new_end_date };
+  const response = await fetchImpl(
+    `/loans/${encodeURIComponent(loanId)}/extend`,
+    buildJsonRequestInit(body, { method: 'POST' }),
+  );
+
+  return parseLoanExtendResponse(await readJsonOrThrow<unknown>(response));
 }

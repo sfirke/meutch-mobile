@@ -60,7 +60,7 @@ Open `meutch-mobile.code-workspace` in VS Code to work on both repos together.
 
 - Node 24 LTS, matching `.nvmrc`
 - npm
-- Expo Go on an Android device, or Android Studio with an emulator
+- A development build of the app on a device or emulator; see [dev_docs/DEVELOPMENT.md](dev_docs/DEVELOPMENT.md#expo-and-eas)
 
 ## Getting Started
 

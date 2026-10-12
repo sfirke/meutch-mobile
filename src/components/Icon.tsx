@@ -7,6 +7,8 @@ export type IconName =
   | 'feed'
   | 'browse'
   | 'image'
+  | 'camera'
+  | 'photos'
   | 'giveaway'
   | 'request'
   | 'loan'
@@ -34,7 +36,8 @@ export type IconName =
   | 'read'
   | 'plus'
   | 'pen'
-  | 'trash';
+  | 'trash'
+  | 'crop';
 
 /**
  * FontAwesome 6 Free solid glyph names. Covered by Icon-test.tsx, which
@@ -45,6 +48,8 @@ export const ICON_GLYPHS: Record<IconName, string> = {
   feed: 'house',
   browse: 'compass',
   image: 'image',
+  camera: 'camera',
+  photos: 'images',
   giveaway: 'gift',
   request: 'hand',
   loan: 'right-left',
@@ -73,6 +78,7 @@ export const ICON_GLYPHS: Record<IconName, string> = {
   plus: 'plus',
   pen: 'pen',
   trash: 'trash',
+  crop: 'crop-simple',
 };
 
 export type IconProps = {

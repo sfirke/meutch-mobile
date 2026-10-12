@@ -5,6 +5,7 @@ import {
   type ItemDetailResponse,
   type ItemWriteInput,
 } from '../lib/items';
+import type { PhotoDraft } from '../lib/itemPhotos';
 import { itemKeys } from '../lib/queryKeys';
 import { useSession } from '../session/SessionProvider';
 import { markItemListsStale } from './itemCacheUpdates';
@@ -12,6 +13,7 @@ import { markItemListsStale } from './itemCacheUpdates';
 export type CreateItemVariables = {
   input: ItemWriteInput;
   creationToken: string;
+  photos?: PhotoDraft[];
 };
 
 export function useCreateItemMutation() {
@@ -19,8 +21,8 @@ export function useCreateItemMutation() {
   const queryClient = useQueryClient();
 
   return useMutation<ItemDetailResponse, Error, CreateItemVariables>({
-    mutationFn: ({ input, creationToken }) =>
-      createItem(authenticatedApiFetch, input, creationToken),
+    mutationFn: ({ input, creationToken, photos }) =>
+      createItem(authenticatedApiFetch, input, creationToken, photos),
     onSuccess: (response) => {
       const detailKey = itemKeys.detail(response.item.id);
 

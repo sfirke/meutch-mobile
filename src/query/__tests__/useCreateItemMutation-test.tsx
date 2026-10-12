@@ -2,7 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
-import { isApiError } from '../../lib/api';
+import { isApiError, UPLOAD_REQUEST_TIMEOUT_MS } from '../../lib/api';
 import type { ItemDetailResponse, ItemWriteInput } from '../../lib/items';
 import { feedKeys, itemKeys } from '../../lib/queryKeys';
 import {
@@ -129,6 +129,29 @@ test('posts the item with its creation token and caches the detail', async () =>
   expect(
     queryClient.getQueryState(itemKeys.detail(ITEM_ID))?.isInvalidated,
   ).toBe(false);
+});
+
+test('sends photos as one multipart request', async () => {
+  const { authenticatedApiFetch, result } = setup({
+    'POST /items': jsonResponse(detailBody, 201),
+  });
+
+  await act(async () => {
+    await result.current.mutateAsync({
+      input,
+      creationToken: 'token-1',
+      photos: [{ kind: 'new', key: 'k1', uri: 'file:///cache/one.jpg' }],
+    });
+  });
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+  expect(authenticatedApiFetch).toHaveBeenCalledTimes(1);
+
+  const init = authenticatedApiFetch.mock.calls[0][1];
+
+  expect(init?.body).toBeInstanceOf(FormData);
+  expect(init?.timeoutMs).toBe(UPLOAD_REQUEST_TIMEOUT_MS);
 });
 
 test('marks lists and the feed stale without refetching them', async () => {

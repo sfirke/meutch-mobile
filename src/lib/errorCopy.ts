@@ -200,3 +200,15 @@ export const UPLOAD_ERROR_OVERRIDES: ErrorCopyOverrides = {
     message: 'Check your connection and try again. Your photos were not saved.',
   },
 };
+
+/**
+ * Loan writes get a 403 that says why (not the borrower, not the owner), so
+ * show the backend's message instead of the read-oriented FORBIDDEN copy.
+ */
+export function forbiddenMessageOverride(
+  error: unknown,
+): ErrorCopyOverrides | undefined {
+  return isApiError(error) && error.code === 'FORBIDDEN' && error.message
+    ? { FORBIDDEN: { message: error.message } }
+    : undefined;
+}

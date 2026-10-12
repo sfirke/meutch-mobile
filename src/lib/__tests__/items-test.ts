@@ -1,5 +1,6 @@
-import type { ApiFetch } from '../api';
-import { isApiError } from '../api';
+import type { ApiFetch, ApiRequestInit } from '../api';
+import { isApiError, UPLOAD_REQUEST_TIMEOUT_MS } from '../api';
+import type { PhotoDraft } from '../itemPhotos';
 import {
   createItem,
   deleteItem,
@@ -739,5 +740,63 @@ describe('item writes', () => {
     await expect(deleteItem(fetchImpl, ITEM_ID)).rejects.toThrow(
       'Invalid item payload.',
     );
+  });
+
+  const photo: PhotoDraft = {
+    kind: 'new',
+    key: 'k1',
+    uri: 'file:///cache/one.jpg',
+  };
+
+  function expectMultipart(init: ApiRequestInit, method: string) {
+    expect(init.method).toBe(method);
+    expect(init.body).toBeInstanceOf(FormData);
+    expect(init.headers).toEqual({ Accept: 'application/json' });
+    expect(init.timeoutMs).toBe(UPLOAD_REQUEST_TIMEOUT_MS);
+  }
+
+  test('createItem with photos posts one multipart request', async () => {
+    const fetchImpl = mockFetch(detailBody, 201);
+
+    const { item } = await createItem(fetchImpl, input, 'token-1', [photo]);
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(getRequestPath(fetchImpl)).toBe('/items');
+    expectMultipart(getInit(fetchImpl), 'POST');
+    expect(item.id).toBe(ITEM_ID);
+  });
+
+  test('createItem with no photos still sends JSON', async () => {
+    const fetchImpl = mockFetch(detailBody, 201);
+
+    await createItem(fetchImpl, input, 'token-1', []);
+    const init = getInit(fetchImpl) as ApiRequestInit;
+
+    expect(typeof init.body).toBe('string');
+    expect(init.timeoutMs).toBeUndefined();
+  });
+
+  test('updateItem with photo changes patches one multipart request', async () => {
+    const fetchImpl = mockFetch(detailBody);
+
+    const { item } = await updateItem(fetchImpl, ITEM_ID, input, {
+      photos: [photo],
+      deletedImageIds: [ITEM_ID],
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(getRequestPath(fetchImpl)).toBe(`/items/${ITEM_ID}`);
+    expectMultipart(getInit(fetchImpl), 'PATCH');
+    expect(item.id).toBe(ITEM_ID);
+  });
+
+  test('updateItem without photo changes still sends JSON', async () => {
+    const fetchImpl = mockFetch(detailBody);
+
+    await updateItem(fetchImpl, ITEM_ID, input);
+    const init = getInit(fetchImpl) as ApiRequestInit;
+
+    expect(JSON.parse(init.body as string)).toEqual(input);
+    expect(init.timeoutMs).toBeUndefined();
   });
 });

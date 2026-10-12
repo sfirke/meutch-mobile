@@ -1,6 +1,11 @@
 import { buildApiUrl } from '../config/env';
 
-export type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
+export type ApiRequestInit = RequestInit & { timeoutMs?: number };
+
+export type ApiFetch = (
+  path: string,
+  init?: ApiRequestInit,
+) => Promise<Response>;
 
 type ApiErrorEnvelope = {
   error?: {
@@ -39,6 +44,9 @@ export class ApiError extends Error {
 // would otherwise leave the request pending forever.
 export const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
 
+// Large multipart bodies on mobile networks need longer.
+export const UPLOAD_REQUEST_TIMEOUT_MS = 90_000;
+
 export class RequestTimeoutError extends Error {
   constructor() {
     super('The request timed out.');
@@ -50,15 +58,16 @@ export function createApiFetch(
   fetchImpl: typeof fetch = fetch,
   timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
 ): ApiFetch {
-  return async (path, init) => {
+  return async (path, requestInit) => {
+    const { timeoutMs: requestTimeoutMs, ...init } = requestInit ?? {};
     const controller = new AbortController();
-    const callerSignal = init?.signal;
+    const callerSignal = init.signal;
     const abortFromCaller = () => controller.abort();
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
       controller.abort();
-    }, timeoutMs);
+    }, requestTimeoutMs ?? timeoutMs);
 
     if (callerSignal?.aborted) {
       controller.abort();
@@ -86,7 +95,7 @@ export function createApiFetch(
 
 export async function apiFetch(
   path: string,
-  init?: RequestInit,
+  init?: ApiRequestInit,
 ): Promise<Response> {
   return createApiFetch()(path, init);
 }
@@ -120,8 +129,8 @@ export function mergeHeaders(
 
 export function buildJsonRequestInit(
   body: unknown,
-  init?: RequestInit,
-): RequestInit {
+  init?: ApiRequestInit,
+): ApiRequestInit {
   return {
     ...init,
     body: JSON.stringify(body),
@@ -132,10 +141,22 @@ export function buildJsonRequestInit(
   };
 }
 
+// No Content-Type: the runtime sets the multipart boundary itself.
+export function buildMultipartRequestInit(
+  formData: FormData,
+  init?: ApiRequestInit,
+): ApiRequestInit {
+  return {
+    ...init,
+    body: formData,
+    headers: mergeHeaders(init?.headers, { Accept: 'application/json' }),
+  };
+}
+
 export function withBearerToken(
   token: string,
-  init?: RequestInit,
-): RequestInit {
+  init?: ApiRequestInit,
+): ApiRequestInit {
   return {
     ...init,
     headers: mergeHeaders(init?.headers, {

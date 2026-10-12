@@ -40,12 +40,16 @@ function buildImageLabel(
 /** Paged photo strip for the item detail screen. Read-only; no zoom. */
 export function ImageCarousel({ images, itemName }: ImageCarouselProps) {
   const { width } = useWindowDimensions();
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [active, setActive] = useState({ orderKey: '', index: 0 });
 
   // A null url means the image failed to normalize; it has nothing to show.
   const visibleImages: VisibleImage[] = images.flatMap((image) =>
     image.url === null ? [] : [{ id: image.id, url: image.url }],
   );
+
+  // A new photo order remounts the list, so it starts back at the cover photo.
+  const orderKey = visibleImages.map((image) => image.id).join(',');
+  const activeIndex = active.orderKey === orderKey ? active.index : 0;
 
   const frameStyle = { height: width / ASPECT_RATIO, width };
 
@@ -65,7 +69,10 @@ export function ImageCarousel({ images, itemName }: ImageCarouselProps) {
   ) => {
     const offsetX = event.nativeEvent.contentOffset.x;
 
-    setActiveIndex(width > 0 ? Math.round(offsetX / width) : 0);
+    setActive({
+      orderKey,
+      index: width > 0 ? Math.round(offsetX / width) : 0,
+    });
   };
 
   return (
@@ -78,6 +85,7 @@ export function ImageCarousel({ images, itemName }: ImageCarouselProps) {
           index,
         })}
         horizontal
+        key={orderKey}
         keyExtractor={(image) => image.id}
         onMomentumScrollEnd={handleMomentumScrollEnd}
         pagingEnabled

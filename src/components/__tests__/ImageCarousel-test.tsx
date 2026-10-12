@@ -67,6 +67,45 @@ describe('<ImageCarousel />', () => {
     );
   });
 
+  test('returns to the cover photo when the photos are reordered', () => {
+    const { rerender } = render(
+      <ImageCarousel images={threeImages} itemName="Cordless drill" />,
+    );
+    const { width } = Dimensions.get('window');
+    const scrollToLastPhoto = () =>
+      fireEvent(screen.getByTestId('item-carousel'), 'momentumScrollEnd', {
+        nativeEvent: {
+          contentOffset: { x: width * 2, y: 0 },
+        },
+      });
+
+    scrollToLastPhoto();
+
+    // The same order, as after a refetch, keeps the page.
+    rerender(
+      <ImageCarousel images={[...threeImages]} itemName="Cordless drill" />,
+    );
+
+    expect(screen.getByTestId('item-carousel-counter')).toHaveTextContent(
+      '3 / 3',
+    );
+
+    const list = screen.getByTestId('item-carousel');
+
+    rerender(
+      <ImageCarousel
+        images={[threeImages[2], threeImages[0], threeImages[1]]}
+        itemName="Cordless drill"
+      />,
+    );
+
+    expect(screen.getByTestId('item-carousel-counter')).toHaveTextContent(
+      '1 / 3',
+    );
+    // A remounted list is what resets the native scroll offset.
+    expect(screen.getByTestId('item-carousel')).not.toBe(list);
+  });
+
   test('hides the page indicator for a single photo', () => {
     render(
       <ImageCarousel

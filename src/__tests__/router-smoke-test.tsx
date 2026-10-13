@@ -26,7 +26,10 @@ describe('expo-router entry', () => {
   beforeEach(() => {
     mockedUseSession.mockReturnValue({
       authenticatedApiFetch: emptyApiFetch(),
+      discardSession: jest.fn(),
+      errorCode: null,
       errorMessage: null,
+      notice: null,
       refreshUser: jest.fn(),
       signIn: jest.fn(),
       signOut: jest.fn(),

@@ -1,9 +1,10 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { FieldError } from '../components/FieldError';
+import { Icon } from '../components/Icon';
 import { QueryStateView } from '../components/QueryStateView';
 import { clampRadius, RadiusInput } from '../components/RadiusInput';
 import { SegmentedControl } from '../components/SegmentedControl';
@@ -20,6 +21,9 @@ import { colors, radii, spacing, typography } from '../theme';
 
 const HEADER_NOTE =
   'Digest emails are sent by meutch.com; these settings apply to your account everywhere.';
+
+const DELETE_NOTE =
+  'Deleting your account removes your items and profile. This cannot be undone.';
 
 const VACATION_NOTE = "Pause borrow requests while you're away.";
 
@@ -284,6 +288,28 @@ function SettingsForm({ settings }: SettingsFormProps) {
   );
 }
 
+// NavRow cannot take a colour, so this mirrors its geometry in the danger tone.
+function DeleteAccountSection() {
+  const router = useRouter();
+
+  return (
+    <View style={styles.accountSection}>
+      <Text style={styles.sectionLabel}>Account</Text>
+      <Pressable
+        accessibilityLabel="Delete account"
+        accessibilityRole="button"
+        onPress={() => router.push('/profile/delete-account')}
+        style={({ pressed }) => [styles.deleteRow, pressed && styles.disabled]}
+      >
+        <Icon color={colors.danger} name="trash" />
+        <Text style={styles.deleteLabel}>Delete account</Text>
+        <Icon color={colors.danger} name="chevron" />
+      </Pressable>
+      <Text style={styles.note}>{DELETE_NOTE}</Text>
+    </View>
+  );
+}
+
 export function SettingsScreen() {
   const { data, error, isPending, isFetching, refetch } = useSettingsQuery();
 
@@ -303,16 +329,37 @@ export function SettingsScreen() {
       >
         {data ? <SettingsForm settings={data} /> : null}
       </QueryStateView>
+
+      <DeleteAccountSection />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  accountSection: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    gap: spacing[8],
+    paddingTop: spacing[12],
+    paddingBottom: spacing[24],
+    paddingHorizontal: spacing[16],
+  },
   content: {
     gap: spacing[8],
     paddingBottom: spacing[24],
     paddingHorizontal: spacing[16],
     paddingTop: spacing[16],
+  },
+  deleteLabel: {
+    color: colors.danger,
+    flex: 1,
+    ...typography.body,
+  },
+  deleteRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing[12],
+    paddingVertical: spacing[12],
   },
   disabled: {
     opacity: 0.5,

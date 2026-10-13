@@ -93,7 +93,7 @@ export function CirclesScreen({
   // The hint waits for the profile, so a member with a location never sees it.
   const noLocationHint =
     profile.data?.has_location === false
-      ? 'Set a location on the website to filter by distance.'
+      ? 'Add a location on your profile to filter by distance.'
       : undefined;
 
   const {

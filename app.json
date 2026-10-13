@@ -38,8 +38,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Meutch uses your photo library so you can add photos to the items you list.",
-          "cameraPermission": "Meutch uses your camera so you can photograph the items you list."
+          "photosPermission": "Meutch uses your photo library so you can add photos to your items and your profile.",
+          "cameraPermission": "Meutch uses your camera so you can photograph your items and take a profile photo."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Meutch uses your location to set the point on the map used for distances to items and circles."
         }
       ],
       "expo-font"

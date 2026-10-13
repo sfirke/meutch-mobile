@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { Linking } from 'react-native';
 
 import { runtimeConfig } from '../../config/env';
-import type { ApiFetch } from '../../lib/api';
+import { apiFetch, type ApiFetch } from '../../lib/api';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import {
   defaultProfileFixture,
@@ -18,6 +18,12 @@ import { ProfileScreen } from '../ProfileScreen';
 jest.mock('../../session/SessionProvider', () => ({ useSession: jest.fn() }));
 
 jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
+
+// The resend hook runs signed out, so it calls the bare apiFetch.
+jest.mock('../../lib/api', () => ({
+  ...jest.requireActual('../../lib/api'),
+  apiFetch: jest.fn(),
+}));
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
 
@@ -152,9 +158,6 @@ describe('profile screen', () => {
     expect(Linking.openURL).toHaveBeenCalledWith(
       'https://links.example.test/blog',
     );
-    expect(
-      screen.getByText('Edit links and photo on meutch.com.'),
-    ).toBeTruthy();
   });
 
   test('reads "Location set" when the member has a location', async () => {
@@ -166,7 +169,7 @@ describe('profile screen', () => {
 
     expect(await screen.findByText('Location set')).toBeTruthy();
     expect(
-      screen.getByText('Update your location on meutch.com.'),
+      screen.getByRole('button', { name: 'Update location' }),
     ).toBeTruthy();
   });
 
@@ -393,6 +396,69 @@ describe('profile screen', () => {
     fireEvent.press(await screen.findByRole('button', { name: label }));
 
     expect(mockedPush).toHaveBeenCalledWith(path);
+  });
+
+  test('pushes the edit profile route', async () => {
+    renderProfileScreen(mockApiFetch({ 'GET /me/profile': profileRoute() }));
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: 'Edit profile' }),
+    );
+
+    expect(mockedPush).toHaveBeenCalledWith('/profile/edit');
+  });
+
+  test('offers to add a location and pushes the location route', async () => {
+    renderProfileScreen(mockApiFetch({ 'GET /me/profile': profileRoute() }));
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: 'Add a location' }),
+    );
+
+    expect(mockedPush).toHaveBeenCalledWith('/profile/location');
+    expect(screen.queryByText('Update location')).toBeNull();
+  });
+
+  test('no longer points to the website for links, photo, or location', async () => {
+    renderProfileScreen(
+      mockApiFetch({
+        'GET /me/profile': profileRoute({ web_links: [blogLink] }),
+      }),
+    );
+
+    expect(await screen.findByText('Morgan Member')).toBeTruthy();
+    expect(screen.queryByText(/website|meutch\.com/)).toBeNull();
+  });
+
+  test('hides the resend button for a confirmed email', async () => {
+    renderProfileScreen(mockApiFetch({ 'GET /me/profile': profileRoute() }));
+
+    expect(await screen.findByText('Morgan Member')).toBeTruthy();
+    expect(screen.queryByText('Resend confirmation email')).toBeNull();
+  });
+
+  test('resends the confirmation email and shows the message', async () => {
+    jest
+      .mocked(apiFetch)
+      .mockResolvedValue(jsonResponse({ message: 'Confirmation email sent.' }));
+    renderProfileScreen(
+      mockApiFetch({
+        'GET /me/profile': profileRoute({ email_confirmed: false }),
+      }),
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: 'Resend confirmation email' }),
+    );
+
+    expect(await screen.findByText('Confirmation email sent.')).toBeTruthy();
+    expect(screen.queryByText('Resend confirmation email')).toBeNull();
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/auth/resend-confirmation',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    const init = jest.mocked(apiFetch).mock.calls[0][1];
+    expect(getRequestBody(init)).toEqual({ email: 'member@example.com' });
   });
 
   test('sends no write requests while only reading the profile', async () => {

@@ -36,7 +36,10 @@ const member: SessionValue['user'] = {
 function mockSession(overrides: Partial<SessionValue>) {
   mockedUseSession.mockReturnValue({
     authenticatedApiFetch: emptyApiFetch(),
+    discardSession: jest.fn(),
+    errorCode: null,
     errorMessage: null,
+    notice: null,
     refreshUser: jest.fn(),
     signIn: jest.fn(),
     signOut,

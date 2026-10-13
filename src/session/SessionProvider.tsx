@@ -6,7 +6,7 @@ import {
   type PropsWithChildren,
 } from 'react';
 
-import { isApiError } from '../lib/api';
+import { isApiError, type ApiFetch } from '../lib/api';
 import {
   SessionExpiredError,
   SessionRequiredError,
@@ -18,11 +18,11 @@ export type SessionStatus =
   'restoring' | 'signed-out' | 'signing-in' | 'signed-in' | 'signing-out';
 
 type SessionContextValue = {
-  authenticatedApiFetch: (
-    path: string,
-    init?: RequestInit,
-  ) => Promise<Response>;
+  authenticatedApiFetch: ApiFetch;
+  discardSession: (notice?: string) => Promise<void>;
+  errorCode: string | null;
   errorMessage: string | null;
+  notice: string | null;
   refreshUser: () => Promise<AuthenticatedUser | null>;
   signIn: (
     email: string,
@@ -51,6 +51,18 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<SessionStatus>('restoring');
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  function recordError(error: unknown) {
+    setErrorMessage(getErrorMessage(error));
+    setErrorCode(isApiError(error) ? error.code : null);
+  }
+
+  function clearError() {
+    setErrorMessage(null);
+    setErrorCode(null);
+  }
 
   useEffect(() => {
     const unsubscribe = sessionClient.subscribe((nextUser) => {
@@ -91,7 +103,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
         setUser(fallbackUser);
         setStatus(fallbackUser ? 'signed-in' : 'signed-out');
-        setErrorMessage(getErrorMessage(error));
+        recordError(error);
       });
 
     return () => {
@@ -105,17 +117,34 @@ export function SessionProvider({ children }: PropsWithChildren) {
         return await sessionClient.authenticatedApiFetch(path, init);
       } catch (error) {
         if (error instanceof SessionExpiredError) {
-          setErrorMessage(error.message);
+          recordError(error);
         }
 
         throw error;
       }
     },
 
+    discardSession: async (nextNotice) => {
+      setStatus('signing-out');
+      clearError();
+
+      try {
+        await sessionClient.discardSession();
+      } catch (error) {
+        recordError(error);
+      } finally {
+        setUser(null);
+        setStatus('signed-out');
+        setNotice(nextNotice ?? null);
+      }
+    },
+
+    errorCode,
     errorMessage,
+    notice,
 
     refreshUser: async () => {
-      setErrorMessage(null);
+      clearError();
 
       try {
         const refreshedUser = await sessionClient.refreshUser();
@@ -125,7 +154,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
         return refreshedUser;
       } catch (error) {
-        setErrorMessage(getErrorMessage(error));
+        recordError(error);
 
         if (
           error instanceof SessionExpiredError ||
@@ -141,7 +170,8 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
     signIn: async (email, password) => {
       setStatus('signing-in');
-      setErrorMessage(null);
+      clearError();
+      setNotice(null);
 
       try {
         const signedInUser = await sessionClient.login(email, password);
@@ -152,7 +182,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
         return signedInUser;
       } catch (error) {
         setStatus('signed-out');
-        setErrorMessage(getErrorMessage(error));
+        recordError(error);
 
         return null;
       }
@@ -160,12 +190,12 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
     signOut: async () => {
       setStatus('signing-out');
-      setErrorMessage(null);
+      clearError();
 
       try {
         await sessionClient.logout();
       } catch (error) {
-        setErrorMessage(getErrorMessage(error));
+        recordError(error);
       } finally {
         // logout() drops the in-memory session before touching storage, so the
         // UI must not stay stuck in "signing-out" if clearing storage fails.

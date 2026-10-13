@@ -42,7 +42,10 @@ const ITEM_ID = '5e6f7a8b-9c0d-4e5f-8a6b-7c8d9e0f1a2b';
 function mockSession(overrides: Partial<SessionValue>) {
   mockedUseSession.mockReturnValue({
     authenticatedApiFetch: emptyApiFetch(),
+    discardSession: jest.fn(),
+    errorCode: null,
     errorMessage: null,
+    notice: null,
     refreshUser: jest.fn(),
     signIn: jest.fn(),
     signOut: jest.fn(),
@@ -167,6 +170,19 @@ describe('detail stacks', () => {
 
     expect(await screen.findByRole('button', { name: 'Save' })).toBeTruthy();
     expect(getPathname()).toBe('/profile/settings');
+  });
+
+  test.each([
+    ['edit profile', '/profile/edit', 'First name'],
+    ['location', '/profile/location', 'Save location'],
+    ['delete account', '/profile/delete-account', 'Delete my account'],
+  ])('mounts the %s screen at %s', async (_name, path, expected) => {
+    mockSession({ status: 'signed-in', user: member });
+
+    const { getPathname } = renderRouter('app', { initialUrl: path });
+
+    expect(await screen.findByText(expected)).toBeTruthy();
+    expect(getPathname()).toBe(path);
   });
 
   test('renders the profile tab at /profile, not the settings stack', async () => {

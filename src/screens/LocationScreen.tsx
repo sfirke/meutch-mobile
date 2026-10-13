@@ -9,6 +9,7 @@ import { FormTextField } from '../components/FormTextField';
 import { Icon } from '../components/Icon';
 import { QueryStateView } from '../components/QueryStateView';
 import { RequestTimeoutError } from '../lib/api';
+import { readDeviceCoordinates } from '../lib/deviceLocation';
 import { describeError } from '../lib/errorCopy';
 import {
   ADDRESS_FIELD_LABELS,
@@ -21,16 +22,26 @@ import {
 import { type UserProfile } from '../lib/profile';
 import { buildGeneralMessage, readValidationErrors } from '../lib/validation';
 import { useProfileQuery } from '../query/useProfileQuery';
-import { useUpdateLocationMutation } from '../query/useUpdateLocationMutation';
+import {
+  useUpdateLocationMutation,
+  type LocationMutationInput,
+} from '../query/useUpdateLocationMutation';
 import { colors, radii, spacing, typography } from '../theme';
 
 const PRIVACY_NOTE =
-  'Your exact location is never shown to other members. They only see approximate distances.';
+  'Meutch stores only a point on the map, never your address. Your exact location is never shown to other members. They only see approximate distances.';
 
 const RATE_NOTE = 'Location updates are limited to once per day.';
 
 const ADDRESS_HINT =
-  "Your saved address isn't shown here. Enter it again to update your location.";
+  "Meutch uses the address once to find your point on the map and doesn't keep it.";
+
+const DEVICE_ERRORS = {
+  denied:
+    "Meutch doesn't have permission to use your location. Allow it in your device settings, or enter an address below.",
+  unavailable:
+    "We couldn't get your current location. Check that location services are on, or enter an address below.",
+};
 
 const EMPTY_ADDRESS: AddressInput = {
   street: '',
@@ -92,13 +103,17 @@ function LocationForm({ profile, refetchProfile }: LocationFormProps) {
   const [address, setAddress] = useState<AddressInput>(EMPTY_ADDRESS);
   const [missing, setMissing] = useState<AddressField[]>([]);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
 
   const { data, error, isPending, variables } = updateLocation;
   const removing = variables === 'remove';
+  const fromDevice = typeof variables === 'object' && 'latitude' in variables;
+  const busy = isPending || locating;
   const hasBlank = ADDRESS_FIELDS.some((field) => address[field] === '');
-  const saveDisabled = isPending || hasBlank;
+  const saveDisabled = busy || hasBlank;
 
-  const submit = (input: AddressInput | 'remove') => {
+  const submit = (input: LocationMutationInput) => {
     updateLocation.mutate(input, {
       onSuccess: (result) => {
         if (input === 'remove') {
@@ -116,9 +131,26 @@ function LocationForm({ profile, refetchProfile }: LocationFormProps) {
     });
   };
 
+  const handleUseDevice = async () => {
+    updateLocation.reset();
+    setDeviceError(null);
+    setLocating(true);
+
+    const located = await readDeviceCoordinates();
+
+    setLocating(false);
+
+    if (located.kind === 'located') {
+      submit(located.coordinates);
+    } else {
+      setDeviceError(DEVICE_ERRORS[located.kind]);
+    }
+  };
+
   const handleSave = () => {
     const blank = ADDRESS_FIELDS.filter((field) => !address[field].trim());
 
+    setDeviceError(null);
     setMissing(blank);
 
     if (blank.length === 0) {
@@ -141,42 +173,8 @@ function LocationForm({ profile, refetchProfile }: LocationFormProps) {
     : buildGeneralMessage(error, validation);
   const result = data ? describeLocationResult(data.status) : null;
   const tone = result ? TONE_STYLES[result.tone] : null;
-
-  return (
-    <KeyboardAwareScrollView
-      bottomOffset={spacing[16]}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-      testID="location-scroll"
-    >
-      <View style={styles.locationRow}>
-        <Icon color={colors.secondary} name="location" />
-        <Text style={styles.locationText} testID="location-status">
-          {describeLocation(profile)}
-        </Text>
-      </View>
-      <Text style={styles.note}>{PRIVACY_NOTE}</Text>
-      <Text style={styles.note}>{RATE_NOTE}</Text>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Update by address</Text>
-        <Text style={styles.note}>{ADDRESS_HINT}</Text>
-        {ADDRESS_FIELDS.map((field) => (
-          <FormTextField
-            autoCorrect={false}
-            {...INPUT_PROPS[field]}
-            error={
-              missing.includes(field) ? 'Required' : validation.fields[field]
-            }
-            field={field}
-            key={field}
-            label={ADDRESS_FIELD_LABELS[field]}
-            onChangeText={(value) => handleChange(field, value)}
-            value={address[field]}
-          />
-        ))}
-      </View>
-
+  const outcome = (
+    <>
       {result && tone ? (
         <View
           style={[
@@ -202,6 +200,70 @@ function LocationForm({ profile, refetchProfile }: LocationFormProps) {
           {generalMessage}
         </Text>
       ) : null}
+    </>
+  );
+
+  return (
+    <KeyboardAwareScrollView
+      bottomOffset={spacing[16]}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      testID="location-scroll"
+    >
+      <View style={styles.locationRow}>
+        <Icon color={colors.secondary} name="location" />
+        <Text style={styles.locationText} testID="location-status">
+          {describeLocation(profile)}
+        </Text>
+      </View>
+      <Text style={styles.note}>{PRIVACY_NOTE}</Text>
+      <Text style={styles.note}>{RATE_NOTE}</Text>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: busy }}
+        disabled={busy}
+        onPress={() => {
+          void handleUseDevice();
+        }}
+        style={({ pressed }) => [
+          styles.saveButton,
+          (busy || pressed) && styles.disabled,
+        ]}
+      >
+        <Text style={styles.saveLabel}>
+          {locating || (isPending && fromDevice)
+            ? 'Finding your location...'
+            : 'Use my current location'}
+        </Text>
+      </Pressable>
+      {deviceError ? (
+        <Text style={styles.errorText} testID="location-device-error">
+          {deviceError}
+        </Text>
+      ) : null}
+      {fromDevice ? outcome : null}
+
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Or enter an address</Text>
+        <Text style={styles.note}>{ADDRESS_HINT}</Text>
+        {ADDRESS_FIELDS.map((field) => (
+          <FormTextField
+            autoCorrect={false}
+            {...INPUT_PROPS[field]}
+            error={
+              missing.includes(field) ? 'Required' : validation.fields[field]
+            }
+            field={field}
+            key={field}
+            label={ADDRESS_FIELD_LABELS[field]}
+            onChangeText={(value) => handleChange(field, value)}
+            value={address[field]}
+          />
+        ))}
+      </View>
+
+      {fromDevice ? null : outcome}
 
       <Pressable
         accessibilityRole="button"
@@ -214,7 +276,7 @@ function LocationForm({ profile, refetchProfile }: LocationFormProps) {
         ]}
       >
         <Text style={styles.saveLabel}>
-          {isPending && !removing
+          {isPending && !removing && !fromDevice
             ? 'Finding your location...'
             : 'Save location'}
         </Text>
@@ -223,14 +285,15 @@ function LocationForm({ profile, refetchProfile }: LocationFormProps) {
       {profile.has_location ? (
         <Pressable
           accessibilityRole="button"
-          disabled={isPending}
+          disabled={busy}
           onPress={() => {
             updateLocation.reset();
+            setDeviceError(null);
             setConfirmingRemove(true);
           }}
           style={({ pressed }) => [
             styles.removeButton,
-            (isPending || pressed) && styles.disabled,
+            (busy || pressed) && styles.disabled,
           ]}
         >
           <Text style={styles.removeLabel}>Remove location</Text>

@@ -32,6 +32,8 @@ export const ADDRESS_FIELD_LABELS: Record<AddressField, string> = {
 
 export type AddressInput = Record<AddressField, string>;
 
+export type Coordinates = { latitude: number; longitude: number };
+
 export type LocationUpdateResult = {
   status: LocationStatus;
   user: { has_location: boolean; geocoding_failed: boolean };
@@ -74,7 +76,7 @@ export function parseLocationUpdateResult(
 
 async function patchLocation(
   fetchImpl: ApiFetch,
-  body: Record<string, string>,
+  body: Record<string, string | number>,
 ): Promise<LocationUpdateResult> {
   const response = await fetchImpl(
     '/me/location',
@@ -98,6 +100,17 @@ export function updateLocationByAddress(
     state: address.state.trim(),
     zip_code: address.zip_code.trim(),
     country: address.country.trim(),
+  });
+}
+
+export function updateLocationByCoordinates(
+  fetchImpl: ApiFetch,
+  coordinates: Coordinates,
+): Promise<LocationUpdateResult> {
+  return patchLocation(fetchImpl, {
+    location_method: 'coordinates',
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
   });
 }
 

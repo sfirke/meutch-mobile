@@ -42,6 +42,12 @@
           "cameraPermission": "Meutch uses your camera so you can photograph your items and take a profile photo."
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Meutch uses your location to set the point on the map used for distances to items and circles."
+        }
+      ],
       "expo-font"
     ],
     "extra": {

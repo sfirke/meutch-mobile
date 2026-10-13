@@ -4,6 +4,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react-native';
+import * as Location from 'expo-location';
 
 import type { ApiFetch } from '../../lib/api';
 import { RequestTimeoutError } from '../../lib/api';
@@ -90,9 +91,17 @@ describe('location screen', () => {
     );
     expect(
       screen.getByText(
-        'Your exact location is never shown to other members. They only see approximate distances.',
+        'Meutch stores only a point on the map, never your address. Your exact location is never shown to other members. They only see approximate distances.',
       ),
     ).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        "Meutch uses the address once to find your point on the map and doesn't keep it.",
+      ),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: 'Use my current location' }),
+    ).toBeEnabled();
     expect(
       screen.getByText('Location updates are limited to once per day.'),
     ).toBeOnTheScreen();
@@ -304,6 +313,80 @@ describe('location screen', () => {
     await waitFor(() =>
       expect(countCalls(fetch, 'GET', '/me/profile')).toBe(2),
     );
+  });
+
+  test('saves the device coordinates', async () => {
+    jest.mocked(Location.getCurrentPositionAsync).mockResolvedValueOnce({
+      coords: { latitude: 12.5, longitude: -45.25 },
+    } as Location.LocationObject);
+    const fetch = mockApiFetch({
+      'GET /me/profile': profileRoute(),
+      'PATCH /me/location': locationResponse('success', true),
+    });
+
+    renderLocationScreen(fetch);
+    fireEvent.press(
+      await screen.findByRole('button', { name: 'Use my current location' }),
+    );
+
+    expect(
+      within(await screen.findByTestId('location-result')).getByText(
+        'Your location has been updated.',
+      ),
+    ).toBeOnTheScreen();
+
+    const patchCall = fetch.mock.calls.find(
+      ([path]) => path === '/me/location',
+    );
+
+    expect(getRequestBody(patchCall?.[1])).toEqual({
+      location_method: 'coordinates',
+      latitude: 12.5,
+      longitude: -45.25,
+    });
+    expect(screen.getByTestId('location-status')).toHaveTextContent(
+      'Location set',
+    );
+  });
+
+  test('explains a denied location permission without a request', async () => {
+    jest
+      .mocked(Location.requestForegroundPermissionsAsync)
+      .mockResolvedValueOnce({
+        granted: false,
+      } as Location.LocationPermissionResponse);
+    const fetch = mockApiFetch({ 'GET /me/profile': profileRoute() });
+
+    renderLocationScreen(fetch);
+    fireEvent.press(
+      await screen.findByRole('button', { name: 'Use my current location' }),
+    );
+
+    expect(
+      await screen.findByTestId('location-device-error'),
+    ).toHaveTextContent(
+      "Meutch doesn't have permission to use your location. Allow it in your device settings, or enter an address below.",
+    );
+    expect(countCalls(fetch, 'PATCH', '/me/location')).toBe(0);
+  });
+
+  test('explains when the device cannot be located', async () => {
+    jest
+      .mocked(Location.getCurrentPositionAsync)
+      .mockRejectedValueOnce(new Error('Location services are off'));
+    const fetch = mockApiFetch({ 'GET /me/profile': profileRoute() });
+
+    renderLocationScreen(fetch);
+    fireEvent.press(
+      await screen.findByRole('button', { name: 'Use my current location' }),
+    );
+
+    expect(
+      await screen.findByTestId('location-device-error'),
+    ).toHaveTextContent(
+      "We couldn't get your current location. Check that location services are on, or enter an address below.",
+    );
+    expect(countCalls(fetch, 'PATCH', '/me/location')).toBe(0);
   });
 
   test('removes the location after confirming', async () => {

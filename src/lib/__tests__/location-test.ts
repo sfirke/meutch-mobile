@@ -6,6 +6,7 @@ import {
   parseLocationUpdateResult,
   removeLocation,
   updateLocationByAddress,
+  updateLocationByCoordinates,
   type LocationStatus,
 } from '../location';
 import {
@@ -73,6 +74,26 @@ describe('updateLocationByAddress', () => {
 
     expect(isApiError(error)).toBe(true);
     expect(isApiError(error) && error.details?.street).toBeDefined();
+  });
+});
+
+describe('updateLocationByCoordinates', () => {
+  test('sends the coordinates as numbers', async () => {
+    const fetchImpl = mockApiFetch({
+      'PATCH /me/location': resultPayload('success'),
+    });
+
+    const result = await updateLocationByCoordinates(fetchImpl, {
+      latitude: 12.5,
+      longitude: -45.25,
+    });
+
+    expect(getRequestBody(fetchImpl.mock.calls[0][1])).toEqual({
+      location_method: 'coordinates',
+      latitude: 12.5,
+      longitude: -45.25,
+    });
+    expect(result).toEqual(resultPayload('success'));
   });
 });
 

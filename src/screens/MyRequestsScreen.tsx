@@ -25,7 +25,7 @@ import { colors, spacing } from '../theme';
 
 const SEGMENTS: { value: MyRequestStatus; label: string }[] = [
   { value: 'active', label: 'Active' },
-  { value: 'fulfilled', label: 'Fulfilled' },
+  { value: 'fulfilled', label: 'Found' },
 ];
 
 const EMPTY_COPY: Record<MyRequestStatus, { title: string; message: string }> =
@@ -35,9 +35,8 @@ const EMPTY_COPY: Record<MyRequestStatus, { title: string; message: string }> =
       message: `Things you're looking for show up here while they're open. ${webOnlyNote('Post a request')}`,
     },
     fulfilled: {
-      title: 'Nothing fulfilled recently',
-      message:
-        'Requests you marked fulfilled in the last 90 days show up here.',
+      title: 'Nothing marked as found',
+      message: 'Requests you marked as found in the last 90 days show up here.',
     },
   };
 

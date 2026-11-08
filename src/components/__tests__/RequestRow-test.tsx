@@ -47,7 +47,7 @@ describe('RequestRow', () => {
     expect(screen.getByText('Expires Jun 3, 2026')).toBeOnTheScreen();
   });
 
-  it('shows the fulfilled date for a fulfilled request', () => {
+  it('shows the found date for a fulfilled request', () => {
     render(
       <RequestRow
         now={NOW}
@@ -58,7 +58,7 @@ describe('RequestRow', () => {
       />,
     );
 
-    expect(screen.getByText('Fulfilled May 20, 2026')).toBeOnTheScreen();
+    expect(screen.getByText('Found May 20, 2026')).toBeOnTheScreen();
   });
 
   it('shows the expired date for an expired open request', () => {

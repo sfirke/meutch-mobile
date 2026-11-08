@@ -61,6 +61,7 @@ type StatusBanner = {
   color: string;
   icon: IconName;
   detail: string | null;
+  closedNote: string | null;
 };
 
 function buildStatusBanner(
@@ -73,10 +74,11 @@ function buildStatusBanner(
       : null;
 
     return {
-      label: 'Fulfilled',
+      label: 'Found!',
       color: colors.success,
       icon: 'check',
-      detail: date ? `Fulfilled on ${date}.` : null,
+      detail: date ? `Found on ${date}.` : null,
+      closedNote: `${request.user.first_name} found this, so it's no longer taking messages.`,
     };
   }
 
@@ -88,6 +90,8 @@ function buildStatusBanner(
       color: colors.secondary,
       icon: 'pending',
       detail: date ? `Expired on ${date}.` : null,
+      closedNote:
+        "This request has expired, so it's no longer taking messages.",
     };
   }
 
@@ -96,6 +100,7 @@ function buildStatusBanner(
     color: colors.warning,
     icon: 'request',
     detail: date ? `Expires ${date}.` : null,
+    closedNote: null,
   };
 }
 
@@ -286,9 +291,7 @@ function RequestDetailBody({
         </View>
       ) : (
         <View style={styles.actionCard}>
-          <Text style={styles.note}>
-            {`This request is ${banner.label.toLowerCase()}, so it's no longer taking messages.`}
-          </Text>
+          <Text style={styles.note}>{banner.closedNote}</Text>
         </View>
       )}
     </KeyboardAwareScrollView>

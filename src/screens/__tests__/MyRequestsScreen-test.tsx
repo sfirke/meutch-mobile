@@ -120,7 +120,7 @@ describe('MyRequestsScreen', () => {
     );
   });
 
-  test('switching to Fulfilled requests the fulfilled status', async () => {
+  test('switching to Found requests the fulfilled status', async () => {
     const authenticatedApiFetch = jest.fn(async (path: string) =>
       path === '/me/requests?status=fulfilled&page=1'
         ? requestPage([
@@ -138,7 +138,7 @@ describe('MyRequestsScreen', () => {
 
     expect(await screen.findByText('Looking for a ladder')).toBeTruthy();
 
-    fireEvent.press(screen.getByText('Fulfilled'));
+    fireEvent.press(screen.getByText('Found'));
 
     expect(screen.queryByText('Looking for a ladder')).toBeNull();
 
@@ -163,12 +163,12 @@ describe('MyRequestsScreen', () => {
       ),
     ).toBeTruthy();
 
-    fireEvent.press(screen.getByText('Fulfilled'));
+    fireEvent.press(screen.getByText('Found'));
 
-    expect(await screen.findByText('Nothing fulfilled recently')).toBeTruthy();
+    expect(await screen.findByText('Nothing marked as found')).toBeTruthy();
     expect(
       screen.getByText(
-        'Requests you marked fulfilled in the last 90 days show up here.',
+        'Requests you marked as found in the last 90 days show up here.',
       ),
     ).toBeTruthy();
     await waitFor(() => expect(queryClient.isFetching()).toBe(0));

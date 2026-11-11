@@ -159,6 +159,7 @@ describe('query keys', () => {
       loanKeys.list({ role: 'lending' }),
     );
     expect(loanKeys.detail('x')).toEqual(['loans', 'detail', 'x']);
+    expect(loanKeys.summary()).toEqual(['loans', 'summary']);
   });
 
   test('circle keys nest under a shared prefix', () => {
@@ -280,6 +281,7 @@ describe('query keys', () => {
         keys: [
           [...loanKeys.list({ role: 'borrowing' })],
           [...loanKeys.detail('x')],
+          [...loanKeys.summary()],
         ],
       },
       {

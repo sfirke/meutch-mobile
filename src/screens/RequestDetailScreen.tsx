@@ -73,10 +73,10 @@ function buildStatusBanner(
       : null;
 
     return {
-      label: 'Fulfilled',
+      label: 'Found!',
       color: colors.success,
       icon: 'check',
-      detail: date ? `Fulfilled on ${date}.` : null,
+      detail: date ? `Found on ${date}.` : null,
     };
   }
 
@@ -286,9 +286,7 @@ function RequestDetailBody({
         </View>
       ) : (
         <View style={styles.actionCard}>
-          <Text style={styles.note}>
-            {`This request is ${banner.label.toLowerCase()}, so it's no longer taking messages.`}
-          </Text>
+          <Text style={styles.note}>Messaging is closed for this request.</Text>
         </View>
       )}
     </KeyboardAwareScrollView>

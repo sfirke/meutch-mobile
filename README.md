@@ -4,18 +4,19 @@ React Native mobile client for the Meutch sharing platform.
 
 ## Status
 
-PR 5 adds messaging, circles, and profile on top of the read-only foundation from PR 4:
+The app is a working client for most of Meutch. A few actions still link out to meutch.com.
 
-- two more bottom tabs, Inbox and Circles, and a rebuilt Profile tab (five tabs total: Feed, Browse, Inbox, Circles, Profile)
-- Inbox: inbox/archived segments, paging, pull-to-refresh, and an unread badge on the tab
-- Thread detail (`/message/<uuid>`): full history, reply, mark-read on open, and a context card for the item, circle, or request the conversation is about
-- Circles: My circles / Discover segments with name search; circle detail (`/circle/<uuid>`) with a member list, joining an open circle, and requesting to join (or cancelling a request for) a closed one
-- Request detail (`/request/<uuid>`), opened from feed request cards and thread context: message the requester, or, as the owner, see conversations about it
-- Profile: view and edit "about me", web links that open in the browser, a Settings screen (`/profile/settings`) for vacation mode, digest frequency, and radius, and sign out (moved here from the tab header)
+- Feed and Browse with search, filters, and sorting; item detail
+- Messaging, with inbox management (archive, read state, bulk actions)
+- Circles: browse, join, and request to join
+- Requests, loans, and "My activity" (items, loans, requests)
+- Item posting and editing, with photos
+- Profile editing (photo, name, links, location) and member profiles
+- Account recovery (forgot password, resend confirmation) and account deletion
 
-The app now performs writes for reply, messaging a requester, mark-read, circle join, cancel join request, about-me update, and settings update. Everything else — starting a conversation about an item, archive/bulk actions, loan actions, circle admin and leave, profile photo, link and location editing, and account deletion — still links out to meutch.com.
+Still on meutch.com: loan actions, circle admin and leave, circle creation and invitations, and sign up.
 
-The session layer from PR 3 is unchanged: secure JWT persistence via Expo Secure Store, login/refresh/logout/restore against `/api/v1/auth`, and a token-injecting fetch wrapper so components never read tokens directly. See [Auth Flow](#auth-flow).
+The session layer uses secure JWT persistence via Expo Secure Store, login/refresh/logout/restore against `/api/v1/auth`, and a token-injecting fetch wrapper so components never read tokens directly. See [Auth Flow](#auth-flow).
 
 ## Project Layout
 
@@ -23,26 +24,38 @@ The session layer from PR 3 is unchanged: secure JWT persistence via Expo Secure
 app/                      routes only — every file here becomes a route, so no tests or helpers
   _layout.tsx             providers + splash hold
   (auth)/sign-in.tsx      /sign-in
+  (auth)/forgot-password.tsx  /forgot-password
   (tabs)/index.tsx        /        Feed
   (tabs)/browse.tsx       /browse  Browse
   (tabs)/inbox.tsx        /inbox   Inbox
   (tabs)/circles.tsx      /circles Circles
   (tabs)/profile.tsx      /profile Profile
   item/[id].tsx           /item/<uuid>
+  item/[id]/edit.tsx      /item/<uuid>/edit
+  item/new.tsx            /item/new
+  loan/[id].tsx           /loan/<uuid>
   message/[id].tsx        /message/<uuid>
   circle/[id].tsx         /circle/<uuid>
   request/[id].tsx        /request/<uuid>
   user/[id].tsx           /user/<uuid>
+  profile/edit.tsx        /profile/edit
+  profile/location.tsx    /profile/location
+  profile/delete-account.tsx  /profile/delete-account
   profile/settings.tsx    /profile/settings
+  profile/items.tsx       /profile/items
+  profile/loans.tsx       /profile/loans
+  profile/requests.tsx    /profile/requests
 src/screens/              screen implementations (most route files re-export these) + __tests__/
 src/components/           shared presentational components
+src/hooks/                small shared hooks (debounce, discard guard)
 src/query/                QueryProvider, use*Query hooks, and use*Mutation hooks
-src/lib/                  API request functions, parsers, query keys (session layer lives here too)
+src/session/              SessionProvider and the session context
+src/lib/                  API request functions, parsers, query keys, token storage
 src/theme/                colors, spacing, radii, typography, shadows
 src/test-utils/           renderWithProviders and fakes
 ```
 
-Route groups `(auth)` and `(tabs)` don't appear in the URL. The signed-out/signed-in gate is `src/components/RequireSession.tsx`, applied by the `(tabs)` and `item` group layouts.
+Route groups `(auth)` and `(tabs)` don't appear in the URL. The signed-out/signed-in gate is `src/components/RequireSession.tsx`, applied by the `(tabs)` layout and the detail and form group layouts.
 
 ## Expected Local Repo Layout
 
@@ -163,4 +176,4 @@ The backend, data model, and API contract stay in the sibling `meutch` repo. The
 
 ## Upcoming PRs
 
-Member profiles (PR 5.6) and an internal Android build (PR 6) come next, followed by the web-parity PRs. See the [PR sequence](dev_docs/MOBILE_APP_PLAN.md#pr-sequence).
+An internal Android build (PR 6) and the remaining web-parity PRs come next. See the [PR sequence](dev_docs/MOBILE_APP_PLAN.md#pr-sequence).

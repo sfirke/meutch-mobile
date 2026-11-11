@@ -61,7 +61,8 @@ const TYPE_OPTIONS: SelectListOption<FeedTypeFilter>[] = [
 
 type DistanceOption = 'none' | `${FeedDistance}`;
 
-const NO_LOCATION_HINT = 'Set a location on the website to filter by distance.';
+const NO_LOCATION_HINT =
+  'Add a location on your profile to filter by distance.';
 
 // `hint` is only passed once the profile has loaded, so it does not flash.
 function distanceOptions(

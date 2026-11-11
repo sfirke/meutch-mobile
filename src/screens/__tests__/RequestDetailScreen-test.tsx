@@ -222,7 +222,7 @@ describe('<RequestDetailScreen />', () => {
 
     expect(await screen.findByText('Found on Jun 2, 2026.')).toBeTruthy();
     expect(
-      screen.getByText("Ada found this, so it's no longer taking messages."),
+      screen.getByText('Messaging is closed for this request.'),
     ).toBeTruthy();
     expect(screen.queryByLabelText('Message')).toBeNull();
   });

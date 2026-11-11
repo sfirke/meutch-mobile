@@ -159,6 +159,50 @@ describe('edit profile screen', () => {
     expect(patchBodies(apiFetch)).toEqual([{ first_name: 'Ada' }]);
   });
 
+  test('sends only about_me, trimmed, when it alone changes', async () => {
+    const apiFetch = renderScreen();
+    await settle();
+
+    fireEvent.changeText(screen.getByTestId('field-about_me'), '   ');
+    expect(saveButton()).toBeDisabled();
+
+    fireEvent.changeText(
+      screen.getByTestId('field-about_me'),
+      '  I fix bicycles.  ',
+    );
+    fireEvent.press(saveButton());
+
+    await waitFor(() => expect(mockBack).toHaveBeenCalled());
+    expect(patchBodies(apiFetch)).toEqual([{ about_me: 'I fix bicycles.' }]);
+  });
+
+  test('shows the about-me counter once the text nears the limit', async () => {
+    renderScreen();
+    await settle();
+
+    fireEvent.changeText(screen.getByTestId('field-about_me'), 'a'.repeat(450));
+    expect(screen.queryByText('450/500')).toBeNull();
+
+    fireEvent.changeText(screen.getByTestId('field-about_me'), 'a'.repeat(451));
+    expect(screen.getByText('451/500')).toBeTruthy();
+  });
+
+  test('shows a 422 about-me message under the field', async () => {
+    renderScreen(
+      validationError({ about_me: ['Longer than maximum length 500.'] }),
+    );
+    await settle();
+
+    fireEvent.changeText(screen.getByTestId('field-about_me'), 'Too long');
+    fireEvent.press(saveButton());
+
+    expect(await screen.findByTestId('field-error-about_me')).toHaveTextContent(
+      'Longer than maximum length 500.',
+    );
+    expect(screen.queryByTestId('edit-profile-error')).toBeNull();
+    expect(screen.getByDisplayValue('Too long')).toBeTruthy();
+  });
+
   test('sends links with a scheme added and no name fields', async () => {
     const apiFetch = renderScreen();
     await settle();

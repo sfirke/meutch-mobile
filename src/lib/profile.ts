@@ -58,6 +58,8 @@ export const MAX_WEB_LINKS = 5;
 
 export const NAME_MAX_LENGTH = 50;
 
+export const ABOUT_ME_MAX_LENGTH = 500;
+
 export type WebLink = {
   id: string;
   platform_type: string;
@@ -385,13 +387,6 @@ export async function updateProfile(
   } catch (error) {
     throw new UnreadableResponseError(error);
   }
-}
-
-export async function updateAboutMe(
-  fetchImpl: ApiFetch,
-  aboutMe: string,
-): Promise<UserProfile> {
-  return (await updateProfile(fetchImpl, { about_me: aboutMe })).user;
 }
 
 const LINK_ERROR_FIELDS = ['platform', 'custom_name', 'url'] as const;

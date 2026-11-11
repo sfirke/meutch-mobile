@@ -20,6 +20,7 @@ import {
   type ErrorCopyOverrides,
 } from '../lib/errorCopy';
 import {
+  ABOUT_ME_MAX_LENGTH,
   NAME_MAX_LENGTH,
   readLinkErrors,
   type LinkFieldErrors,
@@ -33,8 +34,12 @@ import { useUpdateProfileMutation } from '../query/useUpdateProfileMutation';
 import { colors, radii, spacing, typography } from '../theme';
 
 const NAME_FIELDS = ['first_name', 'last_name'] as const;
+const FORM_FIELDS = [...NAME_FIELDS, 'about_me'] as const;
 
 type NameField = (typeof NAME_FIELDS)[number];
+
+/** The counter only appears once the limit is close enough to matter. */
+const ABOUT_ME_COUNTER_THRESHOLD = 450;
 
 const PHOTO_FAILED_FEEDBACK =
   'Your other changes were saved, but the photo could not be uploaded. Please try again.';
@@ -63,6 +68,7 @@ function EditProfileForm({
   const [photo, setPhoto] = useState<ProfilePhotoChange | null>(null);
   const [firstName, setFirstName] = useState(profile.first_name);
   const [lastName, setLastName] = useState(profile.last_name);
+  const [aboutMe, setAboutMe] = useState(profile.about_me ?? '');
   const [links, setLinks] = useState<LinkDraft[]>(() =>
     toLinkDrafts(profile.web_links),
   );
@@ -77,12 +83,14 @@ function EditProfileForm({
     photo !== null ||
     firstName.trim() !== loaded.first_name ||
     lastName.trim() !== loaded.last_name ||
+    aboutMe.trim() !== (loaded.about_me ?? '').trim() ||
     hasLinkChanges(links, loaded.web_links);
 
   const rebase = (next: UserProfile) => {
     setLoaded(next);
     setFirstName(next.first_name);
     setLastName(next.last_name);
+    setAboutMe(next.about_me ?? '');
     setLinks(toLinkDrafts(next.web_links));
   };
 
@@ -124,6 +132,9 @@ function EditProfileForm({
 
     if (first !== loaded.first_name) update.first_name = first;
     if (last !== loaded.last_name) update.last_name = last;
+    if (aboutMe.trim() !== (loaded.about_me ?? '').trim()) {
+      update.about_me = aboutMe.trim();
+    }
     if (hasLinkChanges(links, loaded.web_links)) {
       const { inputs, keysBySentIndex } = toLinkInputs(links);
 
@@ -147,7 +158,7 @@ function EditProfileForm({
   };
 
   const { error, isPending, variables } = updateProfile;
-  const validation = readValidationErrors(error, NAME_FIELDS);
+  const validation = readValidationErrors(error, FORM_FIELDS);
   const linkErrors = readLinkErrors(error);
   const rowErrors: Record<string, LinkFieldErrors> = {};
 
@@ -215,6 +226,27 @@ function EditProfileForm({
         }}
         textContentType="familyName"
         value={lastName}
+      />
+
+      <FormTextField
+        editable={!isPending}
+        error={validation.fields.about_me}
+        field="about_me"
+        hint={
+          aboutMe.length > ABOUT_ME_COUNTER_THRESHOLD
+            ? `${aboutMe.length}/${ABOUT_ME_MAX_LENGTH}`
+            : undefined
+        }
+        label="About me"
+        maxLength={ABOUT_ME_MAX_LENGTH}
+        multiline
+        onChangeText={(value) => {
+          clearErrors();
+          setAboutMe(value);
+        }}
+        placeholder="Add a few words about yourself"
+        style={styles.multiline}
+        value={aboutMe}
       />
 
       <WebLinksEditor
@@ -313,6 +345,10 @@ const styles = StyleSheet.create({
   feedback: {
     color: colors.secondary,
     ...typography.itemMeta,
+  },
+  multiline: {
+    minHeight: 96,
+    textAlignVertical: 'top',
   },
   saveButton: {
     alignItems: 'center',

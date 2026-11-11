@@ -219,163 +219,28 @@ describe('profile screen', () => {
     expect(authenticatedApiFetch).toHaveBeenCalledTimes(2);
   });
 
-  test('sends only about_me when the editor is saved', async () => {
-    let patchBody: unknown;
-    const authenticatedApiFetch = mockApiFetch({
-      'GET /me/profile': profileRoute({ about_me: 'Old words.' }),
-      'PATCH /me/profile': (init?: RequestInit) => {
-        patchBody = getRequestBody(init);
+  test('shows about me read-only, with no inline editor', async () => {
+    renderProfileScreen(
+      mockApiFetch({
+        'GET /me/profile': profileRoute({ about_me: 'I fix bicycles.' }),
+      }),
+    );
 
-        return {
-          user: buildProfile({ about_me: 'New words.' }),
-          image_upload_failed: false,
-        };
-      },
-    });
-
-    renderProfileScreen(authenticatedApiFetch);
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-    fireEvent.changeText(screen.getByLabelText('About me'), 'New words.');
-    fireEvent.press(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByText('New words.')).toBeTruthy();
-    expect(patchBody).toEqual({ about_me: 'New words.' });
+    expect(await screen.findByText('I fix bicycles.')).toBeTruthy();
+    expect(screen.queryByLabelText('Edit about me')).toBeNull();
     expect(screen.queryByLabelText('About me')).toBeNull();
   });
 
-  test('relabels Save while the about-me write is in flight', async () => {
-    let resolvePatch: (response: Response) => void = () => undefined;
-    const authenticatedApiFetch = jest.fn(
-      async (_path: string, init?: RequestInit) => {
-        if ((init?.method ?? 'GET') !== 'GET') {
-          return new Promise<Response>((resolve) => {
-            resolvePatch = resolve;
-          });
-        }
+  test('the empty about-me prompt opens Edit profile', async () => {
+    renderProfileScreen(mockApiFetch({ 'GET /me/profile': profileRoute() }));
 
-        return jsonResponse(profileRoute({ about_me: 'Old words.' }));
-      },
-    ) as unknown as ApiFetch;
-
-    renderProfileScreen(authenticatedApiFetch);
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-    fireEvent.changeText(screen.getByLabelText('About me'), 'New words.');
-    fireEvent.press(screen.getByRole('button', { name: 'Save' }));
-
-    expect(
-      await screen.findByRole('button', { name: 'Saving...' }),
-    ).toBeDisabled();
-
-    resolvePatch(
-      jsonResponse({
-        user: buildProfile({ about_me: 'New words.' }),
-        image_upload_failed: false,
+    fireEvent.press(
+      await screen.findByRole('button', {
+        name: 'Add a few words about yourself',
       }),
     );
 
-    expect(await screen.findByText('New words.')).toBeTruthy();
-  });
-
-  test('disables Save until the about-me draft changes', async () => {
-    renderProfileScreen(
-      mockApiFetch({
-        'GET /me/profile': profileRoute({ about_me: 'Old words.' }),
-      }),
-    );
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-
-    fireEvent.changeText(screen.getByLabelText('About me'), 'Newer words.');
-
-    expect(screen.getByRole('button', { name: 'Save' })).not.toBeDisabled();
-  });
-
-  test('shows the character counter once the draft nears the limit', async () => {
-    renderProfileScreen(
-      mockApiFetch({
-        'GET /me/profile': profileRoute({ about_me: 'Old words.' }),
-      }),
-    );
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-    fireEvent.changeText(screen.getByLabelText('About me'), 'a'.repeat(451));
-
-    expect(screen.getByText('451/500')).toBeTruthy();
-  });
-
-  test('cancel restores the saved text and sends nothing', async () => {
-    const authenticatedApiFetch = mockApiFetch({
-      'GET /me/profile': profileRoute({ about_me: 'Old words.' }),
-    });
-
-    renderProfileScreen(authenticatedApiFetch);
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-    fireEvent.changeText(screen.getByLabelText('About me'), 'Abandoned draft.');
-    fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
-
-    expect(screen.getByText('Old words.')).toBeTruthy();
-    expect(screen.queryByLabelText('About me')).toBeNull();
-    for (const [, init] of authenticatedApiFetch.mock.calls) {
-      expect(init?.method ?? 'GET').toBe('GET');
-    }
-  });
-
-  test('keeps the draft and shows the field message when a save is rejected', async () => {
-    renderProfileScreen(
-      mockApiFetch({
-        'GET /me/profile': profileRoute({ about_me: 'Old words.' }),
-        'PATCH /me/profile': jsonResponse(
-          {
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Invalid input.',
-              details: { about_me: ['Keep it under 500 characters.'] },
-            },
-          },
-          422,
-        ),
-      }),
-    );
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-    fireEvent.changeText(screen.getByLabelText('About me'), 'Too much text.');
-    fireEvent.press(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByTestId('about-me-error')).toHaveTextContent(
-      'Keep it under 500 characters.',
-    );
-    expect(screen.getByDisplayValue('Too much text.')).toBeTruthy();
-  });
-
-  test('falls back to shared copy when a save fails without field details', async () => {
-    renderProfileScreen(
-      mockApiFetch({
-        'GET /me/profile': profileRoute({ about_me: 'Old words.' }),
-        'PATCH /me/profile': jsonResponse(
-          {
-            error: {
-              code: 'API_READ_ONLY',
-              message: 'Writes are disabled.',
-            },
-          },
-          503,
-        ),
-      }),
-    );
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-    fireEvent.changeText(screen.getByLabelText('About me'), 'New words.');
-    fireEvent.press(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByTestId('about-me-error')).toHaveTextContent(
-      "We're doing some maintenance. Please try again soon.",
-    );
-    expect(screen.getByDisplayValue('New words.')).toBeTruthy();
+    expect(mockedPush).toHaveBeenCalledWith('/profile/edit');
   });
 
   test('pushes the settings route from the Settings row', async () => {

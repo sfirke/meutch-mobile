@@ -16,7 +16,6 @@ import {
   normalizeLinkUrl,
   readLinkErrors,
   toWebLinkInput,
-  updateAboutMe,
   updateProfile,
   updateSettings,
   type UserSettings,
@@ -197,35 +196,6 @@ describe('fetchProfile', () => {
     await expect(fetchProfile(fetchImpl)).rejects.toThrow(
       'Invalid profile payload.',
     );
-  });
-});
-
-describe('updateAboutMe', () => {
-  test('sends a PATCH with only the about_me field and returns the parsed user', async () => {
-    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
-
-    fetchImpl.mockResolvedValueOnce(
-      createMockResponse({
-        user: createProfilePayload({ about_me: 'Updated bio' }),
-        image_upload_failed: false,
-      }),
-    );
-
-    const profile = await updateAboutMe(fetchImpl, 'Updated bio');
-
-    expect(getRequestPath(fetchImpl)).toBe('/me/profile');
-
-    const init = getRequestInit(fetchImpl);
-    expect(init?.method).toBe('PATCH');
-
-    const headers = init?.headers as Record<string, string>;
-    expect(headers['Content-Type']).toBe('application/json');
-
-    const body = JSON.parse(init?.body as string) as Record<string, unknown>;
-    expect(Object.keys(body)).toEqual(['about_me']);
-    expect(body.about_me).toBe('Updated bio');
-
-    expect(profile.about_me).toBe('Updated bio');
   });
 });
 

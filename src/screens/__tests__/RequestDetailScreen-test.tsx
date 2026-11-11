@@ -220,11 +220,9 @@ describe('<RequestDetailScreen />', () => {
       },
     });
 
-    expect(await screen.findByText('Fulfilled on Jun 2, 2026.')).toBeTruthy();
+    expect(await screen.findByText('Found on Jun 2, 2026.')).toBeTruthy();
     expect(
-      screen.getByText(
-        "This request is fulfilled, so it's no longer taking messages.",
-      ),
+      screen.getByText('Messaging is closed for this request.'),
     ).toBeTruthy();
     expect(screen.queryByLabelText('Message')).toBeNull();
   });

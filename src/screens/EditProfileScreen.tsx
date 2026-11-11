@@ -15,7 +15,10 @@ import {
   type LinkDraft,
 } from '../components/WebLinksEditor';
 import { useDiscardGuard } from '../hooks/useDiscardGuard';
-import { UPLOAD_ERROR_OVERRIDES } from '../lib/errorCopy';
+import {
+  UPLOAD_ERROR_OVERRIDES,
+  type ErrorCopyOverrides,
+} from '../lib/errorCopy';
 import {
   NAME_MAX_LENGTH,
   readLinkErrors,
@@ -35,6 +38,13 @@ type NameField = (typeof NAME_FIELDS)[number];
 
 const PHOTO_FAILED_FEEDBACK =
   'Your other changes were saved, but the photo could not be uploaded. Please try again.';
+
+const SAVE_ERROR_OVERRIDES: ErrorCopyOverrides = {
+  UNREADABLE_RESPONSE: {
+    message:
+      "Your changes were saved, but the app couldn't read Meutch's reply. Reopen your profile to check them.",
+  },
+};
 
 type EditProfileFormProps = {
   profile: UserProfile;
@@ -154,11 +164,10 @@ function EditProfileForm({
     linkErrors.general ??
     (showsOnlyRowErrors
       ? null
-      : buildGeneralMessage(
-          error,
-          validation,
-          variables?.photo !== undefined ? UPLOAD_ERROR_OVERRIDES : undefined,
-        ));
+      : buildGeneralMessage(error, validation, {
+          ...(variables?.photo !== undefined ? UPLOAD_ERROR_OVERRIDES : {}),
+          ...SAVE_ERROR_OVERRIDES,
+        }));
   const saveDisabled = !isDirty || isPending;
 
   return (

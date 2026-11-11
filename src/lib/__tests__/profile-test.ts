@@ -1,5 +1,13 @@
+import { convertFormDataAsync } from 'expo/src/winter/fetch/convertFormData';
+import { File } from 'expo-file-system';
+
 import type { ApiFetch } from '../api';
-import { ApiError, isApiError, UPLOAD_REQUEST_TIMEOUT_MS } from '../api';
+import {
+  ApiError,
+  isApiError,
+  UnreadableResponseError,
+  UPLOAD_REQUEST_TIMEOUT_MS,
+} from '../api';
 import {
   fetchProfile,
   fetchSettings,
@@ -532,15 +540,34 @@ describe('updateProfile', () => {
       ['first_name', 'Grace'],
       ['about_me', 'Hello'],
       ['links', JSON.stringify(links)],
-      [
-        'profile_image',
-        {
-          uri: 'file:///tmp/avatar.jpg',
-          name: 'profile.jpg',
-          type: 'image/jpeg',
-        },
-      ],
+      ['profile_image', new File('file:///tmp/avatar.jpg')],
     ]);
+  });
+
+  test('encodes the photo as a part Expo fetch accepts', async () => {
+    const parts = await appendedParts(() =>
+      updateProfile(jest.fn().mockResolvedValueOnce(okResponse()) as ApiFetch, {
+        photo: { kind: 'new', uri: 'file:///tmp/avatar.jpg' },
+      }),
+    );
+    const { body } = await convertFormDataAsync({
+      entries: () => parts,
+    } as unknown as FormData);
+    const text = new TextDecoder().decode(body);
+
+    expect(text).toContain('name="profile_image"; filename="avatar.jpg"');
+    expect(text).toContain('content-type: image/jpeg');
+  });
+
+  test('wraps an unparseable 2xx reply in UnreadableResponseError', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+    fetchImpl.mockResolvedValueOnce(
+      createMockResponse({ user: { id: 'u1' }, image_upload_failed: false }),
+    );
+
+    await expect(updateProfile(fetchImpl, { links })).rejects.toBeInstanceOf(
+      UnreadableResponseError,
+    );
   });
 
   test('reports a failed image upload', async () => {

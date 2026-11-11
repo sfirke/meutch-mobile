@@ -1,8 +1,11 @@
+import { File } from 'expo-file-system';
+
 import {
   buildJsonRequestInit,
   buildMultipartRequestInit,
   isApiError,
   readJsonOrThrow,
+  UnreadableResponseError,
   UPLOAD_REQUEST_TIMEOUT_MS,
   type ApiFetch,
 } from './api';
@@ -309,9 +312,6 @@ export function normalizeLinkUrl(url: string): string {
   return `https://${trimmed}`;
 }
 
-/** React Native's FormData file part; `uri` is a local file, sent untouched. */
-type FilePart = { uri: string; name: string; type: string };
-
 function buildProfileFormData(update: ProfileUpdate, uri: string): FormData {
   const formData = new FormData();
 
@@ -329,8 +329,9 @@ function buildProfileFormData(update: ProfileUpdate, uri: string): FormData {
     formData.append('links', JSON.stringify(update.links));
   }
 
-  const part: FilePart = { uri, name: 'profile.jpg', type: 'image/jpeg' };
-  formData.append('profile_image', part as unknown as Blob);
+  // Expo's fetch rejects React Native's `{ uri, name, type }` file parts. The
+  // part is named after the file, a `.jpg` written by the photo picker.
+  formData.append('profile_image', new File(uri) as unknown as Blob);
 
   return formData;
 }
@@ -376,10 +377,14 @@ export async function updateProfile(
     image_upload_failed?: unknown;
   }>(response);
 
-  return {
-    user: parseUserProfile(payload.user),
-    imageUploadFailed: payload.image_upload_failed === true,
-  };
+  try {
+    return {
+      user: parseUserProfile(payload.user),
+      imageUploadFailed: payload.image_upload_failed === true,
+    };
+  } catch (error) {
+    throw new UnreadableResponseError(error);
+  }
 }
 
 export async function updateAboutMe(

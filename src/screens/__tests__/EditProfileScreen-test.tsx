@@ -254,6 +254,19 @@ describe('edit profile screen', () => {
     expect(saveButton()).toBeEnabled();
   });
 
+  test('says a save landed when its reply cannot be read', async () => {
+    renderScreen({ user: { id: 'u1' }, image_upload_failed: false });
+    await settle();
+
+    fireEvent.changeText(screen.getByTestId('field-first_name'), 'Ada');
+    fireEvent.press(saveButton());
+
+    expect(await screen.findByTestId('edit-profile-error')).toHaveTextContent(
+      /^Your changes were saved, but the app couldn't read Meutch's reply\./,
+    );
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
   test('shows a 422 name message under the field', async () => {
     renderScreen(
       validationError({ first_name: ['Please enter a real name.'] }),

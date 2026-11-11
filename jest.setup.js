@@ -31,6 +31,19 @@ jest.mock('expo-image-picker', () => ({
   })),
 }));
 
+// The native location module is unavailable under Jest.
+jest.mock('expo-location', () => ({
+  Accuracy: { Balanced: 3 },
+  requestForegroundPermissionsAsync: jest.fn(async () => ({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+  })),
+  getCurrentPositionAsync: jest.fn(async () => ({
+    coords: { latitude: 0, longitude: 0 },
+  })),
+}));
+
 jest.mock('expo-image-manipulator', () => {
   const SaveFormat = { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' };
   const manipulateAsync = jest.fn(async (uri) => ({

@@ -1,14 +1,12 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import {
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Icon } from '../components/Icon';
 import { LinkedText } from '../components/LinkedText';
@@ -17,35 +15,14 @@ import { ProfileHeader } from '../components/ProfileHeader';
 import { ProfileLinksSection } from '../components/ProfileLinksSection';
 import { QueryStateView } from '../components/QueryStateView';
 import { runtimeConfig } from '../config/env';
-import { isApiError } from '../lib/api';
+import { RECOVERY_ERROR_OVERRIDES } from '../lib/accountRecovery';
 import { formatMonthYear } from '../lib/dates';
 import { describeError } from '../lib/errorCopy';
 import type { UserProfile } from '../lib/profile';
-import { webOnlyNote } from '../lib/webOnly';
 import { useProfileQuery } from '../query/useProfileQuery';
-import { useUpdateAboutMeMutation } from '../query/useUpdateAboutMeMutation';
+import { useResendConfirmationMutation } from '../query/useResendConfirmationMutation';
 import { useSession } from '../session/SessionProvider';
 import { colors, radii, spacing, typography } from '../theme';
-
-const ABOUT_ME_LIMIT = 500;
-/** The counter only appears once the limit is close enough to matter. */
-const COUNTER_THRESHOLD = 450;
-const ABOUT_ME_PROMPT = 'Add a few words about yourself';
-const LINKS_NOTE = webOnlyNote('Edit links and photo');
-const LOCATION_NOTE = webOnlyNote('Update your location');
-
-/** Photo upload and link editing stay on the web, so only `about_me` writes. */
-function describeAboutMeError(error: unknown): string {
-  if (isApiError(error)) {
-    const messages = error.details?.about_me;
-
-    if (Array.isArray(messages) && typeof messages[0] === 'string') {
-      return messages[0];
-    }
-  }
-
-  return describeError(error).message;
-}
 
 function describeLocation(profile: UserProfile): string {
   if (profile.has_location) {
@@ -61,100 +38,62 @@ function describeLocation(profile: UserProfile): string {
 
 type AboutMeSectionProps = {
   aboutMe: string | null;
+  onEdit: () => void;
 };
 
-// A non-null draft means the editor is open, so one piece of state covers
-// both the text and the mode.
-function AboutMeSection({ aboutMe }: AboutMeSectionProps) {
-  const updateAboutMe = useUpdateAboutMeMutation();
-  const [draft, setDraft] = useState<string | null>(null);
-  const saved = aboutMe ?? '';
-
-  if (draft === null) {
-    return (
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionLabel}>About me</Text>
-          <Pressable
-            accessibilityLabel="Edit about me"
-            accessibilityRole="button"
-            onPress={() => {
-              updateAboutMe.reset();
-              setDraft(saved);
-            }}
-            style={({ pressed }) => [styles.textButton, pressed && styles.dim]}
-          >
-            <Text style={styles.textButtonLabel}>Edit</Text>
-          </Pressable>
-        </View>
-        {saved ? (
-          <LinkedText style={styles.aboutText} text={saved} />
-        ) : (
-          <Text style={styles.aboutPrompt}>{ABOUT_ME_PROMPT}</Text>
-        )}
-      </View>
-    );
-  }
-
-  const isUnchanged = draft.trim() === saved.trim();
+/** Read-only; About me is edited with the rest of the profile. */
+function AboutMeSection({ aboutMe, onEdit }: AboutMeSectionProps) {
+  const text = aboutMe?.trim();
 
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>About me</Text>
-      <TextInput
-        accessibilityLabel="About me"
-        maxLength={ABOUT_ME_LIMIT}
-        multiline
-        onChangeText={setDraft}
-        placeholder={ABOUT_ME_PROMPT}
-        placeholderTextColor={colors.inputPlaceholder}
-        style={styles.aboutInput}
-        value={draft}
-      />
-      {draft.length > COUNTER_THRESHOLD ? (
-        <Text style={styles.counter}>
-          {draft.length}/{ABOUT_ME_LIMIT}
-        </Text>
-      ) : null}
-      {updateAboutMe.error ? (
-        <Text style={styles.inlineError} testID="about-me-error">
-          {describeAboutMeError(updateAboutMe.error)}
-        </Text>
-      ) : null}
-      <View style={styles.buttonRow}>
+      {text ? (
+        <LinkedText style={styles.aboutText} text={text} />
+      ) : (
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{
-            disabled: isUnchanged || updateAboutMe.isPending,
-          }}
-          disabled={isUnchanged || updateAboutMe.isPending}
-          onPress={() => {
-            updateAboutMe.mutate(draft.trim(), {
-              // The cache update re-renders the saved text underneath.
-              onSuccess: () => setDraft(null),
-            });
-          }}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            (isUnchanged || updateAboutMe.isPending || pressed) && styles.dim,
-          ]}
+          onPress={onEdit}
+          style={({ pressed }) => [styles.prompt, pressed && styles.dim]}
         >
-          <Text style={styles.primaryButtonLabel}>
-            {updateAboutMe.isPending ? 'Saving...' : 'Save'}
+          <Text style={styles.textButtonLabel}>
+            Add a few words about yourself
           </Text>
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            updateAboutMe.reset();
-            setDraft(null);
-          }}
-          style={({ pressed }) => [styles.textButton, pressed && styles.dim]}
-        >
-          <Text style={styles.textButtonLabel}>Cancel</Text>
-        </Pressable>
-      </View>
+      )}
     </View>
+  );
+}
+
+function ResendConfirmation({ email }: { email: string }) {
+  const resend = useResendConfirmationMutation();
+
+  if (resend.isSuccess) {
+    return <Text style={styles.note}>{resend.data.message}</Text>;
+  }
+
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: resend.isPending }}
+        disabled={resend.isPending}
+        onPress={() => resend.mutate(email)}
+        style={({ pressed }) => [
+          styles.textButton,
+          (resend.isPending || pressed) && styles.dim,
+        ]}
+      >
+        <Text style={styles.textButtonLabel}>
+          {resend.isPending ? 'Sending...' : 'Resend confirmation email'}
+        </Text>
+      </Pressable>
+      {resend.error ? (
+        <Text style={styles.inlineError}>
+          {describeError(resend.error, RECOVERY_ERROR_OVERRIDES).message}
+        </Text>
+      ) : null}
+    </>
   );
 }
 
@@ -169,9 +108,7 @@ function ProfileBody({ profile, isRefreshing, onRefresh }: ProfileBodyProps) {
   const memberSince = formatMonthYear(profile.created_at);
 
   return (
-    <KeyboardAwareScrollView
-      bottomOffset={spacing[16]}
-      keyboardShouldPersistTaps="handled"
+    <ScrollView
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl
@@ -186,14 +123,24 @@ function ProfileBody({ profile, isRefreshing, onRefresh }: ProfileBodyProps) {
         <View style={styles.emailRow}>
           <Text style={styles.email}>{profile.email}</Text>
           {profile.email_confirmed ? null : (
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>Unconfirmed</Text>
-            </View>
+            <>
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>Unconfirmed</Text>
+              </View>
+              <ResendConfirmation email={profile.email} />
+            </>
           )}
         </View>
         {memberSince ? (
           <Text style={styles.note}>{`Member since ${memberSince}`}</Text>
         ) : null}
+        <View style={styles.rowList}>
+          <NavRow
+            icon="pen"
+            label="Edit profile"
+            onPress={() => router.push('/profile/edit')}
+          />
+        </View>
       </ProfileHeader>
 
       <View style={styles.section}>
@@ -217,11 +164,13 @@ function ProfileBody({ profile, isRefreshing, onRefresh }: ProfileBodyProps) {
         </View>
       </View>
 
-      <AboutMeSection aboutMe={profile.about_me} />
+      <AboutMeSection
+        aboutMe={profile.about_me}
+        onEdit={() => router.push('/profile/edit')}
+      />
 
       <View style={styles.section}>
         <ProfileLinksSection links={profile.web_links} />
-        <Text style={styles.note}>{LINKS_NOTE}</Text>
       </View>
 
       <View style={styles.section}>
@@ -230,9 +179,15 @@ function ProfileBody({ profile, isRefreshing, onRefresh }: ProfileBodyProps) {
           <Icon color={colors.secondary} name="location" />
           <Text style={styles.locationText}>{describeLocation(profile)}</Text>
         </View>
-        <Text style={styles.note}>{LOCATION_NOTE}</Text>
+        <View style={styles.rowList}>
+          <NavRow
+            icon="location"
+            label={profile.has_location ? 'Update location' : 'Add a location'}
+            onPress={() => router.push('/profile/location')}
+          />
+        </View>
       </View>
-    </KeyboardAwareScrollView>
+    </ScrollView>
   );
 }
 
@@ -306,20 +261,6 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  aboutInput: {
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    color: colors.text,
-    minHeight: 96,
-    padding: spacing[12],
-    textAlignVertical: 'top',
-    ...typography.body,
-  },
-  aboutPrompt: {
-    color: colors.secondary,
-    ...typography.body,
-  },
   aboutText: {
     color: colors.text,
     ...typography.body,
@@ -329,11 +270,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     gap: spacing[12],
     padding: spacing[16],
-  },
-  buttonRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing[12],
   },
   chip: {
     backgroundColor: colors.errorSurface,
@@ -350,11 +286,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingBottom: spacing[24],
-  },
-  counter: {
-    color: colors.secondary,
-    textAlign: 'right',
-    ...typography.itemMeta,
   },
   dim: {
     opacity: 0.6,
@@ -391,15 +322,9 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     ...typography.itemMeta,
   },
-  primaryButton: {
-    backgroundColor: colors.primaryDark,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing[16],
-    paddingVertical: spacing[10],
-  },
-  primaryButtonLabel: {
-    color: colors.onPrimaryText,
-    ...typography.buttonSmall,
+  prompt: {
+    alignSelf: 'flex-start',
+    paddingVertical: spacing[4],
   },
   queryArea: {
     flex: 1,
@@ -418,11 +343,6 @@ const styles = StyleSheet.create({
     gap: spacing[10],
     paddingHorizontal: spacing[16],
     paddingTop: spacing[18],
-  },
-  sectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   sectionLabel: {
     color: colors.secondary,

@@ -34,7 +34,10 @@ function buildSession(
 ): ReturnType<typeof useSession> {
   return {
     authenticatedApiFetch: jest.fn(),
+    discardSession: jest.fn(),
+    errorCode: null,
     errorMessage: null,
+    notice: null,
     refreshUser: jest.fn(),
     signIn: jest.fn(),
     signOut: jest.fn(),

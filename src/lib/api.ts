@@ -201,6 +201,14 @@ export async function readApiError(response: Response): Promise<ApiError> {
   }
 }
 
+/** A 2xx reply whose body the client could not parse; the write may have landed. */
+export class UnreadableResponseError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : 'Unreadable response.');
+    this.name = 'UnreadableResponseError';
+  }
+}
+
 export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }

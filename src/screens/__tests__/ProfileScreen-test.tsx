@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { Linking } from 'react-native';
 
 import { runtimeConfig } from '../../config/env';
-import type { ApiFetch } from '../../lib/api';
+import { apiFetch, type ApiFetch } from '../../lib/api';
 import MockFontAwesome6 from '../../test-utils/mockFontAwesome6';
 import {
   defaultProfileFixture,
@@ -18,6 +18,12 @@ import { ProfileScreen } from '../ProfileScreen';
 jest.mock('../../session/SessionProvider', () => ({ useSession: jest.fn() }));
 
 jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
+
+// The resend hook runs signed out, so it calls the bare apiFetch.
+jest.mock('../../lib/api', () => ({
+  ...jest.requireActual('../../lib/api'),
+  apiFetch: jest.fn(),
+}));
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
 
@@ -152,9 +158,6 @@ describe('profile screen', () => {
     expect(Linking.openURL).toHaveBeenCalledWith(
       'https://links.example.test/blog',
     );
-    expect(
-      screen.getByText('Edit links and photo on meutch.com.'),
-    ).toBeTruthy();
   });
 
   test('reads "Location set" when the member has a location', async () => {
@@ -166,7 +169,7 @@ describe('profile screen', () => {
 
     expect(await screen.findByText('Location set')).toBeTruthy();
     expect(
-      screen.getByText('Update your location on meutch.com.'),
+      screen.getByRole('button', { name: 'Update location' }),
     ).toBeTruthy();
   });
 
@@ -216,163 +219,28 @@ describe('profile screen', () => {
     expect(authenticatedApiFetch).toHaveBeenCalledTimes(2);
   });
 
-  test('sends only about_me when the editor is saved', async () => {
-    let patchBody: unknown;
-    const authenticatedApiFetch = mockApiFetch({
-      'GET /me/profile': profileRoute({ about_me: 'Old words.' }),
-      'PATCH /me/profile': (init?: RequestInit) => {
-        patchBody = getRequestBody(init);
+  test('shows about me read-only, with no inline editor', async () => {
+    renderProfileScreen(
+      mockApiFetch({
+        'GET /me/profile': profileRoute({ about_me: 'I fix bicycles.' }),
+      }),
+    );
 
-        return {
-          user: buildProfile({ about_me: 'New words.' }),
-          image_upload_failed: false,
-        };
-      },
-    });
-
-    renderProfileScreen(authenticatedApiFetch);
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-    fireEvent.changeText(screen.getByLabelText('About me'), 'New words.');
-    fireEvent.press(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByText('New words.')).toBeTruthy();
-    expect(patchBody).toEqual({ about_me: 'New words.' });
+    expect(await screen.findByText('I fix bicycles.')).toBeTruthy();
+    expect(screen.queryByLabelText('Edit about me')).toBeNull();
     expect(screen.queryByLabelText('About me')).toBeNull();
   });
 
-  test('relabels Save while the about-me write is in flight', async () => {
-    let resolvePatch: (response: Response) => void = () => undefined;
-    const authenticatedApiFetch = jest.fn(
-      async (_path: string, init?: RequestInit) => {
-        if ((init?.method ?? 'GET') !== 'GET') {
-          return new Promise<Response>((resolve) => {
-            resolvePatch = resolve;
-          });
-        }
+  test('the empty about-me prompt opens Edit profile', async () => {
+    renderProfileScreen(mockApiFetch({ 'GET /me/profile': profileRoute() }));
 
-        return jsonResponse(profileRoute({ about_me: 'Old words.' }));
-      },
-    ) as unknown as ApiFetch;
-
-    renderProfileScreen(authenticatedApiFetch);
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-    fireEvent.changeText(screen.getByLabelText('About me'), 'New words.');
-    fireEvent.press(screen.getByRole('button', { name: 'Save' }));
-
-    expect(
-      await screen.findByRole('button', { name: 'Saving...' }),
-    ).toBeDisabled();
-
-    resolvePatch(
-      jsonResponse({
-        user: buildProfile({ about_me: 'New words.' }),
-        image_upload_failed: false,
+    fireEvent.press(
+      await screen.findByRole('button', {
+        name: 'Add a few words about yourself',
       }),
     );
 
-    expect(await screen.findByText('New words.')).toBeTruthy();
-  });
-
-  test('disables Save until the about-me draft changes', async () => {
-    renderProfileScreen(
-      mockApiFetch({
-        'GET /me/profile': profileRoute({ about_me: 'Old words.' }),
-      }),
-    );
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-
-    fireEvent.changeText(screen.getByLabelText('About me'), 'Newer words.');
-
-    expect(screen.getByRole('button', { name: 'Save' })).not.toBeDisabled();
-  });
-
-  test('shows the character counter once the draft nears the limit', async () => {
-    renderProfileScreen(
-      mockApiFetch({
-        'GET /me/profile': profileRoute({ about_me: 'Old words.' }),
-      }),
-    );
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-    fireEvent.changeText(screen.getByLabelText('About me'), 'a'.repeat(451));
-
-    expect(screen.getByText('451/500')).toBeTruthy();
-  });
-
-  test('cancel restores the saved text and sends nothing', async () => {
-    const authenticatedApiFetch = mockApiFetch({
-      'GET /me/profile': profileRoute({ about_me: 'Old words.' }),
-    });
-
-    renderProfileScreen(authenticatedApiFetch);
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-    fireEvent.changeText(screen.getByLabelText('About me'), 'Abandoned draft.');
-    fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
-
-    expect(screen.getByText('Old words.')).toBeTruthy();
-    expect(screen.queryByLabelText('About me')).toBeNull();
-    for (const [, init] of authenticatedApiFetch.mock.calls) {
-      expect(init?.method ?? 'GET').toBe('GET');
-    }
-  });
-
-  test('keeps the draft and shows the field message when a save is rejected', async () => {
-    renderProfileScreen(
-      mockApiFetch({
-        'GET /me/profile': profileRoute({ about_me: 'Old words.' }),
-        'PATCH /me/profile': jsonResponse(
-          {
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Invalid input.',
-              details: { about_me: ['Keep it under 500 characters.'] },
-            },
-          },
-          422,
-        ),
-      }),
-    );
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-    fireEvent.changeText(screen.getByLabelText('About me'), 'Too much text.');
-    fireEvent.press(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByTestId('about-me-error')).toHaveTextContent(
-      'Keep it under 500 characters.',
-    );
-    expect(screen.getByDisplayValue('Too much text.')).toBeTruthy();
-  });
-
-  test('falls back to shared copy when a save fails without field details', async () => {
-    renderProfileScreen(
-      mockApiFetch({
-        'GET /me/profile': profileRoute({ about_me: 'Old words.' }),
-        'PATCH /me/profile': jsonResponse(
-          {
-            error: {
-              code: 'API_READ_ONLY',
-              message: 'Writes are disabled.',
-            },
-          },
-          503,
-        ),
-      }),
-    );
-
-    fireEvent.press(await screen.findByLabelText('Edit about me'));
-    fireEvent.changeText(screen.getByLabelText('About me'), 'New words.');
-    fireEvent.press(screen.getByRole('button', { name: 'Save' }));
-
-    expect(await screen.findByTestId('about-me-error')).toHaveTextContent(
-      "We're doing some maintenance. Please try again soon.",
-    );
-    expect(screen.getByDisplayValue('New words.')).toBeTruthy();
+    expect(mockedPush).toHaveBeenCalledWith('/profile/edit');
   });
 
   test('pushes the settings route from the Settings row', async () => {
@@ -393,6 +261,69 @@ describe('profile screen', () => {
     fireEvent.press(await screen.findByRole('button', { name: label }));
 
     expect(mockedPush).toHaveBeenCalledWith(path);
+  });
+
+  test('pushes the edit profile route', async () => {
+    renderProfileScreen(mockApiFetch({ 'GET /me/profile': profileRoute() }));
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: 'Edit profile' }),
+    );
+
+    expect(mockedPush).toHaveBeenCalledWith('/profile/edit');
+  });
+
+  test('offers to add a location and pushes the location route', async () => {
+    renderProfileScreen(mockApiFetch({ 'GET /me/profile': profileRoute() }));
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: 'Add a location' }),
+    );
+
+    expect(mockedPush).toHaveBeenCalledWith('/profile/location');
+    expect(screen.queryByText('Update location')).toBeNull();
+  });
+
+  test('no longer points to the website for links, photo, or location', async () => {
+    renderProfileScreen(
+      mockApiFetch({
+        'GET /me/profile': profileRoute({ web_links: [blogLink] }),
+      }),
+    );
+
+    expect(await screen.findByText('Morgan Member')).toBeTruthy();
+    expect(screen.queryByText(/website|meutch\.com/)).toBeNull();
+  });
+
+  test('hides the resend button for a confirmed email', async () => {
+    renderProfileScreen(mockApiFetch({ 'GET /me/profile': profileRoute() }));
+
+    expect(await screen.findByText('Morgan Member')).toBeTruthy();
+    expect(screen.queryByText('Resend confirmation email')).toBeNull();
+  });
+
+  test('resends the confirmation email and shows the message', async () => {
+    jest
+      .mocked(apiFetch)
+      .mockResolvedValue(jsonResponse({ message: 'Confirmation email sent.' }));
+    renderProfileScreen(
+      mockApiFetch({
+        'GET /me/profile': profileRoute({ email_confirmed: false }),
+      }),
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: 'Resend confirmation email' }),
+    );
+
+    expect(await screen.findByText('Confirmation email sent.')).toBeTruthy();
+    expect(screen.queryByText('Resend confirmation email')).toBeNull();
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/auth/resend-confirmation',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    const init = jest.mocked(apiFetch).mock.calls[0][1];
+    expect(getRequestBody(init)).toEqual({ email: 'member@example.com' });
   });
 
   test('sends no write requests while only reading the profile', async () => {

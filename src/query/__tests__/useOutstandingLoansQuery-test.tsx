@@ -32,6 +32,7 @@ function loan(id: string, overrides?: Partial<LoanActivity>): LoanActivity {
     due_state: 'on_time',
     days_until_due: 3,
     days_overdue: null,
+    pending_extension_request: null,
     ...overrides,
   };
 }

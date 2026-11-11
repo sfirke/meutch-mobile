@@ -1,9 +1,8 @@
 import { buildJsonRequestInit, readJsonOrThrow, type ApiFetch } from './api';
-// Cycle with loans.ts is safe: each side calls the other only at parse time.
 import {
   parseNullableLoanExtensionRequest,
   type LoanExtensionRequest,
-} from './loans';
+} from './loanExtensions';
 import {
   buildQueryString,
   isNullableString,

@@ -21,7 +21,8 @@ jest.mock('../../session/SessionProvider', () => ({
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
 
-const NO_LOCATION_HINT = 'Set a location on the website to filter by distance.';
+const NO_LOCATION_HINT =
+  'Add a location on your profile to filter by distance.';
 const DISTANCE_IDS = ['none', '5', '10', '20', '25', '50'];
 const TYPE_IDS = ['requests', 'giveaways', 'loans', 'circle_joins'];
 

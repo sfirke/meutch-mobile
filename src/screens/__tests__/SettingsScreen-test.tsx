@@ -19,7 +19,12 @@ import { SettingsScreen } from '../SettingsScreen';
 
 jest.mock('../../session/SessionProvider', () => ({ useSession: jest.fn() }));
 
-jest.mock('expo-router', () => ({ Stack: { Screen: jest.fn(() => null) } }));
+const mockPush = jest.fn();
+
+jest.mock('expo-router', () => ({
+  Stack: { Screen: jest.fn(() => null) },
+  useRouter: () => ({ push: mockPush }),
+}));
 
 jest.mock('@expo/vector-icons/FontAwesome6', () => MockFontAwesome6);
 
@@ -353,5 +358,52 @@ describe('settings screen', () => {
     );
     expect(screen.queryByTestId('settings-feedback')).toBeNull();
     expect(saveButton()).not.toBeDisabled();
+  });
+
+  describe('delete account entry', () => {
+    test('pushes the delete account route', async () => {
+      renderSettingsScreen(
+        mockApiFetch({ 'GET /me/settings': settingsRoute() }),
+      );
+
+      await screen.findByLabelText('Vacation mode');
+      fireEvent.press(screen.getByRole('button', { name: 'Delete account' }));
+
+      expect(mockPush).toHaveBeenCalledWith('/profile/delete-account');
+    });
+
+    test('renders when the settings request fails', async () => {
+      renderSettingsScreen(
+        mockApiFetch({
+          'GET /me/settings': jsonResponse(
+            { error: { code: 'INTERNAL_ERROR', message: 'Server error.' } },
+            500,
+          ),
+        }),
+      );
+
+      await screen.findByLabelText('Try again');
+      fireEvent.press(screen.getByRole('button', { name: 'Delete account' }));
+
+      expect(mockPush).toHaveBeenCalledWith('/profile/delete-account');
+    });
+
+    test('renders while the settings are still loading', async () => {
+      renderSettingsScreen(
+        jest.fn(
+          async () => new Promise<Response>(() => undefined),
+        ) as unknown as ApiFetch,
+      );
+
+      expect(await screen.findByLabelText('Loading settings')).toBeTruthy();
+      expect(
+        screen.getByRole('button', { name: 'Delete account' }),
+      ).toBeTruthy();
+      expect(
+        screen.getByText(
+          'Deleting your account removes your items and profile. This cannot be undone.',
+        ),
+      ).toBeTruthy();
+    });
   });
 });

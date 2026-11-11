@@ -24,7 +24,7 @@ function getDateLine(request: RequestSummary, now: Date): string | null {
       ? formatRequestDate(request.fulfilled_at)
       : null;
 
-    return fulfilledDate ? `Fulfilled ${fulfilledDate}` : null;
+    return fulfilledDate ? `Found ${fulfilledDate}` : null;
   }
 
   const date = formatRequestDate(request.expires_at);

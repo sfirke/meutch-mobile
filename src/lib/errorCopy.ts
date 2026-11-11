@@ -1,4 +1,8 @@
-import { isApiError, RequestTimeoutError } from './api';
+import {
+  isApiError,
+  RequestTimeoutError,
+  UnreadableResponseError,
+} from './api';
 import { SessionExpiredError, SessionRequiredError } from './session';
 
 export type ErrorCopyKey =
@@ -15,6 +19,7 @@ export type ErrorCopyKey =
   | 'OFFLINE'
   | 'TIMEOUT'
   | 'SESSION_EXPIRED'
+  | 'UNREADABLE_RESPONSE'
   | 'UNKNOWN';
 
 export type ErrorCopy = {
@@ -82,6 +87,13 @@ const SESSION_EXPIRED_COPY: ErrorCopy = {
   title: 'Please sign in again',
   message: 'Your session has ended.',
   canRetry: false,
+};
+
+const UNREADABLE_RESPONSE_COPY: ErrorCopy = {
+  title: "Couldn't read Meutch's reply",
+  message:
+    "Meutch replied, but the app couldn't read the response. Updating the app may help.",
+  canRetry: true,
 };
 
 const GENERIC_COPY: ErrorCopy = {
@@ -153,11 +165,27 @@ function classify(error: unknown): { key: ErrorCopyKey; copy: ErrorCopy } {
     return { key: 'TIMEOUT', copy: TIMEOUT_COPY };
   }
 
+  if (error instanceof UnreadableResponseError) {
+    return { key: 'UNREADABLE_RESPONSE', copy: UNREADABLE_RESPONSE_COPY };
+  }
+
   if (isNetworkFailure(error)) {
     return { key: 'OFFLINE', copy: OFFLINE_COPY };
   }
 
   return { key: 'UNKNOWN', copy: GENERIC_COPY };
+}
+
+// A client-side error's message can name internals, so only development
+// builds show it, to tell a bad input from a client bug.
+function withDevDetail(copy: ErrorCopy, error: unknown): ErrorCopy {
+  if (typeof __DEV__ === 'undefined' || !__DEV__) {
+    return copy;
+  }
+
+  const detail = error instanceof Error ? error.message : String(error);
+
+  return detail ? { ...copy, message: `${copy.message} (${detail})` } : copy;
 }
 
 /**
@@ -169,8 +197,13 @@ export function describeError(
   overrides?: ErrorCopyOverrides,
 ): ErrorCopy {
   const { key, copy } = classify(error);
+  const result = { ...copy, ...overrides?.[key] };
 
-  return { ...copy, ...overrides?.[key] };
+  // An ApiError's message is already shown; these come from the client.
+  return key === 'UNREADABLE_RESPONSE' ||
+    (key === 'UNKNOWN' && !isApiError(error))
+    ? withDevDetail(result, error)
+    : result;
 }
 
 /** A 422 puts the per-field reason in `details[field]`; prefer it over the generic. */

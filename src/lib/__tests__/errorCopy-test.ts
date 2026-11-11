@@ -1,4 +1,4 @@
-import { ApiError, RequestTimeoutError } from '../api';
+import { ApiError, RequestTimeoutError, UnreadableResponseError } from '../api';
 import {
   describeError,
   forbiddenMessageOverride,
@@ -162,11 +162,55 @@ describe('describeError', () => {
     expect(result.title).toBe('Already a member');
   });
 
-  test('never surfaces a raw non-ApiError message', () => {
-    const result = describeError(new Error('stack trace leak: /internal/db'));
+  describe('client-side error detail', () => {
+    const originalDev = __DEV__;
 
-    expect(result.canRetry).toBe(true);
-    expect(result.message).not.toContain('/internal/db');
+    afterEach(() => {
+      (globalThis as unknown as { __DEV__: boolean }).__DEV__ = originalDev;
+    });
+
+    test('a release build never surfaces a raw non-ApiError message', () => {
+      (globalThis as unknown as { __DEV__: boolean }).__DEV__ = false;
+      const result = describeError(new Error('stack trace leak: /internal/db'));
+
+      expect(result.canRetry).toBe(true);
+      expect(result.message).toBe('Please try again.');
+    });
+
+    test('a development build appends the raw message', () => {
+      (globalThis as unknown as { __DEV__: boolean }).__DEV__ = true;
+
+      expect(
+        describeError(new Error('Invalid web link payload.')).message,
+      ).toBe('Please try again. (Invalid web link payload.)');
+    });
+
+    test('a development build keeps the detail under an override', () => {
+      (globalThis as unknown as { __DEV__: boolean }).__DEV__ = true;
+      const result = describeError(
+        new UnreadableResponseError(new Error('Invalid profile payload.')),
+        { UNREADABLE_RESPONSE: { message: 'Saved.' } },
+      );
+
+      expect(result.message).toBe('Saved. (Invalid profile payload.)');
+    });
+
+    test('never adds detail to an ApiError message', () => {
+      (globalThis as unknown as { __DEV__: boolean }).__DEV__ = true;
+
+      expect(
+        describeError(apiError('SOMETHING_NEW', 'Server said no.', 500))
+          .message,
+      ).toBe('Server said no.');
+    });
+  });
+
+  test('maps UnreadableResponseError to its own copy', () => {
+    const result = describeError(
+      new UnreadableResponseError(new Error('Invalid profile payload.')),
+    );
+
+    expect(result.title).toBe("Couldn't read Meutch's reply");
   });
 
   test('falls back to generic copy for a completely unknown throwable', () => {

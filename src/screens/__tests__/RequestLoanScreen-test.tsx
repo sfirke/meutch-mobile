@@ -165,9 +165,8 @@ function pickDate(field: string, value: string) {
   const picked = localDateFromCalendarDate(value) as Date;
   fireEvent(
     screen.getByTestId('date-time-picker'),
-    'change',
+    'valueChange',
     {
-      type: 'set',
       nativeEvent: { timestamp: picked.getTime(), utcOffset: 0 },
     },
     picked,

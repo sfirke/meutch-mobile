@@ -161,9 +161,8 @@ function pickDate(date: Date) {
   fireEvent.press(screen.getByTestId('date-field-new_end_date'));
   fireEvent(
     screen.getByTestId('date-time-picker'),
-    'change',
+    'valueChange',
     {
-      type: 'set',
       nativeEvent: { timestamp: date.getTime(), utcOffset: 0 },
     },
     date,

@@ -1,6 +1,5 @@
 import DateTimePicker, {
   DateTimePickerAndroid,
-  type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import {
@@ -35,7 +34,7 @@ export type DateFieldProps = {
   field: string;
 };
 
-// A form field that picks a calendar date: a native spinner sheet on iOS, the
+// A form field that picks a calendar date: an inline calendar sheet on iOS, the
 // system dialog on Android. Values in and out are `YYYY-MM-DD` strings.
 export function DateField({
   label,
@@ -75,11 +74,7 @@ export function DateField({
         value: initialPickerDate(),
         minimumDate: minimum,
         mode: 'date',
-        onChange: (event: DateTimePickerEvent, date?: Date) => {
-          if (event.type === 'set' && date) {
-            commit(date);
-          }
-        },
+        onValueChange: (_event, date) => commit(date),
       });
       return;
     }
@@ -146,14 +141,11 @@ export function DateField({
             </View>
             {draft ? (
               <DateTimePicker
-                display="spinner"
+                accentColor={colors.primaryDark}
+                display="inline"
                 minimumDate={minimum}
                 mode="date"
-                onChange={(_event, date) => {
-                  if (date) {
-                    setDraft(date);
-                  }
-                }}
+                onValueChange={(_event, date) => setDraft(date)}
                 value={draft}
               />
             ) : null}

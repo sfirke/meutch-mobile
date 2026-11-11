@@ -10,11 +10,8 @@ import { DateField as DateFieldWeb } from '../DateField.web';
 
 const openAndroid = jest.mocked(DateTimePickerAndroid.open);
 
-function setEvent(date: Date) {
-  return {
-    type: 'set',
-    nativeEvent: { timestamp: date.getTime(), utcOffset: 0 },
-  } as const;
+function valueEvent(date: Date) {
+  return { nativeEvent: { timestamp: date.getTime(), utcOffset: 0 } };
 }
 
 beforeEach(() => {
@@ -122,7 +119,7 @@ describe('DateField', () => {
       );
     });
 
-    test('commits the spun date on Done as YYYY-MM-DD', () => {
+    test('commits the picked date on Done as YYYY-MM-DD', () => {
       const onChange = jest.fn();
       render(
         <DateField field="due" label="Due" onChange={onChange} value={null} />,
@@ -132,8 +129,8 @@ describe('DateField', () => {
       const picked = new Date(2026, 6, 9);
       fireEvent(
         screen.getByTestId('date-time-picker'),
-        'change',
-        setEvent(picked),
+        'valueChange',
+        valueEvent(picked),
         picked,
       );
       expect(onChange).not.toHaveBeenCalled();
@@ -154,8 +151,8 @@ describe('DateField', () => {
       const picked = new Date(2026, 6, 9);
       fireEvent(
         screen.getByTestId('date-time-picker'),
-        'change',
-        setEvent(picked),
+        'valueChange',
+        valueEvent(picked),
         picked,
       );
       fireEvent.press(screen.getByLabelText('Cancel'));
@@ -192,23 +189,17 @@ describe('DateField', () => {
       expect(screen.queryByTestId('date-sheet-due')).toBeNull();
     });
 
-    test('commits a set event and ignores a dismissal', () => {
+    test('commits the picked date', () => {
       const onChange = jest.fn();
       render(
         <DateField field="due" label="Due" onChange={onChange} value={null} />,
       );
 
       fireEvent.press(screen.getByTestId('date-field-due'));
-      const { onChange: pickerOnChange } = openAndroid.mock.calls[0][0];
+      const { onValueChange } = openAndroid.mock.calls[0][0];
       const picked = new Date(2026, 6, 9);
 
-      pickerOnChange?.(
-        { type: 'dismissed', nativeEvent: { timestamp: 0, utcOffset: 0 } },
-        undefined,
-      );
-      expect(onChange).not.toHaveBeenCalled();
-
-      pickerOnChange?.(setEvent(picked), picked);
+      onValueChange?.(valueEvent(picked), picked);
       expect(onChange).toHaveBeenCalledWith('2026-07-09');
     });
   });

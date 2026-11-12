@@ -1,10 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable } from 'react-native';
-
-import { colors, spacing } from '../theme';
-import { Icon } from './Icon';
 import { OptionSheet, type OptionSheetOption } from './OptionSheet';
+import { IconButton } from './ui/IconButton';
 
 type CreateRoute = '/item/new';
 
@@ -35,14 +32,12 @@ export function CreateMenu() {
 
   return (
     <>
-      <Pressable
+      <IconButton
         accessibilityLabel="Create"
-        accessibilityRole="button"
-        hitSlop={spacing[8]}
+        icon="plus"
         onPress={handleOpen}
-      >
-        <Icon color={colors.primaryDark} name="plus" size={20} />
-      </Pressable>
+        variant="primary"
+      />
       <OptionSheet
         onClose={handleClose}
         onSelect={handleSelect}

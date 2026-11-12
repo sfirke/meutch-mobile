@@ -22,14 +22,14 @@ Tracked as **PR 19** in `MOBILE_APP_PLAN.md`. Integration branch: `ui-restyle`.
 | 1B Fonts | done | `4527ac6` | `caption` has a 20 line height and display presets a -0.2 letter spacing. Old `body`, `meta`, `label` and `buttonSmall` take the new values. A failed font load falls back to system fonts. |
 | 1C Fixtures I | done | | Fixtures live outside the repo, so there is no commit. |
 | 1D Fixtures II | done | | Fixtures live outside the repo, so there is no commit. |
-| 2A Buttons | not started | | |
-| 2B Surfaces | not started | | |
-| 2C Tags, chips, badges | not started | | |
-| 2D Avatars, photos | not started | | |
-| 2E Form controls | not started | | |
-| 2F Overlays, states | not started | | |
-| 2G Nav chrome | not started | | |
-| 2H Checkpoint previews | not started | | Stays on `restyle/2h-preview`, unmerged. |
+| 2A Buttons | done | `7de28b5` | Pressed looks follow the web `:active` rules (outline presses to ink), not the appendix. `variant` is required. Every variant reserves the 2px strip under the face so buttons line up in a row. |
+| 2B Surfaces | done | `993223f` | `Lifted` gained `color`, `showOffset` and `reserveSpace`. `Card` has `content`, `callout` and `attention` variants. Inline `PaperStrip` cannot tilt or round on native; the `block` form can. |
+| 2C Tags, chips, badges | done | `a4497da` | `itemBadge.ts` keeps its old behavior until 3B and 3C switch to `itemStatusTag`. `CountBadge` caps at 99+. `DueBadge` reuses `describeLoanDue`, so it also shows for on-time loans. |
+| 2D Avatars, photos | done | `74a2d81` | Avatar default size is 34 (was 40). Callers passing 44 or 72 move to design sizes in Phase 3. |
+| 2E Form controls | done | `55846ed` | Added `ui/inputStyles` for the raw inputs Phase 3 still has to move, and `UploadTile`. The focus ring is drawn outside the box. |
+| 2F Overlays, states | done | `33b15cd` | Added `Banner` and a reduce-motion hook for dialogs and sheets. `EmptyState` gained an icon and a second action. "Discard" dialogs that pass `destructive` now show a red confirm. |
+| 2G Nav chrome | done | `ef0a2a9` | One JS header for every stack and the tabs, so the stitch can sit under it. Three switches in `theme/navigation.ts`: `headerStitch`, `tabActivePill`, `tabBarStitch`. `app.json` needed no change. |
+| 2H Checkpoint previews | in progress | | Stays on `restyle/2h-preview`, unmerged. |
 | Checkpoint | not started | | |
 | 3A Feed | not started | | |
 | 3B Browse, my items | not started | | |

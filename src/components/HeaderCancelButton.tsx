@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { colors, spacing, typography } from '../theme';
+import { colors, radii, spacing, typography } from '../theme';
+import { MIN_TAP_TARGET } from './ui/Button';
 
 type HeaderCancelButtonProps = {
   onPress: () => void;
@@ -11,8 +12,9 @@ export function HeaderCancelButton({ onPress }: HeaderCancelButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
-      hitSlop={spacing[8]}
+      hitSlop={{ left: spacing[8], right: spacing[8] }}
       onPress={onPress}
+      style={({ pressed }) => [styles.target, pressed && styles.pressed]}
     >
       <Text style={styles.label}>Cancel</Text>
     </Pressable>
@@ -20,8 +22,14 @@ export function HeaderCancelButton({ onPress }: HeaderCancelButtonProps) {
 }
 
 const styles = StyleSheet.create({
+  target: {
+    minHeight: MIN_TAP_TARGET,
+    justifyContent: 'center',
+    paddingHorizontal: spacing[12],
+  },
+  pressed: { backgroundColor: colors.tealWash, borderRadius: radii.control },
   label: {
-    ...typography.body,
-    color: colors.primaryDark,
+    ...typography.button,
+    color: colors.tealDeep,
   },
 });

@@ -29,8 +29,8 @@ Tracked as **PR 19** in `MOBILE_APP_PLAN.md`. Integration branch: `ui-restyle`.
 | 2E Form controls | done | `55846ed` | Added `ui/inputStyles` for the raw inputs Phase 3 still has to move, and `UploadTile`. The focus ring is drawn outside the box. |
 | 2F Overlays, states | done | `33b15cd` | Added `Banner` and a reduce-motion hook for dialogs and sheets. `EmptyState` gained an icon and a second action. "Discard" dialogs that pass `destructive` now show a red confirm. |
 | 2G Nav chrome | done | `ef0a2a9` | One JS header for every stack and the tabs, so the stitch can sit under it. Three switches in `theme/navigation.ts`: `headerStitch`, `tabActivePill`, `tabBarStitch`. `app.json` needed no change. |
-| 2H Checkpoint previews | in progress | | Stays on `restyle/2h-preview`, unmerged. |
-| Checkpoint | not started | | |
+| 2H Checkpoint previews | done | `271eedd` on `restyle/2h-preview` | Stays on `restyle/2h-preview`, unmerged. |
+| Checkpoint | waiting for sign-off | | Phase 2 gate: `npm run verify` passes (179 suites, 1825 tests) and all 79 harness shots render at 360 and 320. Screenshot sheet published with the taste calls. |
 | 3A Feed | not started | | |
 | 3B Browse, my items | not started | | |
 | 3C Item detail | not started | | |
@@ -54,6 +54,9 @@ Tracked as **PR 19** in `MOBILE_APP_PLAN.md`. Integration branch: `ui-restyle`.
 - Several timing-sensitive tests (the "shows a spinner" tests and `LoanActions-test`) fail when the machine is busy, on `main` as well. They pass on a quiet machine. Tasks run only their own test files; the full suite runs at each phase gate.
 - Phase 2 runs in two waves, not all at once: 2A to 2E first, then 2F and 2G, which build on the buttons, surfaces and badges. A minimal `Lifted` with its final props was written before wave 1 so tags and photos can use it; 2B owns and finishes it.
 - Web hard shadows are diagonal (`4px 4px 0`) except the button's resting offset (`0 2px 0`). `Lifted` and `hardShadow` are diagonal; `Button` draws its own vertical offset.
+- Checkpoint finding: with the header stitch on, item detail shows three stitches (header plus the two around the owner row), over the style guide's limit of one or two. The header stitch also needs a JS header in place of the native one. Both are part of the checkpoint question on the header stitch.
+- 2H replaced `ImageCarousel` on item detail with a local framed photo, because the carousel sizes itself to the window width. 3C gives `ImageCarousel` a width or frame of its own and removes the local copy.
+- 2H changed the `headlineFor` helper in `FeedScreen-test`, because the feed card now shows the title as its own heading. 3A reviews that edit.
 - A leftover inline `fontWeight` on top of a custom family is faked or ignored, never the real weight. Phase 3 removes every inline `fontWeight`, and anything that copies only `fontSize` from a preset must take the family too.
 
 ## Ground rules for everyone (orchestrator and subagents)

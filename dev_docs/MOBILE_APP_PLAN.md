@@ -342,6 +342,12 @@ Deferred to last: it needs two new backend endpoints.
 
 Verification: tapping a category or tag chip anywhere opens a paginated list of its items.
 
+### PR 19: Restyle To Match The New Web Look
+
+The web app was redesigned in "cut paper and running stitch" (see `STYLE_GUIDE.md` in the backend repo). This PR brings the app's colors, type, shapes, tags, and wording in line with it while keeping mobile-native patterns. Visual and wording changes only; no behavior or API changes. It is not tied to the feature order above and can land between any two of those PRs.
+
+Plan and status: [`UI_RESTYLE_PLAN.md`](UI_RESTYLE_PLAN.md).
+
 ### Later
 
 - **Share links:** native share sheet for public giveaway, request, and circle URLs (no API needed). Owner-generated 30-day share links for loan items need backend work (token generation, `share_token` on item detail and loan requests) and deep-link handling.

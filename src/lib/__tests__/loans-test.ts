@@ -2,11 +2,17 @@ import type { ApiFetch } from '../api';
 import {
   describeLoanDue,
   describeLoanStatus,
+  extendLoan,
   fetchLoanDetail,
   fetchMyLoans,
+  LOAN_ACTIONS,
   parseLoanActivity,
   parseLoanDetail,
+  parseLoanExtendResponse,
   parseLoanListPage,
+  parseLoanMutationResponse,
+  performLoanAction,
+  requestLoan,
   type LoanActivity,
 } from '../loans';
 
@@ -74,6 +80,30 @@ function mockFetch(body: unknown, status = 200) {
   return jest.fn(async () =>
     createMockResponse(body, status),
   ) as unknown as jest.MockedFunction<ApiFetch>;
+}
+
+function buildMessageSummary(overrides?: Record<string, unknown>) {
+  return {
+    id: MESSAGE_ID,
+    body: 'Loan request approved.',
+    timestamp: '2026-05-30T12:00:00+00:00',
+    is_read: false,
+    sender: ana,
+    recipient: ben,
+    ...overrides,
+  };
+}
+
+function buildMutationPayload(overrides?: Record<string, unknown>) {
+  return {
+    loan: createLoan({ created_at: '2026-05-30T12:00:00' }),
+    message: buildMessageSummary(),
+    ...overrides,
+  };
+}
+
+function getRequestInit(fetchImpl: jest.MockedFunction<ApiFetch>): RequestInit {
+  return fetchImpl.mock.calls[0][1] as RequestInit;
 }
 
 describe('fetchMyLoans', () => {
@@ -226,5 +256,138 @@ describe('describeLoanDue', () => {
     expect(
       describeLoanDue(loan({ status: 'pending', due_state: 'due_today' })),
     ).toBeNull();
+  });
+});
+
+describe('requestLoan', () => {
+  it('posts the request body to the item path', async () => {
+    const fetchImpl = mockFetch(buildMutationPayload(), 201);
+    const input = {
+      start_date: '2026-06-01',
+      end_date: '2026-06-10',
+      message: 'Could I borrow this for a week?',
+    };
+
+    const result = await requestLoan(fetchImpl, 'item/1', input);
+
+    expect(fetchImpl.mock.calls[0][0]).toBe('/items/item%2F1/loan-requests');
+    const init = getRequestInit(fetchImpl);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual(input);
+    expect(result.loan.id).toBe(LOAN_ID);
+    expect(result.message.id).toBe(MESSAGE_ID);
+  });
+
+  it('rejects on a non-2xx response', async () => {
+    const fetchImpl = mockFetch({ error: 'invalid' }, 422);
+
+    await expect(
+      requestLoan(fetchImpl, ITEM_ID, {
+        start_date: '2026-06-01',
+        end_date: '2026-06-10',
+        message: 'Could I borrow this?',
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe('performLoanAction', () => {
+  it.each(LOAN_ACTIONS)('posts %s with no body', async (action) => {
+    const fetchImpl = mockFetch(buildMutationPayload());
+
+    const result = await performLoanAction(fetchImpl, LOAN_ID, action);
+
+    expect(fetchImpl.mock.calls[0][0]).toBe(`/loans/${LOAN_ID}/${action}`);
+    const init = getRequestInit(fetchImpl);
+    expect(init.method).toBe('POST');
+    expect(init.body).toBeUndefined();
+    expect(result.loan.created_at).toBe('2026-05-30T12:00:00');
+  });
+
+  it('encodes the loan id', async () => {
+    const fetchImpl = mockFetch(buildMutationPayload());
+
+    await performLoanAction(fetchImpl, 'a/b', 'approve');
+
+    expect(fetchImpl.mock.calls[0][0]).toBe('/loans/a%2Fb/approve');
+  });
+});
+
+describe('extendLoan', () => {
+  const payload = { ...buildMutationPayload(), is_extension: true };
+
+  it('sends the trimmed message when given', async () => {
+    const fetchImpl = mockFetch(payload);
+
+    const result = await extendLoan(fetchImpl, LOAN_ID, {
+      new_end_date: '2026-06-20',
+      message: '  Need a few more days.  ',
+    });
+
+    expect(fetchImpl.mock.calls[0][0]).toBe(`/loans/${LOAN_ID}/extend`);
+    const init = getRequestInit(fetchImpl);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({
+      new_end_date: '2026-06-20',
+      message: 'Need a few more days.',
+    });
+    expect(result.is_extension).toBe(true);
+  });
+
+  it.each([undefined, '', '   '])(
+    'omits message when it is %p',
+    async (message) => {
+      const fetchImpl = mockFetch(payload);
+
+      await extendLoan(fetchImpl, LOAN_ID, {
+        new_end_date: '2026-06-20',
+        message,
+      });
+
+      expect(JSON.parse(getRequestInit(fetchImpl).body as string)).toEqual({
+        new_end_date: '2026-06-20',
+      });
+    },
+  );
+});
+
+describe('parseLoanMutationResponse', () => {
+  it('parses a full payload', () => {
+    const result = parseLoanMutationResponse(buildMutationPayload());
+
+    expect(result.loan).toEqual(
+      createLoan({ created_at: '2026-05-30T12:00:00' }),
+    );
+    expect(result.message).toEqual(buildMessageSummary());
+  });
+
+  it('throws on a malformed payload', () => {
+    expect(() => parseLoanMutationResponse(null)).toThrow(
+      'Invalid loan mutation payload.',
+    );
+    expect(() =>
+      parseLoanMutationResponse(buildMutationPayload({ message: undefined })),
+    ).toThrow('Invalid message payload.');
+    expect(() =>
+      parseLoanMutationResponse(buildMutationPayload({ loan: createLoan() })),
+    ).toThrow('Invalid loan payload.');
+  });
+});
+
+describe('parseLoanExtendResponse', () => {
+  it('parses is_extension', () => {
+    const result = parseLoanExtendResponse({
+      ...buildMutationPayload(),
+      is_extension: false,
+    });
+
+    expect(result.is_extension).toBe(false);
+    expect(result.message.id).toBe(MESSAGE_ID);
+  });
+
+  it('requires is_extension', () => {
+    expect(() => parseLoanExtendResponse(buildMutationPayload())).toThrow(
+      'Invalid loan extend payload.',
+    );
   });
 });

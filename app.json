@@ -56,7 +56,8 @@
           "locationWhenInUsePermission": "Meutch uses your location to set the point on the map used for distances to items and circles."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

@@ -1,9 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatCalendarDate } from '../lib/dates';
 import { describeLoanStatus } from '../lib/loans';
 import type { LoanSummary } from '../lib/parse';
-import { webOnlyNote } from '../lib/webOnly';
 import { colors, radii, spacing, typography } from '../theme';
 import { Icon } from './Icon';
 import { loanToneColors } from './loanTone';
@@ -12,11 +12,10 @@ export type LoanBannerProps = {
   loan: LoanSummary;
 };
 
-const NOTE = webOnlyNote('Approve, deny, or extend this loan');
-
 // Thread footer banner for a pending/approved loan tied to the conversation.
 // No borrower identity here: the thread already shows the other participant.
 export function LoanBanner({ loan }: LoanBannerProps) {
+  const router = useRouter();
   const startDate = formatCalendarDate(loan.start_date);
   const endDate = formatCalendarDate(loan.end_date);
   const datesLine = startDate && endDate ? `${startDate} to ${endDate}` : null;
@@ -24,23 +23,30 @@ export function LoanBanner({ loan }: LoanBannerProps) {
   const toneColor = loanToneColors[tone];
 
   return (
-    <View
-      style={[styles.banner, { borderColor: toneColor }]}
+    <Pressable
+      accessibilityLabel="View loan"
+      accessibilityRole="button"
+      onPress={() => router.push(`/loan/${loan.id}`)}
+      style={({ pressed }) => [
+        styles.banner,
+        { borderColor: toneColor },
+        pressed && styles.pressed,
+      ]}
       testID="loan-banner"
     >
       <Icon color={toneColor} name="loan" size={18} />
       <View style={styles.copy}>
         <Text style={styles.label}>{label}</Text>
         {datesLine ? <Text style={styles.dates}>{datesLine}</Text> : null}
-        <Text style={styles.note}>{NOTE}</Text>
       </View>
-    </View>
+      <Icon color={colors.secondary} name="chevron" size={12} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   banner: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: radii.sm,
     borderWidth: 1,
@@ -60,9 +66,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     ...typography.label,
   },
-  note: {
-    color: colors.secondary,
-    ...typography.itemMeta,
-    fontSize: 12,
+  pressed: {
+    opacity: 0.75,
   },
 });

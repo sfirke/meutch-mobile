@@ -462,19 +462,19 @@ describe('<ItemDetailScreen /> identity visibility', () => {
 });
 
 describe('<ItemDetailScreen /> affordances', () => {
-  test('offers a disabled borrow request when the viewer shares a circle', async () => {
+  test('offers a borrow request that opens the request form', async () => {
     const { authenticatedApiFetch } = renderScreen();
 
     const action = await screen.findByTestId('item-primary-action');
 
     expect(screen.getByText('Request to Borrow')).toBeTruthy();
-    expect(action).toBeDisabled();
-    expect(action.props.accessibilityState.disabled).toBe(true);
-    expect(
-      screen.getByText(
-        'Borrow requests are coming to the app soon. For now, use meutch.com.',
-      ),
-    ).toBeTruthy();
+    expect(action).toBeEnabled();
+    expect(screen.queryByText(/coming to the app soon/)).toBeNull();
+    expect(screen.queryByText(/meutch\.com/)).toBeNull();
+
+    fireEvent.press(action);
+
+    expect(mockPush).toHaveBeenCalledWith(`/item/${ITEM_ID}/request`);
     expectOnlyReads(authenticatedApiFetch);
   });
 
@@ -587,17 +587,32 @@ describe('<ItemDetailScreen /> affordances', () => {
     expect(screen.queryByTestId('item-primary-action')).toBeNull();
   });
 
-  test('offers no request action to the active borrower', async () => {
+  test('links the active borrower to their loan instead of a request', async () => {
+    const loanId = 'aa111111-1111-4111-8111-111111111111';
     renderScreen({
       viewer: { is_active_borrower: true },
-      item: { available: false },
+      item: {
+        available: false,
+        current_loan: {
+          id: loanId,
+          start_date: '2026-05-20',
+          end_date: '2026-06-03',
+          status: 'approved',
+          borrower,
+        },
+      },
     });
 
-    expect(
-      await screen.findByText('Returns are on meutch.com for now.'),
-    ).toBeTruthy();
+    const viewLoan = await screen.findByTestId('item-view-loan');
+
+    expect(screen.getByText('View loan')).toBeTruthy();
+    expect(screen.queryByText(/meutch\.com/)).toBeNull();
     expect(screen.getByTestId('item-composer')).toBeTruthy();
     expect(screen.queryByTestId('item-primary-action')).toBeNull();
+
+    fireEvent.press(viewLoan);
+
+    expect(mockPush).toHaveBeenCalledWith(`/loan/${loanId}`);
   });
 });
 

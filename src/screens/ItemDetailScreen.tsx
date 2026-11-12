@@ -27,7 +27,6 @@ import { formatCalendarDate } from '../lib/dates';
 import { describeError, type ErrorCopyOverrides } from '../lib/errorCopy';
 import type { ItemDetail, ItemViewerState } from '../lib/items';
 import { DELETED_USER_NAME } from '../lib/parse';
-import { WEB_SITE } from '../lib/webOnly';
 import { useDeleteItemMutation } from '../query/useDeleteItemMutation';
 import { isItemId, useItemDetailQuery } from '../query/useItemDetailQuery';
 import { useSession } from '../session/SessionProvider';
@@ -69,12 +68,12 @@ type StatusBanner = {
 };
 
 type Affordance = {
-  /** Rendered disabled: borrow requests still live on the website. */
+  /** Opens the borrow request form. */
   actionLabel: string | null;
   notes: string[];
+  /** The viewer's active loan, linked from a "View loan" row. */
+  loanId?: string | null;
 };
-
-const WEB_ONLY_NOTE = 'For now, use meutch.com.';
 
 const GIVEAWAY_PLACEHOLDER =
   "Hi! I'm interested in this item. When could I pick it up?";
@@ -183,7 +182,8 @@ function describeAffordance(
   if (viewer.is_active_borrower) {
     return {
       actionLabel: null,
-      notes: [`Returns are on ${WEB_SITE} for now.`],
+      notes: [],
+      loanId: item.current_loan?.id ?? null,
     };
   }
 
@@ -229,10 +229,7 @@ function describeAffordance(
     };
   }
 
-  return {
-    actionLabel: 'Request to Borrow',
-    notes: [`Borrow requests are coming to the app soon. ${WEB_ONLY_NOTE}`],
-  };
+  return { actionLabel: 'Request to Borrow', notes: [] };
 }
 
 function OwnerActions({ itemId }: { itemId: string }) {
@@ -319,6 +316,7 @@ function ItemDetailBody({
   onRefresh,
   onOpenThread,
 }: ItemDetailBodyProps) {
+  const router = useRouter();
   const banner = buildStatusBanner(item, viewer, isRecipient);
   const affordance = describeAffordance(item, viewer, isRecipient);
   const paddingBottom = useScrollBottomPadding();
@@ -426,6 +424,7 @@ function ItemDetailBody({
       {recipient ||
       viewer.is_owner ||
       affordance.actionLabel ||
+      affordance.loanId ||
       affordance.notes.length > 0 ? (
         <View style={styles.actionCard} testID="item-affordance">
           {recipient ? (
@@ -445,14 +444,32 @@ function ItemDetailBody({
           {affordance.actionLabel ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityState={{ disabled: true }}
-              disabled
-              style={styles.actionButton}
+              onPress={() => router.push(`/item/${item.id}/request`)}
+              style={({ pressed }) => [
+                styles.actionButton,
+                pressed && styles.pressed,
+              ]}
               testID="item-primary-action"
             >
               <Text style={styles.actionButtonLabel}>
                 {affordance.actionLabel}
               </Text>
+            </Pressable>
+          ) : null}
+
+          {affordance.loanId ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push(`/loan/${affordance.loanId}`)}
+              style={({ pressed }) => [
+                styles.loanRow,
+                pressed && styles.pressed,
+              ]}
+              testID="item-view-loan"
+            >
+              <Icon color={colors.secondary} name="loan" size={16} />
+              <Text style={styles.loanLabel}>View loan</Text>
+              <Icon color={colors.secondary} name="chevron" size={12} />
             </Pressable>
           ) : null}
 
@@ -536,9 +553,8 @@ export function ItemDetailScreen() {
 const styles = StyleSheet.create({
   actionButton: {
     alignItems: 'center',
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.primaryDark,
     borderRadius: radii.sm,
-    opacity: 0.6,
     paddingHorizontal: spacing[16],
     paddingVertical: spacing[12],
   },
@@ -626,6 +642,19 @@ const styles = StyleSheet.create({
     ...typography.label,
     fontSize: 11,
   },
+  loanLabel: {
+    color: colors.text,
+    flex: 1,
+    ...typography.label,
+  },
+  loanRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    flexDirection: 'row',
+    gap: spacing[12],
+    padding: spacing[12],
+  },
   name: {
     color: colors.text,
     ...typography.value,
@@ -657,6 +686,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing[12],
+  },
+  pressed: {
+    opacity: 0.75,
   },
   screen: {
     backgroundColor: colors.background,

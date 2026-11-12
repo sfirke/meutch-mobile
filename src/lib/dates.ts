@@ -79,3 +79,48 @@ export function formatMonthYear(value: string): string | null {
 
   return `${MONTH_ABBREVIATIONS[month - 1]} ${year}`;
 }
+
+function pad(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+/** The local Y/M/D of a `Date` as `YYYY-MM-DD`. */
+export function calendarDateFromLocalDate(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
+ * A `Date` at local midnight on the written day, or `null` if unparseable.
+ * Built from the components, never from the string (see `parseCalendarDate`).
+ */
+export function localDateFromCalendarDate(value: string): Date | null {
+  const date = parseCalendarDate(value);
+
+  return date ? new Date(date.year, date.month - 1, date.day) : null;
+}
+
+/** Today's local date as `YYYY-MM-DD`. `now` is injectable for tests. */
+export function todayCalendarDate(now: Date = new Date()): string {
+  return calendarDateFromLocalDate(now);
+}
+
+/**
+ * `value` plus `days` (negative to go back), via local `Date` arithmetic so
+ * month and year boundaries roll over. Throws on an unparseable input.
+ */
+export function addCalendarDays(value: string, days: number): string {
+  const date = localDateFromCalendarDate(value);
+
+  if (!date) {
+    throw new Error(`Not a calendar date: ${value}`);
+  }
+
+  date.setDate(date.getDate() + days);
+
+  return calendarDateFromLocalDate(date);
+}
+
+/** Orders two `YYYY-MM-DD` strings; zero-padded ISO dates sort lexically. */
+export function compareCalendarDates(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}

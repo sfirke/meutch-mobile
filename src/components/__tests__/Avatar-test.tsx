@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react-native';
 
+import { colors } from '../../theme';
 import type { UserSummary } from '../../lib/parse';
-import { Avatar, getInitials } from '../Avatar';
+import { Avatar, getInitials, initialsFromName, toneForName } from '../Avatar';
 
 const ada: UserSummary = {
   id: 'a1111111-1111-4111-8111-111111111111',
@@ -71,5 +72,35 @@ describe('getInitials', () => {
 
   test('returns "?" for a null user', () => {
     expect(getInitials(null)).toBe('?');
+  });
+});
+
+describe('initialsFromName', () => {
+  test.each([
+    ['Ada Example', 'AE'],
+    ['ada lovelace', 'AL'],
+    ['Ada', 'A'],
+    ['Ada Byron King', 'AK'],
+    ['  Ada   Example  ', 'AE'],
+    ['', '?'],
+    ['   ', '?'],
+  ])('%j gives %j', (name, expected) => {
+    expect(initialsFromName(name)).toBe(expected);
+  });
+});
+
+describe('toneForName', () => {
+  test.each([
+    ['', 'teal', 'ink'],
+    ['abc', 'teal', 'ink'],
+    ['ab', 'purple', 'white'],
+    ['a', 'tangerine', 'ink'],
+    ['Ada Example', 'purple', 'white'],
+    ['a b', 'teal', 'ink'],
+  ])('%j uses %s fill', (name, fill, text) => {
+    const tone = toneForName(name);
+
+    expect(tone.background).toBe(colors[fill as keyof typeof colors]);
+    expect(tone.text).toBe(colors[text as keyof typeof colors]);
   });
 });

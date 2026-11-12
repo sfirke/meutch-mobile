@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { UserSummary } from '../lib/parse';
-import { colors, typography } from '../theme';
+import { colors, fonts, outline } from '../theme';
 
 /** The fields an avatar reads; any user shape with them will do. */
 export type AvatarUser = Pick<
@@ -12,9 +12,37 @@ export type AvatarUser = Pick<
 
 type AvatarProps = {
   user: AvatarUser | null;
+  /** Design sizes are 28, 34, 40 and 120; other numbers still render. */
   size?: number;
   testID?: string;
 };
+
+type Tone = { background: string; text: string };
+
+const TONES: readonly Tone[] = [
+  { background: colors.teal, text: colors.ink },
+  { background: colors.tangerine, text: colors.ink },
+  { background: colors.purple, text: colors.white },
+];
+
+/** First letter of the first and last word, upper-cased; `'?'` when empty. */
+export function initialsFromName(name: string): string {
+  const words = name.split(/\s+/).filter(Boolean);
+
+  if (words.length === 0) {
+    return '?';
+  }
+
+  const first = words[0].charAt(0);
+  const last = words.length > 1 ? words[words.length - 1].charAt(0) : '';
+
+  return `${first}${last}`.toUpperCase();
+}
+
+/** Fill and text colors picked by the name's length, spaces included. */
+export function toneForName(name: string): Tone {
+  return TONES[name.length % 3];
+}
 
 /** `'?'` covers a deleted account (`user` is `null`) or blank names. */
 export function getInitials(user: AvatarUser | null): string {
@@ -22,14 +50,12 @@ export function getInitials(user: AvatarUser | null): string {
     return '?';
   }
 
-  const initials = `${user.first_name.charAt(0)}${user.last_name.charAt(0)}`;
-
-  return initials.trim().toUpperCase() || '?';
+  return initialsFromName(`${user.first_name} ${user.last_name}`);
 }
 
 // Shared avatar: a photo when the user has one, otherwise initials on a
 // circle. Used anywhere a `UserSummary` needs a face, from item detail on.
-export function Avatar({ user, size = 40, testID = 'avatar' }: AvatarProps) {
+export function Avatar({ user, size = 34, testID = 'avatar' }: AvatarProps) {
   const dimensionStyle = { height: size, width: size, borderRadius: size / 2 };
 
   if (user?.profile_image_url) {
@@ -38,18 +64,27 @@ export function Avatar({ user, size = 40, testID = 'avatar' }: AvatarProps) {
         accessibilityLabel={user.full_name}
         contentFit="cover"
         source={{ uri: user.profile_image_url }}
-        style={dimensionStyle}
+        style={[styles.outlined, dimensionStyle]}
         testID={testID}
       />
     );
   }
 
+  const tone = toneForName(user?.full_name ?? '');
+
   return (
     <View
-      style={[styles.fallback, dimensionStyle]}
+      style={[
+        styles.outlined,
+        styles.fallback,
+        dimensionStyle,
+        { backgroundColor: tone.background },
+      ]}
       testID={`${testID}-initials`}
     >
-      <Text style={[styles.initials, { fontSize: size * 0.4 }]}>
+      <Text
+        style={[styles.initials, { color: tone.text, fontSize: size * 0.36 }]}
+      >
         {getInitials(user)}
       </Text>
     </View>
@@ -57,13 +92,16 @@ export function Avatar({ user, size = 40, testID = 'avatar' }: AvatarProps) {
 }
 
 const styles = StyleSheet.create({
+  outlined: {
+    borderColor: colors.ink,
+    borderWidth: outline,
+    overflow: 'hidden',
+  },
   fallback: {
     alignItems: 'center',
-    backgroundColor: colors.secondaryBackground,
     justifyContent: 'center',
   },
   initials: {
-    color: colors.primaryDark,
-    ...typography.label,
+    fontFamily: fonts.body[700],
   },
 });

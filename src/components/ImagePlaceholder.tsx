@@ -1,16 +1,18 @@
+import { Image } from 'expo-image';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { colors } from '../theme';
-import { Icon } from './Icon';
 
 type ImagePlaceholderProps = {
   style?: StyleProp<ViewStyle>;
   testID?: string;
 };
 
+const defaultPhoto = require('../../assets/default_item_photo.png');
+
 // Shown wherever an item has no photo: item cards, feed cards, the
-// item-detail carousel. Icon-only so it still reads correctly at small
-// thumbnail sizes, where a label would wrap or get clipped.
+// item-detail carousel. The default photo is contained on a wash, so it
+// stays whole at thumbnail sizes and in wide carousel slots.
 export function ImagePlaceholder({
   style,
   testID = 'image-placeholder',
@@ -23,17 +25,25 @@ export function ImagePlaceholder({
       style={[styles.container, style]}
       testID={testID}
     >
-      <Icon color={colors.secondary} name="image" size={28} />
+      <Image
+        accessibilityElementsHidden
+        contentFit="contain"
+        source={defaultPhoto}
+        style={styles.image}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.tangerineWash,
     height: '100%',
-    justifyContent: 'center',
+    overflow: 'hidden',
+    width: '100%',
+  },
+  image: {
+    height: '100%',
     width: '100%',
   },
 });

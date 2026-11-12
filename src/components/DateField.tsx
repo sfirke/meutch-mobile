@@ -17,6 +17,7 @@ import {
   localDateFromCalendarDate,
 } from '../lib/dates';
 import { colors, radii, spacing, typography } from '../theme';
+import { inputStyles } from './ui/inputStyles';
 import { FieldError } from './FieldError';
 
 export type DateFieldProps = {
@@ -96,7 +97,7 @@ export function DateField({
   }
 
   return (
-    <View style={styles.root}>
+    <View>
       <Text style={styles.label}>{label}</Text>
       <Pressable
         accessibilityLabel={label}
@@ -104,7 +105,11 @@ export function DateField({
         accessibilityState={{ disabled }}
         disabled={disabled}
         onPress={open}
-        style={[styles.box, disabled && styles.dim]}
+        style={[
+          inputStyles.input,
+          disabled && inputStyles.disabled,
+          error ? inputStyles.error : null,
+        ]}
         testID={`date-field-${field}`}
       >
         <Text style={display ? styles.value : styles.placeholder}>
@@ -134,6 +139,7 @@ export function DateField({
               <Pressable
                 accessibilityRole="button"
                 onPress={done}
+                style={styles.doneButton}
                 testID={`date-done-${field}`}
               >
                 <Text style={styles.doneLabel}>Done</Text>
@@ -141,7 +147,7 @@ export function DateField({
             </View>
             {draft ? (
               <DateTimePicker
-                accentColor={colors.primaryDark}
+                accentColor={colors.tealDeep}
                 display="inline"
                 minimumDate={minimum}
                 mode="date"
@@ -158,39 +164,31 @@ export function DateField({
 
 const styles = StyleSheet.create({
   backdrop: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: colors.scrim,
     flex: 1,
     justifyContent: 'flex-end',
   },
-  box: {
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    paddingHorizontal: spacing[12],
-    paddingVertical: spacing[10],
-  },
-  dim: {
-    opacity: 0.6,
+  doneButton: {
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingLeft: spacing[12],
   },
   doneLabel: {
-    color: colors.primaryDark,
+    color: colors.tealDeep,
     ...typography.buttonSmall,
   },
   label: {
-    color: colors.secondary,
-    ...typography.label,
+    ...inputStyles.label,
+    marginBottom: spacing[8],
   },
   placeholder: {
-    color: colors.inputPlaceholder,
+    color: colors.muted,
     ...typography.body,
   },
-  root: {
-    gap: spacing[8],
-  },
   sheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
+    backgroundColor: colors.paper,
+    borderTopLeftRadius: radii.card,
+    borderTopRightRadius: radii.card,
     paddingBottom: spacing[24],
     paddingHorizontal: spacing[20],
     paddingTop: spacing[20],
@@ -202,11 +200,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing[8],
   },
   sheetTitle: {
-    color: colors.secondary,
+    color: colors.ink,
     ...typography.label,
   },
   value: {
-    color: colors.text,
+    color: colors.ink,
     ...typography.body,
   },
 });

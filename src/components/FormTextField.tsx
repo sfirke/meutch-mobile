@@ -1,8 +1,9 @@
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import type { TextInputProps } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { spacing } from '../theme';
 import { FieldError } from './FieldError';
+import { inputPlaceholderColor, inputStyles, useFocus } from './ui/inputStyles';
 
 export type FormTextFieldProps = Omit<
   TextInputProps,
@@ -26,20 +27,38 @@ export function FormTextField({
   error,
   hint,
   style,
+  onFocus,
+  onBlur,
   ...inputProps
 }: FormTextFieldProps) {
+  const focus = useFocus(onFocus, onBlur);
+  const disabled = inputProps.editable === false;
+
   return (
-    <View style={styles.container}>
+    <View>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
-        accessibilityLabel={label}
-        placeholderTextColor={colors.inputPlaceholder}
-        testID={`field-${field}`}
-        {...inputProps}
-        onChangeText={onChangeText}
-        style={[styles.input, error ? styles.inputError : null, style]}
-        value={value}
-      />
+      <View style={inputStyles.frame}>
+        <TextInput
+          accessibilityLabel={label}
+          placeholderTextColor={inputPlaceholderColor}
+          testID={`field-${field}`}
+          {...inputProps}
+          onBlur={focus.onBlur}
+          onChangeText={onChangeText}
+          onFocus={focus.onFocus}
+          style={[
+            inputStyles.input,
+            focus.focused && inputStyles.focused,
+            disabled && inputStyles.disabled,
+            error ? inputStyles.error : null,
+            style,
+          ]}
+          value={value}
+        />
+        {focus.focused ? (
+          <View pointerEvents="none" style={inputStyles.ring} />
+        ) : null}
+      </View>
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       <FieldError field={field} message={error} />
     </View>
@@ -47,27 +66,6 @@ export function FormTextField({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: spacing[4],
-  },
-  label: {
-    color: colors.secondary,
-    ...typography.label,
-  },
-  input: {
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    color: colors.text,
-    fontSize: typography.body.fontSize,
-    paddingHorizontal: spacing[14],
-    paddingVertical: spacing[12],
-  },
-  inputError: {
-    borderColor: colors.warning,
-  },
-  hint: {
-    color: colors.secondary,
-    ...typography.itemMeta,
-  },
+  label: { ...inputStyles.label, marginBottom: spacing[8] },
+  hint: { ...inputStyles.help, marginTop: spacing[4] },
 });

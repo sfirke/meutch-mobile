@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, spacing, typography } from '../theme';
+import { inputPlaceholderColor, inputStyles, useFocus } from './ui/inputStyles';
 
 const MIN_RADIUS = 1;
 const MAX_RADIUS = 50;
@@ -35,6 +36,7 @@ export function RadiusInput({
   disabled = false,
   label = 'Digest radius',
 }: RadiusInputProps) {
+  const focus = useFocus();
   const [text, setText] = useState(String(value));
   // Tracks the value this render's text was derived from, so an external
   // value change can be reflected without an effect (React's documented
@@ -65,6 +67,7 @@ export function RadiusInput({
   };
 
   const handleBlur = () => {
+    focus.onBlur(undefined);
     const clamped = clampRadius(text);
     setText(String(clamped));
     if (clamped !== value) {
@@ -73,21 +76,33 @@ export function RadiusInput({
   };
 
   return (
-    <View style={styles.container}>
+    <View>
       <Text style={styles.label}>{label}</Text>
       <View style={styles.row}>
-        <TextInput
-          accessibilityLabel="Digest radius in miles"
-          editable={!disabled}
-          keyboardType="number-pad"
-          maxLength={2}
-          onBlur={handleBlur}
-          onChangeText={handleChangeText}
-          onEndEditing={handleBlur}
-          style={styles.input}
-          value={text}
-        />
-        <Text style={styles.unit}>miles</Text>
+        <View style={inputStyles.frame}>
+          <TextInput
+            accessibilityLabel="Digest radius in miles"
+            editable={!disabled}
+            keyboardType="number-pad"
+            maxLength={2}
+            onBlur={handleBlur}
+            onChangeText={handleChangeText}
+            onEndEditing={handleBlur}
+            onFocus={focus.onFocus}
+            placeholderTextColor={inputPlaceholderColor}
+            style={[
+              inputStyles.input,
+              styles.input,
+              focus.focused && inputStyles.focused,
+              disabled && inputStyles.disabled,
+            ]}
+            value={text}
+          />
+          {focus.focused ? (
+            <View pointerEvents="none" style={inputStyles.ring} />
+          ) : null}
+        </View>
+        <Text style={[styles.unit, disabled && styles.dimmed]}>miles</Text>
       </View>
       <Text style={styles.hint}>1 to 50 miles</Text>
     </View>
@@ -95,26 +110,19 @@ export function RadiusInput({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: spacing[4],
+  dimmed: {
+    opacity: 0.5,
   },
   hint: {
-    color: colors.secondary,
-    ...typography.meta,
+    ...inputStyles.help,
+    marginTop: spacing[4],
   },
   input: {
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    color: colors.text,
-    minWidth: 56,
-    paddingHorizontal: spacing[12],
-    paddingVertical: spacing[8],
-    ...typography.body,
+    minWidth: 64,
   },
   label: {
-    color: colors.text,
-    ...typography.label,
+    ...inputStyles.label,
+    marginBottom: spacing[8],
   },
   row: {
     alignItems: 'center',
@@ -122,7 +130,7 @@ const styles = StyleSheet.create({
     gap: spacing[8],
   },
   unit: {
-    color: colors.text,
+    color: colors.ink,
     ...typography.body,
   },
 });

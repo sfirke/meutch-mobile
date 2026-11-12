@@ -33,7 +33,9 @@ export function SwitchRow({
         accessibilityState={disabled ? { disabled: true } : undefined}
         disabled={disabled}
         onValueChange={onValueChange}
-        trackColor={{ true: colors.primaryDark }}
+        ios_backgroundColor={colors.line}
+        thumbColor={colors.white}
+        trackColor={{ false: colors.line, true: colors.tealDeep }}
         value={value}
       />
     </View>
@@ -47,20 +49,21 @@ const styles = StyleSheet.create({
     paddingRight: spacing[12],
   },
   description: {
-    color: colors.secondary,
+    color: colors.muted,
     ...typography.meta,
   },
   dimmed: {
-    opacity: 0.5,
+    opacity: 0.6,
   },
   label: {
-    color: colors.text,
+    color: colors.ink,
     ...typography.body,
   },
   row: {
     alignItems: 'center',
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.line,
     borderBottomWidth: 1,
+    minHeight: 44,
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: spacing[12],

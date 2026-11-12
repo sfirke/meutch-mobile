@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, outline, radii, typography } from '../theme';
 
 type Segment<T extends string> = {
   value: T;
@@ -27,7 +27,7 @@ export function SegmentedControl<T extends string>({
       accessibilityRole="tablist"
       style={styles.row}
     >
-      {options.map((option) => {
+      {options.map((option, index) => {
         const selected = option.value === value;
 
         return (
@@ -40,7 +40,11 @@ export function SegmentedControl<T extends string>({
                 onChange(option.value);
               }
             }}
-            style={[styles.segment, selected && styles.segmentSelected]}
+            style={[
+              styles.segment,
+              index > 0 && styles.divider,
+              selected && styles.segmentSelected,
+            ]}
           >
             <Text style={[styles.label, selected && styles.labelSelected]}>
               {option.label}
@@ -54,27 +58,34 @@ export function SegmentedControl<T extends string>({
 
 const styles = StyleSheet.create({
   row: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    backgroundColor: colors.white,
+    borderColor: colors.ink,
+    borderRadius: radii.control,
+    borderWidth: outline,
     flexDirection: 'row',
-    gap: spacing[4],
-    padding: spacing[4],
+    overflow: 'hidden',
   },
   segment: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
+    backgroundColor: colors.white,
     flex: 1,
-    paddingVertical: spacing[8],
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: 8,
+  },
+  divider: {
+    borderLeftColor: colors.ink,
+    borderLeftWidth: outline,
   },
   segmentSelected: {
-    backgroundColor: colors.primaryDark,
+    backgroundColor: colors.ink,
   },
   label: {
-    color: colors.text,
+    color: colors.ink,
+    textAlign: 'center',
     ...typography.label,
   },
   labelSelected: {
-    color: colors.onPrimaryText,
+    color: colors.paper,
   },
 });

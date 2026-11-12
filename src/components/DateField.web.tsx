@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { parseCalendarDate } from '../lib/dates';
-import { colors, radii, spacing, typography } from '../theme';
+import { spacing } from '../theme';
 import type { DateFieldProps } from './DateField';
 import { FieldError } from './FieldError';
+import { inputPlaceholderColor, inputStyles, useFocus } from './ui/inputStyles';
 
 export type { DateFieldProps } from './DateField';
 
@@ -19,49 +20,47 @@ export function DateField({
   field,
 }: DateFieldProps) {
   const [text, setText] = useState(value ?? '');
+  const focus = useFocus();
 
   return (
-    <View style={styles.root}>
+    <View>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
-        accessibilityLabel={label}
-        autoCapitalize="none"
-        editable={!disabled}
-        onChangeText={(next) => {
-          setText(next);
-          if (parseCalendarDate(next)) {
-            onChange(next);
-          }
-        }}
-        placeholder="YYYY-MM-DD"
-        placeholderTextColor={colors.inputPlaceholder}
-        style={[styles.input, disabled && styles.dim]}
-        testID={`date-field-${field}`}
-        value={text}
-      />
+      <View style={inputStyles.frame}>
+        <TextInput
+          accessibilityLabel={label}
+          autoCapitalize="none"
+          editable={!disabled}
+          onBlur={focus.onBlur}
+          onFocus={focus.onFocus}
+          onChangeText={(next) => {
+            setText(next);
+            if (parseCalendarDate(next)) {
+              onChange(next);
+            }
+          }}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor={inputPlaceholderColor}
+          style={[
+            inputStyles.input,
+            focus.focused && inputStyles.focused,
+            disabled && inputStyles.disabled,
+            error ? inputStyles.error : null,
+          ]}
+          testID={`date-field-${field}`}
+          value={text}
+        />
+        {focus.focused ? (
+          <View pointerEvents="none" style={inputStyles.ring} />
+        ) : null}
+      </View>
       <FieldError field={field} message={error ?? undefined} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  dim: {
-    opacity: 0.6,
-  },
-  input: {
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    color: colors.text,
-    paddingHorizontal: spacing[12],
-    paddingVertical: spacing[10],
-    ...typography.body,
-  },
   label: {
-    color: colors.secondary,
-    ...typography.label,
-  },
-  root: {
-    gap: spacing[8],
+    ...inputStyles.label,
+    marginBottom: spacing[8],
   },
 });

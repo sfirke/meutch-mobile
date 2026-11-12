@@ -1,6 +1,6 @@
 import { StyleSheet, Text } from 'react-native';
 
-import { colors, typography } from '../theme';
+import { colors, spacing, typography } from '../theme';
 
 type FieldErrorProps = {
   field: string;
@@ -13,7 +13,11 @@ export function FieldError({ field, message }: FieldErrorProps) {
   }
 
   return (
-    <Text style={styles.errorText} testID={`field-error-${field}`}>
+    <Text
+      accessibilityLiveRegion="polite"
+      style={styles.errorText}
+      testID={`field-error-${field}`}
+    >
       {message}
     </Text>
   );
@@ -21,7 +25,8 @@ export function FieldError({ field, message }: FieldErrorProps) {
 
 const styles = StyleSheet.create({
   errorText: {
-    color: colors.errorText,
-    ...typography.itemMeta,
+    color: colors.danger,
+    marginTop: spacing[4],
+    ...typography.meta,
   },
 });

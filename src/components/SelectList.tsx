@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing, typography } from '../theme';
+import { colors, fonts, outline, radii, spacing, typography } from '../theme';
 import { Icon } from './Icon';
 
 export type SelectListOption<T extends string> = {
@@ -65,9 +65,18 @@ export function SelectList<T extends string>({
                 <Text style={styles.hint}>{option.hint}</Text>
               ) : null}
             </View>
-            {checked ? (
-              <Icon color={colors.primaryDark} name="check" size={16} />
-            ) : null}
+            <View
+              style={[
+                styles.mark,
+                multiple ? styles.box : styles.circle,
+                checked && styles.markChecked,
+                disabled && styles.disabled,
+              ]}
+            >
+              {checked ? (
+                <Icon color={colors.white} name="check" size={12} />
+              ) : null}
+            </View>
           </Pressable>
         );
       })}
@@ -84,20 +93,39 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   hint: {
-    color: colors.secondary,
+    color: colors.muted,
     ...typography.meta,
   },
   label: {
-    color: colors.text,
+    color: colors.ink,
     ...typography.body,
   },
   labelChecked: {
-    fontWeight: '700',
+    fontFamily: fonts.body[700],
+  },
+  mark: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.ink,
+    borderWidth: outline,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  box: {
+    borderRadius: radii.tag,
+  },
+  circle: {
+    borderRadius: radii.pill,
+  },
+  markChecked: {
+    backgroundColor: colors.ink,
   },
   row: {
     alignItems: 'center',
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
+    minHeight: 44,
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: spacing[14],

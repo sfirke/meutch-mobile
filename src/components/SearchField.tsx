@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, spacing } from '../theme';
 import { Icon } from './Icon';
+import { inputPlaceholderColor, inputStyles, useFocus } from './ui/inputStyles';
 
 export type SearchFieldProps = {
   value: string;
@@ -19,23 +20,34 @@ export function SearchField({
   placeholder,
   accessibilityLabel,
 }: SearchFieldProps) {
+  const focus = useFocus();
+
   return (
     <View style={styles.row}>
-      <View style={styles.inputWrapper}>
-        <View style={styles.icon}>
-          <Icon color={colors.inputPlaceholder} name="search" size={16} />
+      <View style={[inputStyles.frame, styles.inputWrapper]}>
+        <View pointerEvents="none" style={styles.icon}>
+          <Icon color={colors.muted} name="search" size={16} />
         </View>
         <TextInput
           accessibilityLabel={accessibilityLabel ?? placeholder}
           autoCapitalize="none"
           autoCorrect={false}
+          onBlur={focus.onBlur}
           onChangeText={onChangeText}
+          onFocus={focus.onFocus}
           placeholder={placeholder}
-          placeholderTextColor={colors.inputPlaceholder}
+          placeholderTextColor={inputPlaceholderColor}
           returnKeyType="search"
-          style={styles.input}
+          style={[
+            inputStyles.input,
+            styles.input,
+            focus.focused && inputStyles.focused,
+          ]}
           value={value}
         />
+        {focus.focused ? (
+          <View pointerEvents="none" style={inputStyles.ring} />
+        ) : null}
       </View>
       {value.length > 0 ? (
         <Pressable
@@ -47,7 +59,7 @@ export function SearchField({
             pressed && styles.pressed,
           ]}
         >
-          <Icon color={colors.primaryDark} name="clear" size={16} />
+          <Icon color={colors.ink} name="clear" size={16} />
         </Pressable>
       ) : null}
     </View>
@@ -56,8 +68,10 @@ export function SearchField({
 
 const styles = StyleSheet.create({
   clearButton: {
-    paddingHorizontal: spacing[12],
-    paddingVertical: spacing[12],
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 44,
   },
   icon: {
     left: spacing[14],
@@ -65,14 +79,8 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   input: {
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    color: colors.text,
-    fontSize: typography.body.fontSize,
+    minHeight: 44,
     paddingLeft: spacing[14] * 2 + 16,
-    paddingRight: spacing[14],
-    paddingVertical: spacing[12],
   },
   inputWrapper: {
     flex: 1,
@@ -84,7 +92,7 @@ const styles = StyleSheet.create({
   row: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: spacing[8],
+    gap: spacing[4],
     paddingHorizontal: spacing[16],
     paddingVertical: spacing[12],
   },

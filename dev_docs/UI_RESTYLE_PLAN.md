@@ -18,10 +18,10 @@ Tracked as **PR 19** in `MOBILE_APP_PLAN.md`. Integration branch: `ui-restyle`.
 | Task | Status | Commit | Notes |
 |---|---|---|---|
 | 0 Setup | done | | Gate passed: #22, #27 and #28 are merged. Branched from `main` at `bbcfd53`. File ownership re-inventoried. 21 baseline shots taken from the three existing fixture files (my items, item posting, loans). |
-| 1A Tokens | not started | | |
-| 1B Fonts | not started | | |
-| 1C Fixtures I | not started | | Fixtures live outside the repo, so there is no commit. |
-| 1D Fixtures II | not started | | Fixtures live outside the repo, so there is no commit. |
+| 1A Tokens | done | `9a910bb` | The deprecated `shadows.card` is now empty instead of removed, so untouched components still compile. All 19 contrast pairs pass; white on emerald is the closest at 4.53. |
+| 1B Fonts | done | `4527ac6` | `caption` has a 20 line height and display presets a -0.2 letter spacing. Old `body`, `meta`, `label` and `buttonSmall` take the new values. A failed font load falls back to system fonts. |
+| 1C Fixtures I | done | | Fixtures live outside the repo, so there is no commit. |
+| 1D Fixtures II | done | | Fixtures live outside the repo, so there is no commit. |
 | 2A Buttons | not started | | |
 | 2B Surfaces | not started | | |
 | 2C Tags, chips, badges | not started | | |
@@ -49,6 +49,12 @@ Tracked as **PR 19** in `MOBILE_APP_PLAN.md`. Integration branch: `ui-restyle`.
 ### Deviations and decisions
 
 - The plan guessed "PR 15" for this work. PRs 15 to 18 were already allocated, so it is PR 19.
+- The screenshot driver gained a `--signed-out` flag so the sign-in and forgot-password screens are reachable.
+- Phase 1 gate: `npm run verify` passes and all 79 harness shots render, on both `main` (the "before" set) and `ui-restyle`.
+- Several timing-sensitive tests (the "shows a spinner" tests and `LoanActions-test`) fail when the machine is busy, on `main` as well. They pass on a quiet machine. Tasks run only their own test files; the full suite runs at each phase gate.
+- Phase 2 runs in two waves, not all at once: 2A to 2E first, then 2F and 2G, which build on the buttons, surfaces and badges. A minimal `Lifted` with its final props was written before wave 1 so tags and photos can use it; 2B owns and finishes it.
+- Web hard shadows are diagonal (`4px 4px 0`) except the button's resting offset (`0 2px 0`). `Lifted` and `hardShadow` are diagonal; `Button` draws its own vertical offset.
+- A leftover inline `fontWeight` on top of a custom family is faked or ignored, never the real weight. Phase 3 removes every inline `fontWeight`, and anything that copies only `fontSize` from a preset must take the family too.
 
 ## Ground rules for everyone (orchestrator and subagents)
 

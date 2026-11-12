@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, ThemeProvider } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -8,8 +8,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { stackScreenOptions } from '../src/components/ui/NavigationChrome';
 import { QueryProvider } from '../src/query/QueryProvider';
 import { SessionProvider, useSession } from '../src/session/SessionProvider';
+import { colors, navigationTheme } from '../src/theme';
 import { fontAssets } from '../src/theme/fonts';
 
 // Held from module scope so the splash is pinned before the first render; a
@@ -37,17 +39,19 @@ function RootNavigator() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="item" options={{ headerShown: false }} />
-      <Stack.Screen name="request" options={{ headerShown: false }} />
-      <Stack.Screen name="loan" options={{ headerShown: false }} />
-      <Stack.Screen name="message" options={{ headerShown: false }} />
-      <Stack.Screen name="circle" options={{ headerShown: false }} />
-      <Stack.Screen name="profile" options={{ headerShown: false }} />
-      <Stack.Screen name="user" options={{ headerShown: false }} />
-    </Stack>
+    <ThemeProvider value={navigationTheme}>
+      <Stack screenOptions={stackScreenOptions}>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="item" options={{ headerShown: false }} />
+        <Stack.Screen name="request" options={{ headerShown: false }} />
+        <Stack.Screen name="loan" options={{ headerShown: false }} />
+        <Stack.Screen name="message" options={{ headerShown: false }} />
+        <Stack.Screen name="circle" options={{ headerShown: false }} />
+        <Stack.Screen name="profile" options={{ headerShown: false }} />
+        <Stack.Screen name="user" options={{ headerShown: false }} />
+      </Stack>
+    </ThemeProvider>
   );
 }
 
@@ -71,5 +75,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: colors.paper,
   },
 });

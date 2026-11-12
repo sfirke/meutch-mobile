@@ -1,34 +1,32 @@
 import { Tabs } from 'expo-router/js-tabs';
-import { StyleSheet } from 'react-native';
 
 import { CreateMenu } from '../../src/components/CreateMenu';
-import { Icon } from '../../src/components/Icon';
 import { RequireSession } from '../../src/components/RequireSession';
+import {
+  TabIcon,
+  useTabScreenOptions,
+} from '../../src/components/ui/NavigationChrome';
 import { useInboxUnreadCount } from '../../src/query/useInboxUnreadCount';
-import { colors, spacing } from '../../src/theme';
 
 export default function TabsLayout() {
   // Derived from the cached inbox page 1; there is no unread-count endpoint.
   const unreadCount = useInboxUnreadCount();
+  const tabScreenOptions = useTabScreenOptions();
 
   return (
     <RequireSession>
       <Tabs
         screenOptions={{
+          ...tabScreenOptions,
           headerRight: () => <CreateMenu />,
-          headerRightContainerStyle: styles.headerRight,
-          headerStyle: styles.header,
-          headerTintColor: colors.text,
-          tabBarActiveTintColor: colors.primaryDark,
-          tabBarInactiveTintColor: colors.secondary,
         }}
       >
         <Tabs.Screen
           name="index"
           options={{
             title: 'Feed',
-            tabBarIcon: ({ color, size }) => (
-              <Icon color={color} name="feed" size={size} />
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon color={color} focused={focused} name="feed" />
             ),
           }}
         />
@@ -36,8 +34,8 @@ export default function TabsLayout() {
           name="browse"
           options={{
             title: 'Browse',
-            tabBarIcon: ({ color, size }) => (
-              <Icon color={color} name="browse" size={size} />
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon color={color} focused={focused} name="browse" />
             ),
           }}
         />
@@ -45,9 +43,15 @@ export default function TabsLayout() {
           name="inbox"
           options={{
             title: 'Inbox',
-            tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
-            tabBarIcon: ({ color, size }) => (
-              <Icon color={color} name="inbox" size={size} />
+            tabBarAccessibilityLabel:
+              unreadCount > 0 ? `Inbox, ${unreadCount} unread` : undefined,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon
+                badgeCount={unreadCount}
+                color={color}
+                focused={focused}
+                name="inbox"
+              />
             ),
           }}
         />
@@ -55,8 +59,8 @@ export default function TabsLayout() {
           name="circles"
           options={{
             title: 'Circles',
-            tabBarIcon: ({ color, size }) => (
-              <Icon color={color} name="circle" size={size} />
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon color={color} focused={focused} name="circle" />
             ),
           }}
         />
@@ -64,8 +68,8 @@ export default function TabsLayout() {
           name="profile"
           options={{
             title: 'Profile',
-            tabBarIcon: ({ color, size }) => (
-              <Icon color={color} name="profile" size={size} />
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon color={color} focused={focused} name="profile" />
             ),
           }}
         />
@@ -73,12 +77,3 @@ export default function TabsLayout() {
     </RequireSession>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    backgroundColor: colors.background,
-  },
-  headerRight: {
-    paddingRight: spacing[16],
-  },
-});

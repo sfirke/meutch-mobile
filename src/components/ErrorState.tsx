@@ -1,12 +1,7 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, spacing, typography } from '../theme';
+import { Button } from './ui/Button';
 
 export type ErrorStateProps = {
   title: string;
@@ -24,67 +19,40 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.message}>{message}</Text>
-        {onRetry ? (
-          <Pressable
-            accessibilityLabel="Try again"
-            accessibilityRole="button"
-            accessibilityState={{ busy: isRetrying, disabled: isRetrying }}
-            disabled={isRetrying}
-            onPress={onRetry}
-            style={({ pressed }) => [
-              styles.retryButton,
-              (isRetrying || pressed) && styles.retryButtonPressed,
-            ]}
-          >
-            {isRetrying ? (
-              <ActivityIndicator color={colors.onPrimaryText} />
-            ) : (
-              <Text style={styles.retryLabel}>Try again</Text>
-            )}
-          </Pressable>
-        ) : null}
-      </View>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.message}>{message}</Text>
+      {onRetry ? (
+        <Button
+          label="Try again"
+          loading={isRetrying}
+          onPress={onRetry}
+          style={styles.retry}
+          variant="outline"
+        />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.errorSurface,
-    borderColor: colors.warning,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    gap: spacing[12],
-    padding: spacing[18],
-  },
   container: {
+    alignItems: 'center',
     flex: 1,
+    gap: spacing[12],
     justifyContent: 'center',
     padding: spacing[24],
   },
   message: {
-    color: colors.errorText,
-    ...typography.meta,
+    color: colors.muted,
+    textAlign: 'center',
+    ...typography.body,
   },
-  retryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.primaryDark,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing[16],
-    paddingVertical: spacing[12],
-  },
-  retryButtonPressed: {
-    opacity: 0.7,
-  },
-  retryLabel: {
-    color: colors.onPrimaryText,
-    ...typography.buttonLarge,
+  retry: {
+    marginTop: spacing[8],
   },
   title: {
-    color: colors.errorLabel,
-    ...typography.label,
+    color: colors.ink,
+    textAlign: 'center',
+    ...typography.h3,
   },
 });

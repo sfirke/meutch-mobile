@@ -1,12 +1,17 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, outline, spacing, typography } from '../theme';
+import { Icon, type IconName } from './Icon';
+import { Button } from './ui/Button';
 
 export type EmptyStateProps = {
   title: string;
   message?: string;
   actionLabel?: string;
   onAction?: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
+  icon?: IconName;
 };
 
 // Presentational placeholder for a query that resolved with no rows.
@@ -15,41 +20,57 @@ export function EmptyState({
   message,
   actionLabel,
   onAction,
+  secondaryActionLabel,
+  onSecondaryAction,
+  icon = 'inbox',
 }: EmptyStateProps) {
+  const hasAction = actionLabel && onAction;
+  const hasSecondary = secondaryActionLabel && onSecondaryAction;
+
   return (
     <View style={styles.container}>
+      <View style={styles.circle}>
+        <Icon color={colors.ink} name={icon} size={24} />
+      </View>
       <Text style={styles.title}>{title}</Text>
       {message ? <Text style={styles.message}>{message}</Text> : null}
-      {actionLabel && onAction ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onAction}
-          style={({ pressed }) => [
-            styles.action,
-            pressed && styles.actionPressed,
-          ]}
-        >
-          <Text style={styles.actionLabel}>{actionLabel}</Text>
-        </Pressable>
+      {hasAction || hasSecondary ? (
+        <View style={styles.actions}>
+          {hasAction ? (
+            <Button label={actionLabel} onPress={onAction} variant="primary" />
+          ) : null}
+          {hasSecondary ? (
+            <Button
+              label={secondaryActionLabel}
+              onPress={onSecondaryAction}
+              variant="outline"
+            />
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  action: {
-    backgroundColor: colors.primaryDark,
-    borderRadius: radii.sm,
+  actions: {
+    alignItems: 'center',
+    columnGap: spacing[12],
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     marginTop: spacing[8],
-    paddingHorizontal: spacing[16],
-    paddingVertical: spacing[12],
+    rowGap: spacing[8],
   },
-  actionLabel: {
-    color: colors.onPrimaryText,
-    ...typography.buttonLarge,
-  },
-  actionPressed: {
-    opacity: 0.7,
+  circle: {
+    alignItems: 'center',
+    backgroundColor: colors.tangerineWash,
+    borderColor: colors.ink,
+    borderRadius: 32,
+    borderWidth: outline,
+    height: 64,
+    justifyContent: 'center',
+    width: 64,
   },
   container: {
     alignItems: 'center',
@@ -59,13 +80,13 @@ const styles = StyleSheet.create({
     padding: spacing[24],
   },
   message: {
-    color: colors.secondary,
+    color: colors.muted,
     textAlign: 'center',
     ...typography.body,
   },
   title: {
-    color: colors.text,
+    color: colors.ink,
     textAlign: 'center',
-    ...typography.value,
+    ...typography.h3,
   },
 });

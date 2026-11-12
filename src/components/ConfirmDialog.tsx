@@ -1,13 +1,10 @@
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, outline, radii, spacing, typography } from '../theme';
+import { Banner } from './ui/Banner';
+import { Button } from './ui/Button';
+import { Lifted } from './ui/Lifted';
+import { useSheetAnimation } from './ui/useSheetAnimation';
 
 type ConfirmDialogProps = {
   visible: boolean;
@@ -37,6 +34,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const animationType = useSheetAnimation();
   const cancel = () => {
     if (!pending) {
       onCancel();
@@ -45,7 +43,7 @@ export function ConfirmDialog({
 
   return (
     <Modal
-      animationType="fade"
+      animationType={animationType}
       onRequestClose={cancel}
       transparent
       visible={visible}
@@ -57,57 +55,39 @@ export function ConfirmDialog({
           onPress={cancel}
           style={StyleSheet.absoluteFill}
         />
-        <View style={styles.card} testID="confirm-dialog">
-          <Text accessibilityRole="header" style={styles.title}>
-            {title}
-          </Text>
-          {message ? <Text style={styles.message}>{message}</Text> : null}
-          {error ? (
-            <Text
-              accessibilityLiveRegion="polite"
-              style={styles.error}
-              testID="confirm-dialog-error"
-            >
-              {error}
+        <Lifted
+          offset="dialog"
+          radius={radii.card}
+          reserveSpace
+          style={styles.lifted}
+        >
+          <View style={styles.card} testID="confirm-dialog">
+            <Text accessibilityRole="header" style={styles.title}>
+              {title}
             </Text>
-          ) : null}
-          <View style={styles.buttons}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: pending }}
-              disabled={pending}
-              onPress={onCancel}
-              style={({ pressed }) => [
-                styles.button,
-                styles.cancelButton,
-                pending && styles.disabled,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.cancelLabel}>{cancelLabel}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: pending }}
-              disabled={pending}
-              onPress={onConfirm}
-              style={({ pressed }) => [
-                styles.button,
-                destructive ? styles.destructiveButton : styles.confirmButton,
-                pending && styles.disabled,
-                pressed && styles.pressed,
-              ]}
-              testID="confirm-dialog-confirm"
-            >
-              {pending ? (
-                <ActivityIndicator color={colors.onPrimaryText} size="small" />
-              ) : null}
-              <Text style={styles.confirmLabel}>
-                {pending ? (pendingLabel ?? confirmLabel) : confirmLabel}
-              </Text>
-            </Pressable>
+            {message ? <Text style={styles.message}>{message}</Text> : null}
+            {error ? (
+              <Banner testID="confirm-dialog-error" tone="danger">
+                {error}
+              </Banner>
+            ) : null}
+            <View style={styles.buttons}>
+              <Button
+                disabled={pending}
+                label={cancelLabel}
+                onPress={onCancel}
+                variant="outline"
+              />
+              <Button
+                label={pending ? (pendingLabel ?? confirmLabel) : confirmLabel}
+                loading={pending}
+                onPress={onConfirm}
+                testID="confirm-dialog-confirm"
+                variant={destructive ? 'danger' : 'primary'}
+              />
+            </View>
           </View>
-        </View>
+        </Lifted>
       </View>
     </Modal>
   );
@@ -116,74 +96,36 @@ export function ConfirmDialog({
 const styles = StyleSheet.create({
   root: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: colors.scrim,
     flex: 1,
     justifyContent: 'center',
-    padding: spacing[24],
-  },
-  card: {
-    backgroundColor: colors.background,
-    borderRadius: radii.md,
-    gap: spacing[12],
-    maxWidth: 420,
     padding: spacing[20],
+  },
+  lifted: {
+    maxWidth: 420,
     width: '100%',
   },
+  card: {
+    backgroundColor: colors.white,
+    borderColor: colors.ink,
+    borderRadius: radii.card,
+    borderWidth: outline,
+    gap: spacing[12],
+    padding: spacing[20],
+  },
   title: {
-    color: colors.text,
-    ...typography.value,
+    color: colors.ink,
+    ...typography.dialogTitle,
   },
   message: {
-    color: colors.text,
+    color: colors.ink,
     ...typography.body,
   },
-  error: {
-    backgroundColor: colors.errorSurface,
-    borderColor: colors.warning,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    color: colors.errorText,
-    paddingHorizontal: spacing[14],
-    paddingVertical: spacing[10],
-    ...typography.itemMeta,
-  },
   buttons: {
+    columnGap: spacing[12],
     flexDirection: 'row',
-    gap: spacing[12],
+    flexWrap: 'wrap',
     justifyContent: 'flex-end',
-  },
-  button: {
-    alignItems: 'center',
-    borderRadius: radii.sm,
-    flexDirection: 'row',
-    gap: spacing[8],
-    justifyContent: 'center',
-    paddingHorizontal: spacing[16],
-    paddingVertical: spacing[12],
-  },
-  cancelButton: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-  },
-  confirmButton: {
-    backgroundColor: colors.primaryDark,
-  },
-  destructiveButton: {
-    backgroundColor: colors.danger,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  cancelLabel: {
-    color: colors.text,
-    ...typography.buttonLarge,
-  },
-  confirmLabel: {
-    color: colors.onPrimaryText,
-    ...typography.buttonLarge,
+    rowGap: spacing[8],
   },
 });

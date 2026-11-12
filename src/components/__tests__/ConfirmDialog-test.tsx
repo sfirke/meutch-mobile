@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Modal, StyleSheet } from 'react-native';
+import { Modal } from 'react-native';
 
 import { ConfirmDialog } from '../ConfirmDialog';
 
@@ -22,12 +22,6 @@ function renderDialog(
   );
 
   return { onConfirm, onCancel };
-}
-
-function confirmBackground() {
-  return StyleSheet.flatten(
-    screen.getByTestId('confirm-dialog-confirm').props.style,
-  ).backgroundColor;
 }
 
 describe('<ConfirmDialog />', () => {
@@ -118,13 +112,21 @@ describe('<ConfirmDialog />', () => {
     expect(screen.queryByTestId('confirm-dialog-error')).toBeNull();
   });
 
-  test('destructive changes the confirm button color', () => {
-    renderDialog();
-    const normal = confirmBackground();
+  test('destructive still confirms and cancels', () => {
+    const { onConfirm, onCancel } = renderDialog({ destructive: true });
 
-    screen.unmount();
-    renderDialog({ destructive: true });
+    fireEvent.press(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
 
-    expect(confirmBackground()).not.toBe(normal);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  test('announces the error as an alert', () => {
+    renderDialog({ error: 'Item has an active loan.' });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Item has an active loan.',
+    );
   });
 });

@@ -51,7 +51,7 @@ export function QueryStateView({
   if (isPending) {
     return (
       <View accessibilityLabel={loadingLabel} style={styles.center}>
-        <ActivityIndicator color={colors.primaryDark} size="large" />
+        <ActivityIndicator color={colors.tealDeep} size="large" />
       </View>
     );
   }
@@ -86,10 +86,10 @@ export function QueryStateView({
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
-            colors={[colors.primaryDark]}
+            colors={[colors.tealDeep]}
             onRefresh={onRefresh}
             refreshing={isRefreshing}
-            tintColor={colors.primaryDark}
+            tintColor={colors.tealDeep}
           />
         }
         testID="empty-state-scroll"

@@ -1,12 +1,7 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, spacing, typography } from '../theme';
+import { Button } from './ui/Button';
 
 const ERROR_LABEL = "Couldn't load more";
 
@@ -28,7 +23,7 @@ export function PagingFooter({
   if (isFetchingNextPage) {
     return (
       <View accessibilityLabel={loadingLabel} style={styles.footer}>
-        <ActivityIndicator color={colors.primaryDark} size="small" />
+        <ActivityIndicator color={colors.tealDeep} size="small" />
       </View>
     );
   }
@@ -40,39 +35,19 @@ export function PagingFooter({
   return (
     <View style={styles.footer}>
       <Text style={styles.text}>{ERROR_LABEL}</Text>
-      <Pressable
-        accessibilityLabel="Try again"
-        accessibilityRole="button"
-        onPress={onRetry}
-        style={({ pressed }) => [styles.button, pressed && styles.pressed]}
-      >
-        <Text style={styles.buttonLabel}>Try again</Text>
-      </Pressable>
+      <Button label="Try again" onPress={onRetry} size="sm" variant="outline" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  button: {
-    backgroundColor: colors.primaryDark,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing[16],
-    paddingVertical: spacing[10],
-  },
-  buttonLabel: {
-    color: colors.onPrimaryText,
-    ...typography.buttonSmall,
-  },
   footer: {
     alignItems: 'center',
     gap: spacing[8],
     paddingVertical: spacing[16],
   },
-  pressed: {
-    opacity: 0.75,
-  },
   text: {
-    color: colors.secondary,
+    color: colors.muted,
     ...typography.meta,
   },
 });

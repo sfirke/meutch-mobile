@@ -9,7 +9,9 @@ import {
   View,
 } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, outline, radii, spacing, typography } from '../theme';
+import { Button } from './ui/Button';
+import { useSheetAnimation } from './ui/useSheetAnimation';
 
 export type FilterSheetProps = {
   visible: boolean;
@@ -35,10 +37,11 @@ export function FilterSheet({
   children,
 }: FilterSheetProps) {
   const { height } = useWindowDimensions();
+  const animationType = useSheetAnimation();
 
   return (
     <Modal
-      animationType="fade"
+      animationType={animationType}
       onRequestClose={onClose}
       transparent
       visible={visible}
@@ -54,34 +57,25 @@ export function FilterSheet({
           style={[styles.sheet, { maxHeight: height * 0.8 }]}
           testID="filter-sheet"
         >
+          <View style={styles.handle} />
           <Text accessibilityRole="header" style={styles.title}>
             {title}
           </Text>
           <ScrollView style={styles.body}>{children}</ScrollView>
           <View style={styles.footer}>
-            <Pressable
-              accessibilityRole="button"
-              hitSlop={spacing[8]}
+            <Button
+              label="Reset"
               onPress={onReset}
-              style={({ pressed }) => pressed && styles.pressed}
               testID="filter-sheet-reset"
-            >
-              <Text style={styles.reset}>Reset</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: applyDisabled }}
+              variant="link"
+            />
+            <Button
               disabled={applyDisabled}
+              label="Apply"
               onPress={onApply}
-              style={({ pressed }) => [
-                styles.apply,
-                pressed && styles.pressed,
-                applyDisabled && styles.disabled,
-              ]}
               testID="filter-sheet-apply"
-            >
-              <Text style={styles.applyLabel}>Apply</Text>
-            </Pressable>
+              variant="primary"
+            />
           </View>
         </View>
       </View>
@@ -90,21 +84,8 @@ export function FilterSheet({
 }
 
 const styles = StyleSheet.create({
-  apply: {
-    backgroundColor: colors.primaryDark,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing[16],
-    paddingVertical: spacing[12],
-  },
-  applyLabel: {
-    color: colors.onPrimaryText,
-    ...typography.buttonLarge,
-  },
   body: {
     flexGrow: 0,
-  },
-  disabled: {
-    opacity: 0.4,
   },
   footer: {
     alignItems: 'center',
@@ -112,29 +93,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: spacing[16],
   },
-  pressed: {
-    opacity: 0.7,
-  },
-  reset: {
-    color: colors.primaryDark,
-    ...typography.buttonSmall,
+  handle: {
+    alignSelf: 'center',
+    backgroundColor: colors.line,
+    borderRadius: radii.pill,
+    height: 5,
+    marginBottom: spacing[12],
+    width: 44,
   },
   root: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: colors.scrim,
     flex: 1,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
+    backgroundColor: colors.paper,
+    borderColor: colors.ink,
+    borderTopLeftRadius: radii.card,
+    borderTopRightRadius: radii.card,
+    borderWidth: outline,
+    borderBottomWidth: 0,
     paddingBottom: spacing[24],
     paddingHorizontal: spacing[20],
-    paddingTop: spacing[20],
+    paddingTop: spacing[12],
   },
   title: {
-    color: colors.secondary,
+    color: colors.ink,
     marginBottom: spacing[8],
-    ...typography.label,
+    ...typography.h3,
   },
 });

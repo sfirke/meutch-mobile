@@ -37,4 +37,23 @@ describe('<EmptyState />', () => {
 
     expect(screen.queryByRole('button')).toBeNull();
   });
+
+  test('renders a second action and calls onSecondaryAction', () => {
+    const onSecondaryAction = jest.fn();
+
+    render(
+      <EmptyState
+        actionLabel="Browse items"
+        onAction={jest.fn()}
+        onSecondaryAction={onSecondaryAction}
+        secondaryActionLabel="Post an item"
+        title="No items yet"
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: 'Post an item' }));
+
+    expect(onSecondaryAction).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByRole('button')).toHaveLength(2);
+  });
 });

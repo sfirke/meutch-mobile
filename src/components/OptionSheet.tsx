@@ -8,8 +8,9 @@ import {
   View,
 } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, fonts, outline, radii, spacing, typography } from '../theme';
 import { Icon } from './Icon';
+import { useSheetAnimation } from './ui/useSheetAnimation';
 
 export type OptionSheetOption<T extends string> = {
   value: T;
@@ -39,10 +40,11 @@ export function OptionSheet<T extends string>({
   onClose,
 }: OptionSheetProps<T>) {
   const { height } = useWindowDimensions();
+  const animationType = useSheetAnimation();
 
   return (
     <Modal
-      animationType="fade"
+      animationType={animationType}
       onRequestClose={onClose}
       transparent
       visible={visible}
@@ -55,6 +57,7 @@ export function OptionSheet<T extends string>({
           style={StyleSheet.absoluteFill}
         />
         <View style={styles.sheet} testID="option-sheet">
+          <View style={styles.handle} />
           <Text accessibilityRole="header" style={styles.title}>
             {title}
           </Text>
@@ -93,7 +96,7 @@ export function OptionSheet<T extends string>({
                     ) : null}
                   </View>
                   {selected ? (
-                    <Icon color={colors.primaryDark} name="check" size={16} />
+                    <Icon color={colors.ink} name="check" size={16} />
                   ) : null}
                 </Pressable>
               );
@@ -113,39 +116,53 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.4,
   },
+  handle: {
+    alignSelf: 'center',
+    backgroundColor: colors.line,
+    borderRadius: radii.pill,
+    height: 5,
+    marginBottom: spacing[12],
+    width: 44,
+  },
   hint: {
-    color: colors.secondary,
+    color: colors.muted,
     ...typography.meta,
   },
   label: {
-    color: colors.text,
+    color: colors.ink,
     ...typography.body,
   },
   labelSelected: {
-    fontWeight: '700',
+    fontFamily: fonts.body[700],
   },
   root: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: colors.scrim,
     flex: 1,
     justifyContent: 'flex-end',
   },
   row: {
     alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    minHeight: 44,
     paddingVertical: spacing[14],
   },
   sheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
+    backgroundColor: colors.paper,
+    borderColor: colors.ink,
+    borderTopLeftRadius: radii.card,
+    borderTopRightRadius: radii.card,
+    borderWidth: outline,
+    borderBottomWidth: 0,
     paddingBottom: spacing[24],
     paddingHorizontal: spacing[20],
-    paddingTop: spacing[20],
+    paddingTop: spacing[12],
   },
   title: {
-    color: colors.secondary,
+    color: colors.ink,
     marginBottom: spacing[8],
-    ...typography.label,
+    ...typography.h3,
   },
 });

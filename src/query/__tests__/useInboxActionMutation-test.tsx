@@ -70,6 +70,7 @@ function rawConversation(conversationId: string, isArchived = false) {
       is_read: false,
       sender: otherUser,
       recipient: viewer,
+      loan_extension_request: null,
     },
     unread_count: 2,
     is_archived: isArchived,

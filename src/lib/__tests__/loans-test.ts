@@ -2,6 +2,7 @@ import type { ApiFetch } from '../api';
 import {
   describeLoanDue,
   describeLoanStatus,
+  decideLoanExtension,
   extendLoan,
   fetchLoanDetail,
   fetchMyLoans,
@@ -9,10 +10,13 @@ import {
   parseLoanActivity,
   parseLoanDetail,
   parseLoanExtendResponse,
+  parseLoanExtensionRequest,
   parseLoanListPage,
   parseLoanMutationResponse,
+  parseNullableLoanExtensionRequest,
   performLoanAction,
   requestLoan,
+  requestLoanExtension,
   type LoanActivity,
 } from '../loans';
 
@@ -28,6 +32,7 @@ function createMockResponse(body: unknown, status = 200): Response {
 const LOAN_ID = '11111111-1111-4111-8111-111111111111';
 const ITEM_ID = '22222222-2222-4222-8222-222222222222';
 const MESSAGE_ID = '33333333-3333-4333-8333-333333333333';
+const EXTENSION_ID = '66666666-6666-4666-8666-666666666666';
 
 const ana = {
   id: '44444444-4444-4444-8444-444444444444',
@@ -63,6 +68,19 @@ function createLoan(overrides?: Record<string, unknown>) {
     due_state: 'due_soon',
     days_until_due: 3,
     days_overdue: null,
+    ...overrides,
+  };
+}
+
+function createExtension(overrides?: Record<string, unknown>) {
+  return {
+    id: EXTENSION_ID,
+    status: 'pending',
+    previous_end_date: '2026-06-10',
+    proposed_end_date: '2026-06-17',
+    message: 'Could I keep it one more week?',
+    created_at: '2026-06-05T09:00:00',
+    responded_at: null,
     ...overrides,
   };
 }
@@ -165,7 +183,27 @@ describe('fetchLoanDetail', () => {
 
 describe('parseLoanActivity', () => {
   it('parses a full payload', () => {
-    expect(parseLoanActivity(createLoan())).toEqual(createLoan());
+    const extension = createExtension();
+
+    expect(
+      parseLoanActivity(createLoan({ pending_extension_request: extension })),
+    ).toEqual(createLoan({ pending_extension_request: extension }));
+  });
+
+  it.each([
+    ['null', null],
+    ['missing', undefined],
+  ])('maps a %s pending extension to null', (_label, value) => {
+    expect(
+      parseLoanActivity(createLoan({ pending_extension_request: value }))
+        .pending_extension_request,
+    ).toBeNull();
+  });
+
+  it('throws on a malformed pending extension', () => {
+    expect(() =>
+      parseLoanActivity(createLoan({ pending_extension_request: { id: 1 } })),
+    ).toThrow('Invalid loan payload.');
   });
 
   it('accepts null owner and borrower', () => {
@@ -356,9 +394,14 @@ describe('parseLoanMutationResponse', () => {
     const result = parseLoanMutationResponse(buildMutationPayload());
 
     expect(result.loan).toEqual(
-      createLoan({ created_at: '2026-05-30T12:00:00' }),
+      createLoan({
+        created_at: '2026-05-30T12:00:00',
+        pending_extension_request: null,
+      }),
     );
-    expect(result.message).toEqual(buildMessageSummary());
+    expect(result.message).toEqual(
+      buildMessageSummary({ loan_extension_request: null }),
+    );
   });
 
   it('throws on a malformed payload', () => {
@@ -390,4 +433,111 @@ describe('parseLoanExtendResponse', () => {
       'Invalid loan extend payload.',
     );
   });
+});
+
+describe('parseLoanExtensionRequest', () => {
+  it('parses a full payload', () => {
+    const extension = createExtension({
+      status: 'approved',
+      responded_at: '2026-06-06T10:00:00',
+    });
+
+    expect(parseLoanExtensionRequest(extension, 'bad')).toEqual(extension);
+  });
+
+  it('defaults a missing responded_at to null', () => {
+    const extension: Record<string, unknown> = createExtension();
+    delete extension.responded_at;
+
+    expect(parseLoanExtensionRequest(extension, 'bad').responded_at).toBeNull();
+  });
+
+  it('maps an unknown status to null', () => {
+    expect(
+      parseLoanExtensionRequest(createExtension({ status: 'mystery' }), 'bad')
+        .status,
+    ).toBeNull();
+  });
+
+  it.each([
+    ['a non-object', null],
+    ['a missing id', createExtension({ id: undefined })],
+    ['a non-string message', createExtension({ message: 5 })],
+    ['a missing proposed date', createExtension({ proposed_end_date: '' })],
+    ['a numeric status', createExtension({ status: 1 })],
+  ])('throws the given message on %s', (_label, value) => {
+    expect(() => parseLoanExtensionRequest(value, 'bad')).toThrow('bad');
+  });
+
+  it.each([null, undefined])('returns null for %p when nullable', (value) => {
+    expect(parseNullableLoanExtensionRequest(value, 'bad')).toBeNull();
+  });
+
+  it('parses a present nullable value and still throws when malformed', () => {
+    expect(parseNullableLoanExtensionRequest(createExtension(), 'bad')).toEqual(
+      createExtension(),
+    );
+    expect(() => parseNullableLoanExtensionRequest('nope', 'bad')).toThrow(
+      'bad',
+    );
+  });
+});
+
+describe('requestLoanExtension', () => {
+  it('posts the proposal to the loan path', async () => {
+    const extension = createExtension();
+    const fetchImpl = mockFetch(
+      buildMutationPayload({
+        loan: createLoan({
+          created_at: '2026-05-30T12:00:00',
+          pending_extension_request: extension,
+        }),
+        message: buildMessageSummary({ loan_extension_request: extension }),
+      }),
+      201,
+    );
+    const input = {
+      proposed_end_date: '2026-06-17',
+      message: 'Could I keep it one more week?',
+    };
+
+    const result = await requestLoanExtension(fetchImpl, 'a/b', input);
+
+    expect(fetchImpl.mock.calls[0][0]).toBe('/loans/a%2Fb/extension-requests');
+    const init = getRequestInit(fetchImpl);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual(input);
+    expect(result.loan.pending_extension_request).toEqual(extension);
+    expect(result.message.loan_extension_request).toEqual(extension);
+  });
+
+  it('rejects on a non-2xx response', async () => {
+    const fetchImpl = mockFetch({ error: 'conflict' }, 409);
+
+    await expect(
+      requestLoanExtension(fetchImpl, LOAN_ID, {
+        proposed_end_date: '2026-06-17',
+        message: 'More time?',
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe('decideLoanExtension', () => {
+  it.each(['approve', 'deny'] as const)(
+    'posts %s with no body',
+    async (decision) => {
+      const fetchImpl = mockFetch(buildMutationPayload());
+
+      const result = await decideLoanExtension(fetchImpl, 'x/y', decision);
+
+      expect(fetchImpl.mock.calls[0][0]).toBe(
+        `/loan-extension-requests/x%2Fy/${decision}`,
+      );
+      const init = getRequestInit(fetchImpl);
+      expect(init.method).toBe('POST');
+      expect(init.body).toBeUndefined();
+      expect(result.loan.pending_extension_request).toBeNull();
+    },
+  );
 });

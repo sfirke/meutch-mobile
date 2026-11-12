@@ -51,6 +51,7 @@ function createThread(): MessageThread {
         is_read: false,
         sender: otherUser,
         recipient: viewer,
+        loan_extension_request: null,
       },
     ],
   };

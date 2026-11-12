@@ -110,6 +110,7 @@ function buildLoan(overrides?: Partial<LoanDetail>): LoanDetail {
     due_state: 'on_time',
     days_until_due: 5,
     days_overdue: null,
+    pending_extension_request: null,
     created_at: '2026-05-26T18:30:00+00:00',
     ...overrides,
   };

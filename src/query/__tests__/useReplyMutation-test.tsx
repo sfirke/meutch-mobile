@@ -44,6 +44,7 @@ const firstMessage: MessageSummary = {
   is_read: true,
   sender: otherUser,
   recipient: viewer,
+  loan_extension_request: null,
 };
 
 const replyPayload = {
@@ -53,6 +54,7 @@ const replyPayload = {
   is_read: false,
   sender: viewer,
   recipient: otherUser,
+  loan_extension_request: null,
 };
 
 function createThread(): MessageThread {

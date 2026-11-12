@@ -1,4 +1,8 @@
 import { buildJsonRequestInit, readJsonOrThrow, type ApiFetch } from './api';
+import {
+  parseNullableLoanExtensionRequest,
+  type LoanExtensionRequest,
+} from './loanExtensions';
 import { parseMessageSummary, type MessageSummary } from './messages';
 import {
   buildQueryString,
@@ -17,6 +21,14 @@ import {
   type QueryParam,
   type UserSummary,
 } from './parse';
+
+export {
+  LOAN_EXTENSION_STATUSES,
+  parseLoanExtensionRequest,
+  parseNullableLoanExtensionRequest,
+  type LoanExtensionRequest,
+  type LoanExtensionStatus,
+} from './loanExtensions';
 
 export const LOAN_ROLES = ['borrowing', 'lending'] as const;
 
@@ -53,6 +65,7 @@ export type LoanActivity = {
   due_state: LoanDueState | null;
   days_until_due: number | null;
   days_overdue: number | null;
+  pending_extension_request: LoanExtensionRequest | null;
 };
 
 export type LoanDetail = LoanActivity & { created_at: string };
@@ -84,6 +97,13 @@ export type LoanRequestInput = {
 
 /** `message` is optional; send it only when non-empty. */
 export type LoanExtendInput = { new_end_date: string; message?: string };
+
+export type LoanExtensionRequestInput = {
+  proposed_end_date: string;
+  message: string;
+};
+
+export type LoanExtensionDecision = 'approve' | 'deny';
 
 export type LoanMutationResponse = {
   loan: LoanDetail;
@@ -203,6 +223,7 @@ export function parseLoanActivity(value: unknown): LoanActivity {
     item,
     latest_conversation_message_id: latestMessageId,
     owner,
+    pending_extension_request: pendingExtension,
     start_date: startDate,
     status,
   } = value;
@@ -232,6 +253,10 @@ export function parseLoanActivity(value: unknown): LoanActivity {
     due_state: matchEnum(dueState, LOAN_DUE_STATES),
     days_until_due: daysUntilDue ?? null,
     days_overdue: daysOverdue ?? null,
+    pending_extension_request: parseNullableLoanExtensionRequest(
+      pendingExtension,
+      INVALID_LOAN,
+    ),
   };
 }
 
@@ -362,4 +387,31 @@ export async function extendLoan(
   );
 
   return parseLoanExtendResponse(await readJsonOrThrow<unknown>(response));
+}
+
+export async function requestLoanExtension(
+  fetchImpl: ApiFetch,
+  loanId: string,
+  input: LoanExtensionRequestInput,
+): Promise<LoanMutationResponse> {
+  const response = await fetchImpl(
+    `/loans/${encodeURIComponent(loanId)}/extension-requests`,
+    buildJsonRequestInit(input, { method: 'POST' }),
+  );
+
+  return parseLoanMutationResponse(await readJsonOrThrow<unknown>(response));
+}
+
+/** Owner-only; the backend 409s once the request is no longer pending. */
+export async function decideLoanExtension(
+  fetchImpl: ApiFetch,
+  extensionId: string,
+  decision: LoanExtensionDecision,
+): Promise<LoanMutationResponse> {
+  const response = await fetchImpl(
+    `/loan-extension-requests/${encodeURIComponent(extensionId)}/${decision}`,
+    { method: 'POST', headers: { Accept: 'application/json' } },
+  );
+
+  return parseLoanMutationResponse(await readJsonOrThrow<unknown>(response));
 }

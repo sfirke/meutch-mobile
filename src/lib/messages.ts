@@ -1,5 +1,9 @@
 import { buildJsonRequestInit, readJsonOrThrow, type ApiFetch } from './api';
 import {
+  parseNullableLoanExtensionRequest,
+  type LoanExtensionRequest,
+} from './loanExtensions';
+import {
   buildQueryString,
   isNullableString,
   isNumber,
@@ -32,6 +36,7 @@ export type MessageSummary = {
   is_read: boolean;
   sender: UserSummary;
   recipient: UserSummary;
+  loan_extension_request: LoanExtensionRequest | null;
 };
 
 export type ConversationItemContext = {
@@ -76,13 +81,17 @@ export type ConversationSummary = {
   context: ConversationContext;
 };
 
+export type ThreadActiveLoan = LoanSummary & {
+  pending_extension_request: LoanExtensionRequest | null;
+};
+
 export type MessageThread = {
   conversation_id: string;
   /** Never null: the thread route 404s when the other account is gone. */
   other_user: UserSummary;
   shared_circles: ConversationCircleContext[];
   context: ConversationContext;
-  active_loan: LoanSummary | null;
+  active_loan: ThreadActiveLoan | null;
   /**
    * Excludes messages tied to a pending loan request, while the inbox's
    * `unread_count` includes them, so a row can still read as unread after the
@@ -129,7 +138,15 @@ export function parseMessageSummary(value: unknown): MessageSummary {
     throw new Error(INVALID_MESSAGE);
   }
 
-  const { body, id, is_read: isRead, recipient, sender, timestamp } = value;
+  const {
+    body,
+    id,
+    is_read: isRead,
+    loan_extension_request: extensionRequest,
+    recipient,
+    sender,
+    timestamp,
+  } = value;
 
   if (
     !isString(id) ||
@@ -147,6 +164,25 @@ export function parseMessageSummary(value: unknown): MessageSummary {
     is_read: isRead,
     sender: parseUserSummary(sender, INVALID_MESSAGE),
     recipient: parseUserSummary(recipient, INVALID_MESSAGE),
+    loan_extension_request: parseNullableLoanExtensionRequest(
+      extensionRequest,
+      INVALID_MESSAGE,
+    ),
+  };
+}
+
+function parseThreadActiveLoan(value: unknown): ThreadActiveLoan {
+  const loan = parseLoanSummary(value, INVALID_THREAD);
+  const extension = isObject(value)
+    ? value.pending_extension_request
+    : undefined;
+
+  return {
+    ...loan,
+    pending_extension_request: parseNullableLoanExtensionRequest(
+      extension,
+      INVALID_THREAD,
+    ),
   };
 }
 
@@ -318,7 +354,7 @@ export function parseMessageThread(value: unknown): MessageThread {
     ),
     context: parseConversationContext(value, INVALID_THREAD),
     active_loan: isPresent(activeLoan)
-      ? parseLoanSummary(activeLoan, INVALID_THREAD)
+      ? parseThreadActiveLoan(activeLoan)
       : null,
     has_unread_messages: hasUnreadMessages,
     messages: parseArray(messages, INVALID_THREAD).map(parseMessageSummary),

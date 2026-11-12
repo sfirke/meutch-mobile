@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
@@ -9,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { QueryProvider } from '../src/query/QueryProvider';
 import { SessionProvider, useSession } from '../src/session/SessionProvider';
+import { fontAssets } from '../src/theme/fonts';
 
 // Held from module scope so the splash is pinned before the first render; a
 // returning member must never see the sign-in screen flash past.
@@ -16,17 +18,21 @@ void SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { status } = useSession();
-  const isRestoring = status === 'restoring';
+  const [fontsLoaded, fontError] = useFonts(fontAssets);
+  // A font that fails to load falls back to the system font rather than
+  // holding the splash forever.
+  const fontsReady = fontsLoaded || fontError !== null;
+  const isReady = status !== 'restoring' && fontsReady;
 
   useEffect(() => {
-    if (!isRestoring) {
+    if (isReady) {
       void SplashScreen.hideAsync();
     }
-  }, [isRestoring]);
+  }, [isReady]);
 
   // Rendering nothing while restoring also means no navigator exists yet, so
   // the group layouts cannot redirect on a session we have not read.
-  if (isRestoring) {
+  if (!isReady) {
     return null;
   }
 

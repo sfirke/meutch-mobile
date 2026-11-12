@@ -1,3 +1,10 @@
+// Report fonts as already loaded so the root layout renders without waiting.
+jest.mock('expo-font', () => ({
+  useFonts: jest.fn(() => [true, null]),
+  loadAsync: jest.fn(() => Promise.resolve()),
+  isLoaded: jest.fn(() => true),
+}));
+
 // The native module isn't available under Jest; use the library's mock.
 jest.mock('react-native-keyboard-controller', () =>
   require('react-native-keyboard-controller/jest'),

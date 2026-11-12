@@ -1,36 +1,44 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  Pressable,
+  FlatList,
   RefreshControl,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Avatar } from '../components/Avatar';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ErrorState } from '../components/ErrorState';
-import { Icon, type IconName } from '../components/Icon';
-import { ImageCarousel } from '../components/ImageCarousel';
-import {
-  getAvailabilityBadge,
-  type AvailabilityBadgeTone,
-} from '../components/itemBadge';
+import type { IconName } from '../components/Icon';
+import { ImagePlaceholder } from '../components/ImagePlaceholder';
 import { LinkedText } from '../components/LinkedText';
 import { MemberPressable } from '../components/MemberPressable';
 import { MessageComposer } from '../components/MessageComposer';
 import { QueryStateView } from '../components/QueryStateView';
+import { Banner, type BannerTone } from '../components/ui/Banner';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { ItemTag } from '../components/ui/ItemTag';
+import { PhotoFrame } from '../components/ui/PhotoFrame';
+import { Stitch } from '../components/ui/Stitch';
+import { itemStatusTag } from '../components/ui/tags';
 import { useScrollBottomPadding } from '../hooks/useScrollBottomPadding';
 import { formatCalendarDate } from '../lib/dates';
 import { describeError, type ErrorCopyOverrides } from '../lib/errorCopy';
-import type { ItemDetail, ItemViewerState } from '../lib/items';
+import type { ItemDetail, ItemImage, ItemViewerState } from '../lib/items';
 import { DELETED_USER_NAME } from '../lib/parse';
 import { useDeleteItemMutation } from '../query/useDeleteItemMutation';
 import { isItemId, useItemDetailQuery } from '../query/useItemDetailQuery';
 import { useSession } from '../session/SessionProvider';
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, fonts, radii, spacing, typography } from '../theme';
 
 const DEFAULT_TITLE = 'Item';
 
@@ -55,14 +63,9 @@ const ERROR_OVERRIDES: ErrorCopyOverrides = {
   },
 };
 
-const badgeToneColors: Record<AvailabilityBadgeTone, string> = {
-  success: colors.success,
-  warning: colors.warning,
-};
-
 type StatusBanner = {
-  label: string;
-  tone: AvailabilityBadgeTone;
+  title: string | null;
+  tone: BannerTone;
   detail: string | null;
   icon: IconName | null;
 };
@@ -85,68 +88,61 @@ const GIVEAWAY_HINT =
 /**
  * The web page shows the recipient's name to the owner only, and the borrower's
  * name to nobody, so neither identity is rendered outside those cases here.
+ * The status tag on the photo names the state; the title is only for an item
+ * with no tag.
  */
 function buildStatusBanner(
   item: ItemDetail,
   viewer: ItemViewerState,
   isRecipient: boolean,
 ): StatusBanner {
-  const badge = getAvailabilityBadge(item);
+  const tag = itemStatusTag(item);
 
-  if (!badge) {
-    return { label: 'Available', tone: 'success', detail: null, icon: null };
+  if (item.available || tag === null) {
+    return {
+      title: tag === null ? 'Available' : null,
+      tone: 'success',
+      detail: null,
+      icon: null,
+    };
   }
 
-  if (badge.label === 'Borrowed') {
+  if (tag === 'on_loan') {
     const dueDate = item.current_loan
       ? formatCalendarDate(item.current_loan.end_date)
       : null;
+    const detail = viewer.is_active_borrower
+      ? dueDate
+        ? `You're borrowing this until ${dueDate}.`
+        : "You're borrowing this item."
+      : dueDate
+        ? `Due back ${dueDate}.`
+        : null;
 
-    if (viewer.is_active_borrower) {
-      return {
-        ...badge,
-        detail: dueDate
-          ? `You're borrowing this until ${dueDate}.`
-          : "You're borrowing this item.",
-      };
-    }
-
-    return { ...badge, detail: dueDate ? `Due back ${dueDate}.` : null };
+    return { title: null, tone: 'warning', detail, icon: 'pending' };
   }
 
-  if (badge.label === 'Pending Pickup') {
-    if (viewer.is_owner) {
-      return {
-        ...badge,
-        detail: item.claimed_by
-          ? `Going to ${item.claimed_by.full_name}.`
-          : 'Waiting on handoff.',
-      };
-    }
-
-    return {
-      ...badge,
-      detail: isRecipient
+  if (tag === 'pending') {
+    const detail = viewer.is_owner
+      ? item.claimed_by
+        ? `Going to ${item.claimed_by.full_name}.`
+        : 'Waiting on handoff.'
+      : isRecipient
         ? "You've been selected for this giveaway."
-        : 'Pending pickup by another member.',
-    };
+        : 'Pending pickup by another member.';
+
+    return { title: null, tone: 'warning', detail, icon: 'pending' };
   }
 
-  if (viewer.is_owner) {
-    return {
-      ...badge,
-      detail: item.claimed_by
-        ? `Given to ${item.claimed_by.full_name}.`
-        : 'Marked as rehomed.',
-    };
-  }
-
-  return {
-    ...badge,
-    detail: isRecipient
+  const detail = viewer.is_owner
+    ? item.claimed_by
+      ? `Given to ${item.claimed_by.full_name}.`
+      : 'Marked as rehomed.'
+    : isRecipient
       ? 'You received this giveaway.'
-      : 'This giveaway has found a new home.',
-  };
+      : 'This giveaway has found a new home.';
+
+  return { title: null, tone: 'info', detail, icon: 'rehomed' };
 }
 
 /** Owner-only: the API nulls `interested_count` for everyone else. */
@@ -229,7 +225,7 @@ function describeAffordance(
     };
   }
 
-  return { actionLabel: 'Request to Borrow', notes: [] };
+  return { actionLabel: 'Ask to borrow this', notes: [] };
 }
 
 function OwnerActions({ itemId }: { itemId: string }) {
@@ -261,26 +257,22 @@ function OwnerActions({ itemId }: { itemId: string }) {
 
   return (
     <View style={styles.ownerActions}>
-      <Pressable
-        accessibilityRole="button"
+      <Button
+        icon="pen"
+        label="Edit"
         onPress={() => router.push(`/item/${itemId}/edit`)}
         style={styles.ownerButton}
         testID="item-edit"
-      >
-        <Icon color={colors.text} name="pen" size={14} />
-        <Text style={styles.ownerButtonLabel}>Edit</Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
+        variant="outline"
+      />
+      <Button
+        icon="trash"
+        label="Delete"
         onPress={() => setConfirming(true)}
-        style={[styles.ownerButton, styles.deleteButton]}
+        style={styles.ownerButton}
         testID="item-delete"
-      >
-        <Icon color={colors.danger} name="trash" size={14} />
-        <Text style={[styles.ownerButtonLabel, styles.deleteLabel]}>
-          Delete
-        </Text>
-      </Pressable>
+        variant="outlineDanger"
+      />
       <ConfirmDialog
         confirmLabel="Delete"
         destructive
@@ -295,6 +287,103 @@ function OwnerActions({ itemId }: { itemId: string }) {
         title="Delete this item?"
         visible={confirming}
       />
+    </View>
+  );
+}
+
+const PHOTO_ASPECT_RATIO = 4 / 3;
+
+/**
+ * The whole photo (never cropped) in an ink frame with a 4px lift, paged when
+ * there are several. Measures its own width so the lift stays inside the
+ * screen gutter.
+ */
+function ItemPhoto({ item }: { item: ItemDetail }) {
+  const { width: windowWidth } = useWindowDimensions();
+  const [measured, setMeasured] = useState(0);
+  const [active, setActive] = useState({ orderKey: '', index: 0 });
+  const statusTag = itemStatusTag(item);
+
+  const images = item.images.flatMap((image: ItemImage) =>
+    image.url === null ? [] : [{ id: image.id, url: image.url }],
+  );
+  const orderKey = images.map((image) => image.id).join(',');
+  const total = images.length;
+  const currentIndex = Math.min(
+    active.orderKey === orderKey ? active.index : 0,
+    Math.max(total - 1, 0),
+  );
+
+  const width = measured || windowWidth - 2 * spacing[16];
+  const frameSize = { height: width / PHOTO_ASPECT_RATIO, width };
+
+  const onLayout = (event: LayoutChangeEvent) => {
+    setMeasured(event.nativeEvent.layout.width);
+  };
+
+  const onMomentumScrollEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    setActive({
+      orderKey,
+      index: Math.round(event.nativeEvent.contentOffset.x / width),
+    });
+  };
+
+  return (
+    <View style={styles.photoArea}>
+      <View onLayout={onLayout}>
+        <PhotoFrame lifted="lg" radius={radii.card} style={frameSize}>
+          <View style={styles.photoBackdrop}>
+            {total === 0 ? (
+              <View style={styles.photoEmpty} testID="item-carousel-empty">
+                <ImagePlaceholder />
+              </View>
+            ) : (
+              <FlatList
+                data={images}
+                getItemLayout={(_data, index) => ({
+                  length: width,
+                  offset: width * index,
+                  index,
+                })}
+                horizontal
+                key={orderKey}
+                keyExtractor={(image) => image.id}
+                onMomentumScrollEnd={onMomentumScrollEnd}
+                pagingEnabled
+                renderItem={({ index, item: image }) => (
+                  <Image
+                    accessibilityLabel={
+                      total > 1
+                        ? `Photo ${index + 1} of ${total} of ${item.name}`
+                        : `Photo of ${item.name}`
+                    }
+                    contentFit="contain"
+                    recyclingKey={image.id}
+                    source={{ uri: image.url }}
+                    style={frameSize}
+                    testID="item-carousel-image"
+                    transition={150}
+                  />
+                )}
+                showsHorizontalScrollIndicator={false}
+                testID="item-carousel"
+              />
+            )}
+          </View>
+
+          {statusTag ? <ItemTag kind={statusTag} onPhoto /> : null}
+
+          {total > 1 ? (
+            <View style={styles.counter} testID="item-carousel-indicator">
+              <Text style={styles.counterText} testID="item-carousel-counter">
+                {`${currentIndex + 1} / ${total}`}
+              </Text>
+            </View>
+          ) : null}
+        </PhotoFrame>
+      </View>
     </View>
   );
 }
@@ -334,77 +423,61 @@ function ItemDetailBody({
         <RefreshControl
           onRefresh={onRefresh}
           refreshing={isRefreshing}
-          tintColor={colors.primaryDark}
+          tintColor={colors.tealDeep}
         />
       }
       testID="item-detail-scroll"
     >
-      <ImageCarousel images={item.images} itemName={item.name} />
+      <ItemPhoto item={item} />
 
       <View style={styles.section}>
-        {item.is_giveaway ? (
-          <View style={styles.giveawayChip}>
-            <Text style={styles.giveawayText}>GIVEAWAY</Text>
-          </View>
-        ) : null}
-
         <Text style={styles.name}>{item.name}</Text>
 
-        <View
-          style={[styles.banner, { borderColor: badgeToneColors[banner.tone] }]}
-          testID="item-status-banner"
-        >
-          {banner.icon ? (
-            <Icon
-              color={badgeToneColors[banner.tone]}
-              name={banner.icon}
-              size={18}
-            />
-          ) : (
-            <View
-              style={[
-                styles.bannerDot,
-                { backgroundColor: badgeToneColors[banner.tone] },
-              ]}
-            />
-          )}
-          <View style={styles.bannerCopy}>
-            <Text style={styles.bannerLabel}>{banner.label}</Text>
-            {banner.detail ? (
-              <Text style={styles.bannerDetail}>{banner.detail}</Text>
-            ) : null}
-          </View>
-        </View>
+        {banner.title || banner.detail ? (
+          <Banner
+            icon={banner.icon ?? undefined}
+            testID="item-status-banner"
+            title={banner.title ?? undefined}
+            tone={banner.tone}
+          >
+            {banner.detail}
+          </Banner>
+        ) : null}
 
         {description ? (
           <LinkedText style={styles.description} text={description} />
         ) : null}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Shared by</Text>
-        {item.owner ? (
-          <MemberPressable user={item.owner}>
+      <View style={styles.owner}>
+        <Stitch />
+        <View style={styles.ownerBlock}>
+          <Text style={styles.sectionLabel}>Shared by</Text>
+          {item.owner ? (
+            <MemberPressable user={item.owner}>
+              <View style={styles.ownerRow}>
+                <Avatar
+                  size={40}
+                  testID="item-owner-avatar"
+                  user={item.owner}
+                />
+                <Text style={styles.ownerName}>{item.owner.full_name}</Text>
+              </View>
+            </MemberPressable>
+          ) : (
             <View style={styles.ownerRow}>
-              <Avatar testID="item-owner-avatar" user={item.owner} />
-              <Text style={styles.ownerName}>{item.owner.full_name}</Text>
+              <Avatar size={40} testID="item-owner-avatar" user={item.owner} />
+              <Text style={styles.ownerName}>{DELETED_USER_NAME}</Text>
             </View>
-          </MemberPressable>
-        ) : (
-          <View style={styles.ownerRow}>
-            <Avatar testID="item-owner-avatar" user={item.owner} />
-            <Text style={styles.ownerName}>{DELETED_USER_NAME}</Text>
-          </View>
-        )}
+          )}
+        </View>
+        <Stitch />
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Category</Text>
         <View style={styles.chipRow}>
-          <View style={styles.chip}>
-            <Icon color={colors.secondary} name="category" size={12} />
-            <Text style={styles.chipText}>{item.category.name}</Text>
-          </View>
+          <ItemTag label={item.category.name} tone="tealWash" />
         </View>
       </View>
 
@@ -413,9 +486,7 @@ function ItemDetailBody({
           <Text style={styles.sectionLabel}>Tags</Text>
           <View style={styles.chipRow}>
             {item.tags.map((tag) => (
-              <View key={tag.id} style={styles.chip}>
-                <Text style={styles.chipText}>{tag.name}</Text>
-              </View>
+              <ItemTag key={tag.id} label={tag.name} />
             ))}
           </View>
         </View>
@@ -426,7 +497,7 @@ function ItemDetailBody({
       affordance.actionLabel ||
       affordance.loanId ||
       affordance.notes.length > 0 ? (
-        <View style={styles.actionCard} testID="item-affordance">
+        <Card style={styles.actionCard} testID="item-affordance">
           {recipient ? (
             <MessageComposer
               errorTestID="item-send-error"
@@ -442,35 +513,23 @@ function ItemDetailBody({
           ) : null}
 
           {affordance.actionLabel ? (
-            <Pressable
-              accessibilityRole="button"
+            <Button
+              label={affordance.actionLabel}
               onPress={() => router.push(`/item/${item.id}/request`)}
-              style={({ pressed }) => [
-                styles.actionButton,
-                pressed && styles.pressed,
-              ]}
+              size="lg"
               testID="item-primary-action"
-            >
-              <Text style={styles.actionButtonLabel}>
-                {affordance.actionLabel}
-              </Text>
-            </Pressable>
+              variant="primary"
+            />
           ) : null}
 
           {affordance.loanId ? (
-            <Pressable
-              accessibilityRole="button"
+            <Button
+              icon="loan"
+              label="View loan"
               onPress={() => router.push(`/loan/${affordance.loanId}`)}
-              style={({ pressed }) => [
-                styles.loanRow,
-                pressed && styles.pressed,
-              ]}
               testID="item-view-loan"
-            >
-              <Icon color={colors.secondary} name="loan" size={16} />
-              <Text style={styles.loanLabel}>View loan</Text>
-              <Icon color={colors.secondary} name="chevron" size={12} />
-            </Pressable>
+              variant="outline"
+            />
           ) : null}
 
           {affordance.notes.map((note) => (
@@ -480,7 +539,7 @@ function ItemDetailBody({
           ))}
 
           {viewer.is_owner ? <OwnerActions itemId={item.id} /> : null}
-        </View>
+        </Card>
       ) : null}
     </KeyboardAwareScrollView>
   );
@@ -551,147 +610,79 @@ export function ItemDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  actionButton: {
-    alignItems: 'center',
-    backgroundColor: colors.primaryDark,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing[16],
-    paddingVertical: spacing[12],
-  },
-  actionButtonLabel: {
-    color: colors.onPrimaryText,
-    ...typography.buttonLarge,
-  },
   actionCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    gap: spacing[8],
+    gap: spacing[12],
     marginHorizontal: spacing[16],
     marginTop: spacing[8],
-    padding: spacing[16],
   },
   actionNote: {
-    color: colors.secondary,
-    ...typography.itemMeta,
-  },
-  banner: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing[10],
-    padding: spacing[12],
-  },
-  bannerCopy: {
-    flex: 1,
-    gap: spacing[4],
-  },
-  bannerDetail: {
-    color: colors.secondary,
-    ...typography.itemMeta,
-  },
-  bannerDot: {
-    borderRadius: spacing[4],
-    height: spacing[8],
-    width: spacing[8],
-  },
-  bannerLabel: {
-    color: colors.text,
-    ...typography.label,
-  },
-  chip: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    flexDirection: 'row',
-    gap: spacing[4],
-    paddingHorizontal: spacing[12],
-    paddingVertical: spacing[4],
+    color: colors.muted,
+    ...typography.body,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing[8],
   },
-  chipText: {
-    color: colors.secondary,
-    ...typography.itemMeta,
-  },
-  deleteButton: {
-    borderColor: colors.danger,
-  },
-  deleteLabel: {
-    color: colors.danger,
-  },
-  description: {
-    color: colors.text,
-    ...typography.body,
-  },
-  giveawayChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.success,
-    borderRadius: radii.sm,
+  counter: {
+    backgroundColor: colors.ink,
+    borderRadius: radii.tag,
+    bottom: spacing[12],
     paddingHorizontal: spacing[10],
     paddingVertical: spacing[4],
+    position: 'absolute',
+    right: spacing[12],
   },
-  giveawayText: {
-    color: colors.onPrimaryText,
-    ...typography.label,
-    fontSize: 11,
+  counterText: {
+    color: colors.paper,
+    ...typography.micro,
   },
-  loanLabel: {
-    color: colors.text,
-    flex: 1,
-    ...typography.label,
-  },
-  loanRow: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    flexDirection: 'row',
-    gap: spacing[12],
-    padding: spacing[12],
+  description: {
+    color: colors.ink,
+    ...typography.body,
   },
   name: {
-    color: colors.text,
-    ...typography.value,
+    color: colors.ink,
+    ...typography.h1,
+  },
+  owner: {
+    marginTop: spacing[20],
   },
   ownerActions: {
     flexDirection: 'row',
     gap: spacing[8],
   },
-  ownerButton: {
-    alignItems: 'center',
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: 'row',
+  ownerBlock: {
     gap: spacing[8],
-    justifyContent: 'center',
-    paddingVertical: spacing[12],
+    paddingHorizontal: spacing[16],
+    paddingVertical: spacing[14],
   },
-  ownerButtonLabel: {
-    color: colors.text,
-    ...typography.label,
+  ownerButton: {
+    flex: 1,
   },
   ownerName: {
-    color: colors.text,
+    color: colors.ink,
     ...typography.body,
+    fontFamily: fonts.body[700],
   },
   ownerRow: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing[12],
   },
-  pressed: {
-    opacity: 0.75,
+  photoArea: {
+    paddingHorizontal: spacing[16],
+    paddingTop: spacing[16],
+  },
+  photoBackdrop: {
+    backgroundColor: colors.tangerineWash,
+    flex: 1,
+  },
+  photoEmpty: {
+    flex: 1,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.paper,
     flex: 1,
   },
   section: {
@@ -700,7 +691,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing[16],
   },
   sectionLabel: {
-    color: colors.secondary,
+    color: colors.muted,
     ...typography.label,
   },
 });

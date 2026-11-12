@@ -75,12 +75,8 @@ function requestEvent(overrides?: Record<string, unknown>) {
   };
 }
 
-function headlineFor(event: {
-  actor_name: string;
-  action: string;
-  title: string;
-}): string {
-  return `${event.actor_name} ${event.action} · ${event.title}`;
+function headlineFor(event: { title: string }): string {
+  return event.title;
 }
 
 // Answers the filter sheet's profile read and passes every other path to

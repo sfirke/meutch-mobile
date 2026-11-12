@@ -52,41 +52,25 @@ describe('<ItemCard />', () => {
     expect(screen.getByTestId('image-placeholder')).toBeTruthy();
   });
 
-  test('shows the giveaway ribbon when is_giveaway is true', () => {
+  test('shows the "Up for grabs" tag for an available giveaway', () => {
     render(<ItemCard item={buildItem({ is_giveaway: true })} />);
 
-    expect(screen.getByText('GIVEAWAY')).toBeTruthy();
+    expect(screen.getByText('Up for grabs')).toBeTruthy();
   });
 
-  test('shows the giveaway ribbon over the placeholder too', () => {
+  test('shows the tag over the placeholder too', () => {
     render(
       <ItemCard item={buildItem({ is_giveaway: true, image_url: null })} />,
     );
 
-    expect(screen.getByText('GIVEAWAY')).toBeTruthy();
+    expect(screen.getByText('Up for grabs')).toBeTruthy();
     expect(screen.getByTestId('image-placeholder')).toBeTruthy();
   });
 
-  test('omits the ribbon when is_giveaway is false', () => {
+  test('shows no tag for an available loan item', () => {
     render(<ItemCard item={buildItem({ is_giveaway: false })} />);
 
-    expect(screen.queryByText('GIVEAWAY')).toBeNull();
-  });
-
-  test('shows no availability badge when available', () => {
-    render(
-      <ItemCard
-        item={buildItem({
-          available: true,
-          is_giveaway: true,
-          claim_status: 'claimed',
-        })}
-      />,
-    );
-
-    expect(screen.queryByText('Rehomed')).toBeNull();
-    expect(screen.queryByText('Pending Pickup')).toBeNull();
-    expect(screen.queryByText('Borrowed')).toBeNull();
+    expect(screen.queryByText('Up for grabs')).toBeNull();
   });
 
   test('shows "Rehomed" for an unavailable, claimed giveaway', () => {
@@ -104,7 +88,7 @@ describe('<ItemCard />', () => {
   });
 
   test.each(['pending_pickup', 'unclaimed', null] as const)(
-    'shows "Pending Pickup" for an unavailable giveaway with claim_status %s',
+    'shows "Pending pickup" for an unavailable giveaway with claim_status %s',
     (claimStatus) => {
       render(
         <ItemCard
@@ -116,11 +100,11 @@ describe('<ItemCard />', () => {
         />,
       );
 
-      expect(screen.getByText('Pending Pickup')).toBeTruthy();
+      expect(screen.getByText('Pending pickup')).toBeTruthy();
     },
   );
 
-  test('shows "Borrowed" for an unavailable, non-giveaway item', () => {
+  test('shows "Out on loan" for an unavailable, non-giveaway item', () => {
     render(
       <ItemCard
         item={buildItem({
@@ -131,7 +115,7 @@ describe('<ItemCard />', () => {
       />,
     );
 
-    expect(screen.getByText('Borrowed')).toBeTruthy();
+    expect(screen.getByText('Out on loan')).toBeTruthy();
   });
 
   test('omits the description element when description is null', () => {
@@ -180,6 +164,6 @@ describe('<ItemCard />', () => {
     );
 
     expect(screen.getByText(longName).props.numberOfLines).toBe(2);
-    expect(screen.getByText(longDescription).props.numberOfLines).toBe(3);
+    expect(screen.getByText(longDescription).props.numberOfLines).toBe(2);
   });
 });

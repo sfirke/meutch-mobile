@@ -213,7 +213,7 @@ describe('<ItemDetailScreen />', () => {
   test('marks the item as a giveaway', async () => {
     renderScreen({ item: { is_giveaway: true } });
 
-    expect(await screen.findByText('GIVEAWAY')).toBeTruthy();
+    expect(await screen.findByText('Up for grabs')).toBeTruthy();
   });
 
   test('sets the header title from the item name', async () => {
@@ -315,7 +315,7 @@ describe('<ItemDetailScreen /> status banner', () => {
       },
     });
 
-    expect(await screen.findByText('Borrowed')).toBeTruthy();
+    expect(await screen.findByText('Out on loan')).toBeTruthy();
     expect(screen.getByText('Due back Jun 3, 2026.')).toBeTruthy();
   });
 
@@ -342,7 +342,7 @@ describe('<ItemDetailScreen /> status banner', () => {
   test('omits the due date when there is no current loan', async () => {
     renderScreen({ item: { available: false } });
 
-    expect(await screen.findByText('Borrowed')).toBeTruthy();
+    expect(await screen.findByText('Out on loan')).toBeTruthy();
     expect(screen.queryByText(/Due back/)).toBeNull();
   });
 
@@ -358,7 +358,7 @@ describe('<ItemDetailScreen /> status banner', () => {
       },
     });
 
-    expect(await screen.findByText('Pending Pickup')).toBeTruthy();
+    expect(await screen.findByText('Pending pickup')).toBeTruthy();
     expect(screen.getByText('Going to Cy Placeholder.')).toBeTruthy();
   });
 
@@ -408,7 +408,7 @@ describe('<ItemDetailScreen /> identity visibility', () => {
       },
     });
 
-    expect(await screen.findByText('Borrowed')).toBeTruthy();
+    expect(await screen.findByText('Out on loan')).toBeTruthy();
     expect(screen.queryByText('Bo Sample')).toBeNull();
   });
 
@@ -427,7 +427,7 @@ describe('<ItemDetailScreen /> identity visibility', () => {
       },
     });
 
-    expect(await screen.findByText('Borrowed')).toBeTruthy();
+    expect(await screen.findByText('Out on loan')).toBeTruthy();
     expect(screen.queryByText('Bo Sample')).toBeNull();
   });
 
@@ -467,7 +467,7 @@ describe('<ItemDetailScreen /> affordances', () => {
 
     const action = await screen.findByTestId('item-primary-action');
 
-    expect(screen.getByText('Request to Borrow')).toBeTruthy();
+    expect(screen.getByText('Ask to borrow this')).toBeTruthy();
     expect(action).toBeEnabled();
     expect(screen.queryByText(/coming to the app soon/)).toBeNull();
     expect(screen.queryByText(/meutch\.com/)).toBeNull();

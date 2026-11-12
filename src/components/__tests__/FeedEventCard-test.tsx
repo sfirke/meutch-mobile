@@ -59,10 +59,9 @@ describe('<FeedEventCard />', () => {
       />,
     );
 
-    expect(screen.getByText('Request')).toBeTruthy();
-    expect(
-      screen.getByText('Ada Example requested · Extension ladder'),
-    ).toBeTruthy();
+    expect(screen.getByText('Wanted')).toBeTruthy();
+    expect(screen.getByText(/Ada Example requested/)).toBeTruthy();
+    expect(screen.getByText('Extension ladder')).toBeTruthy();
   });
 
   test('renders a giveaway event: chip, verbatim action, and title', () => {
@@ -77,10 +76,9 @@ describe('<FeedEventCard />', () => {
       />,
     );
 
-    expect(screen.getByText('Giveaway')).toBeTruthy();
-    expect(
-      screen.getByText('Ada Example posted a giveaway · Cordless drill'),
-    ).toBeTruthy();
+    expect(screen.getByText('Up for grabs')).toBeTruthy();
+    expect(screen.getByText(/Ada Example posted a giveaway/)).toBeTruthy();
+    expect(screen.getByText('Cordless drill')).toBeTruthy();
   });
 
   test('renders a lent event: chip, verbatim action, and title', () => {
@@ -95,10 +93,9 @@ describe('<FeedEventCard />', () => {
       />,
     );
 
-    expect(screen.getByText('Loan')).toBeTruthy();
-    expect(
-      screen.getByText('Ada Example lent out · Camping tent'),
-    ).toBeTruthy();
+    expect(screen.getByText('Out on loan')).toBeTruthy();
+    expect(screen.getByText(/Ada Example lent out/)).toBeTruthy();
+    expect(screen.getByText('Camping tent')).toBeTruthy();
   });
 
   test('renders a circle_join event: chip, verbatim action, and title', () => {
@@ -115,10 +112,9 @@ describe('<FeedEventCard />', () => {
     );
 
     expect(screen.getByText('Circle')).toBeTruthy();
+    expect(screen.getByText(/Ada Example joined/)).toBeTruthy();
     expect(
-      screen.getByText(
-        'Ada Example joined · Oak Street + 2 more of your circles',
-      ),
+      screen.getByText('Oak Street + 2 more of your circles'),
     ).toBeTruthy();
   });
 
@@ -346,13 +342,13 @@ describe('<FeedEventCard />', () => {
       <FeedEventCard event={createEvent({ distance: '2-5 mi' })} now={NOW} />,
     );
 
-    expect(screen.getByText('2-5 mi')).toBeTruthy();
+    expect(screen.getByText('2-5 mi away')).toBeTruthy();
   });
 
   test('omits distance when null', () => {
     render(<FeedEventCard event={createEvent({ distance: null })} now={NOW} />);
 
-    expect(screen.queryByText(/mi$/)).toBeNull();
+    expect(screen.queryByText(/away$/)).toBeNull();
   });
 
   test('renders description when present, truncated to two lines', () => {
@@ -385,7 +381,7 @@ describe('<FeedEventCard />', () => {
       />,
     );
 
-    expect(screen.getByText('5m ago')).toBeTruthy();
+    expect(screen.getByText(/· 5m ago/)).toBeTruthy();
   });
 
   test('links to the actor profile via the avatar when viewable, without triggering the card press', () => {
@@ -462,9 +458,9 @@ describe('<FeedEventCard />', () => {
     );
 
     expect(screen.queryByLabelText("View Ada Example's profile")).toBeNull();
-    expect(screen.queryByText('Ada Example')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
     expect(
-      screen.getByText('Ada Example posted a giveaway · Cordless drill'),
+      screen.getByLabelText('Ada Example posted a giveaway · Cordless drill'),
     ).toBeTruthy();
 
     fireEvent(screen.getByRole('button'), 'accessibilityAction', {
@@ -489,7 +485,7 @@ describe('<FeedEventCard />', () => {
       expect(screen.getByTestId('feed-claimed-giveaway')).toBeTruthy();
       expect(screen.getByText(/gave away/)).toBeTruthy();
       expect(screen.getByText('Kids bike')).toBeTruthy();
-      expect(screen.queryByText('Giveaway')).toBeNull();
+      expect(screen.queryByText('Up for grabs')).toBeNull();
       expect(screen.queryByText('Works great')).toBeNull();
     });
 

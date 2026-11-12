@@ -8,7 +8,6 @@ import { useInboxUnreadCount } from '../../src/query/useInboxUnreadCount';
 import { colors, spacing } from '../../src/theme';
 
 export default function TabsLayout() {
-  // Derived from the cached inbox page 1; there is no unread-count endpoint.
   const unreadCount = useInboxUnreadCount();
 
   return (

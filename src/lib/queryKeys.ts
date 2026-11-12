@@ -176,6 +176,7 @@ export const messageKeys = {
     ] as const,
   thread: (messageId: string) =>
     [...messageKeys.all, 'thread', messageId] as const,
+  unreadCount: () => [...messageKeys.all, 'unread-count'] as const,
 };
 
 export const profileKeys = {

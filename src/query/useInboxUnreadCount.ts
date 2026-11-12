@@ -1,76 +1,25 @@
-import {
-  useQueryClient,
-  type InfiniteData,
-  type QueryClient,
-} from '@tanstack/react-query';
-import { useCallback, useSyncExternalStore } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
-import type { ConversationPage } from '../lib/messages';
-import { isObject } from '../lib/parse';
+import { fetchUnreadCount } from '../lib/messages';
 import { messageKeys } from '../lib/queryKeys';
+import { useSession } from '../session/SessionProvider';
 
-type InboxData = InfiniteData<ConversationPage, number>;
+const POLL_INTERVAL_MS = 60 * 1000;
 
 /**
- * No unread-count endpoint exists, so the badge counts the conversations with
- * unread messages on the inbox's cached first page only. It is a hint, not a
- * total: nothing is fetched here, and the count stays 0 until the Inbox tab
- * has loaded once. The inbox is cached once per sort, so the most recently
- * updated entry wins.
+ * Unread received messages, the same count as the web navbar. Polls once a
+ * minute while the app is in the foreground, and 0 until the first response.
  */
-function countUnread(data: InboxData | undefined): number {
-  const firstPage = data?.pages[0];
-
-  if (!firstPage) {
-    return 0;
-  }
-
-  return firstPage.conversations.filter(
-    (conversation) => conversation.unread_count > 0,
-  ).length;
-}
-
-function latestInboxData(queryClient: QueryClient): InboxData | undefined {
-  let latest: { data: InboxData; updatedAt: number } | undefined;
-
-  for (const query of queryClient
-    .getQueryCache()
-    .findAll({ queryKey: [...messageKeys.all, 'inbox'] })) {
-    const filters = query.queryKey[2];
-
-    if (
-      !isObject(filters) ||
-      filters.status !== 'inbox' ||
-      query.state.data === undefined
-    ) {
-      continue;
-    }
-
-    if (!latest || query.state.dataUpdatedAt > latest.updatedAt) {
-      latest = {
-        data: query.state.data as InboxData,
-        updatedAt: query.state.dataUpdatedAt,
-      };
-    }
-  }
-
-  return latest?.data;
-}
-
 export function useInboxUnreadCount(): number {
-  const queryClient = useQueryClient();
+  const { authenticatedApiFetch, status } = useSession();
 
-  const subscribe = useCallback(
-    (onStoreChange: () => void) =>
-      queryClient.getQueryCache().subscribe(onStoreChange),
-    [queryClient],
-  );
+  const { data } = useQuery({
+    queryKey: messageKeys.unreadCount(),
+    queryFn: ({ signal }) =>
+      fetchUnreadCount(authenticatedApiFetch, { signal }),
+    enabled: status === 'signed-in',
+    refetchInterval: POLL_INTERVAL_MS,
+  });
 
-  // A plain number, so re-reading it on every cache event is safe as a snapshot.
-  const getSnapshot = useCallback(
-    () => countUnread(latestInboxData(queryClient)),
-    [queryClient],
-  );
-
-  return useSyncExternalStore(subscribe, getSnapshot);
+  return data ?? 0;
 }

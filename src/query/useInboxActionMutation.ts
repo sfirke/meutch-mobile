@@ -141,6 +141,9 @@ export function useInboxActionMutation(folder: InboxFolder) {
         predicate: (query) => query.queryHash !== folderHash,
         refetchType: 'none',
       });
+      void queryClient.invalidateQueries({
+        queryKey: messageKeys.unreadCount(),
+      });
     },
   });
 }

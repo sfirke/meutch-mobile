@@ -28,6 +28,9 @@ export function useMarkThreadReadMutation(messageId: string) {
       void queryClient.invalidateQueries({
         queryKey: [...messageKeys.all, 'inbox'],
       });
+      void queryClient.invalidateQueries({
+        queryKey: messageKeys.unreadCount(),
+      });
     },
   });
 }

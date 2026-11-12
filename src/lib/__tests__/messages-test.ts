@@ -8,6 +8,7 @@ import {
   bulkUnarchive,
   fetchConversations,
   fetchMessageThread,
+  fetchUnreadCount,
   markAllRead,
   markThreadRead,
   replyToMessage,
@@ -735,6 +736,29 @@ describe('markThreadRead', () => {
 
     expect(isApiError(error)).toBe(true);
     expect(isApiError(error) && error.status).toBe(403);
+  });
+});
+
+describe('fetchUnreadCount', () => {
+  test('gets the unread count', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(createMockResponse({ unread_count: 4 }));
+
+    await expect(fetchUnreadCount(fetchImpl)).resolves.toBe(4);
+    expect(fetchImpl).toHaveBeenCalledWith('/messages/unread-count', {
+      signal: undefined,
+    });
+  });
+
+  test('rejects a response without a numeric count', async () => {
+    const fetchImpl = jest.fn() as jest.MockedFunction<ApiFetch>;
+
+    fetchImpl.mockResolvedValueOnce(createMockResponse({ unread_count: '4' }));
+
+    await expect(fetchUnreadCount(fetchImpl)).rejects.toThrow(
+      'Invalid unread-count payload.',
+    );
   });
 });
 

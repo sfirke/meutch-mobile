@@ -1,191 +1,73 @@
-import { QueryClientProvider, type InfiniteData } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react-native';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
-import type {
-  ConversationPage,
-  ConversationSummary,
-  InboxSort,
-  InboxStatus,
-} from '../../lib/messages';
 import { messageKeys } from '../../lib/queryKeys';
-import { createTestQueryClient } from '../../test-utils/renderWithProviders';
+import type { SessionStatus } from '../../session/SessionProvider';
+import {
+  createTestQueryClient,
+  mockApiFetch,
+  mockSession,
+} from '../../test-utils/renderWithProviders';
 import { useInboxUnreadCount } from '../useInboxUnreadCount';
 
-const otherUser = {
-  id: 'a1111111-1111-4111-8111-111111111111',
-  first_name: 'Ada',
-  last_name: 'Example',
-  full_name: 'Ada Example',
-  profile_image_url: null,
-  profile_viewable: false,
-};
+jest.mock('../../session/SessionProvider', () => ({ useSession: jest.fn() }));
 
-const viewer = {
-  id: 'b2222222-2222-4222-8222-222222222222',
-  first_name: 'Morgan',
-  last_name: 'Member',
-  full_name: 'Morgan Member',
-  profile_image_url: null,
-  profile_viewable: false,
-};
+const UNREAD_COUNT = 'GET /messages/unread-count';
 
-function conversation(
-  conversationId: string,
-  unreadCount: number,
-): ConversationSummary {
-  return {
-    conversation_id: conversationId,
-    other_user: otherUser,
-    latest_message: {
-      id: `${conversationId}-message`,
-      body: 'Is this still available?',
-      timestamp: '2026-05-26T18:30:00+00:00',
-      is_read: unreadCount === 0,
-      sender: otherUser,
-      recipient: viewer,
-      loan_extension_request: null,
-    },
-    unread_count: unreadCount,
-    is_archived: false,
-    context: { kind: 'none' },
-  };
-}
+function setup(
+  routes: Parameters<typeof mockApiFetch>[0],
+  status: SessionStatus = 'signed-in',
+) {
+  const authenticatedApiFetch = mockApiFetch(routes);
+  mockSession({ authenticatedApiFetch, status });
 
-function page(
-  pageNumber: number,
-  conversations: ConversationSummary[],
-): ConversationPage {
-  return {
-    conversations,
-    pagination: {
-      page: pageNumber,
-      per_page: 20,
-      total: conversations.length,
-      pages: 2,
-      has_next: pageNumber === 1,
-      has_prev: pageNumber > 1,
-    },
-  };
-}
-
-function renderUnreadCount() {
   const queryClient = createTestQueryClient();
-
-  // The test client gcs entries with no observer immediately, and this hook
-  // never subscribes to the query itself.
-  queryClient.setQueryDefaults([...messageKeys.all, 'inbox'], {
-    gcTime: Infinity,
-  });
-
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 
-  const view = renderHook(() => useInboxUnreadCount(), { wrapper });
+  const hook = renderHook(() => useInboxUnreadCount(), { wrapper });
 
-  function setInbox(
-    pages: ConversationPage[],
-    {
-      status = 'inbox',
-      sort,
-      updatedAt,
-    }: { status?: InboxStatus; sort?: InboxSort; updatedAt?: number } = {},
-  ): void {
-    act(() => {
-      queryClient.setQueryData<InfiniteData<ConversationPage, number>>(
-        messageKeys.inbox({ status, sort }),
-        {
-          pages,
-          pageParams: pages.map((_, index) => index + 1),
-        },
-        { updatedAt },
-      );
-    });
-  }
-
-  return { ...view, setInbox };
+  return { ...hook, authenticatedApiFetch, queryClient };
 }
 
 describe('useInboxUnreadCount', () => {
-  test('is zero when the inbox has never been loaded', () => {
-    const { result } = renderUnreadCount();
+  test('fetches the count without the inbox being loaded', async () => {
+    const { result } = setup({ [UNREAD_COUNT]: { unread_count: 3 } });
+
+    await waitFor(() => expect(result.current).toBe(3));
+  });
+
+  test('is zero until the first response arrives', () => {
+    const { result } = setup({ [UNREAD_COUNT]: { unread_count: 3 } });
 
     expect(result.current).toBe(0);
   });
 
-  test('counts only first-page rows with unread messages', () => {
-    const { result, setInbox } = renderUnreadCount();
-
-    setInbox([
-      page(1, [
-        conversation('conversation-1', 2),
-        conversation('conversation-2', 0),
-        conversation('conversation-3', 1),
-      ]),
-      page(2, [conversation('conversation-4', 5)]),
-    ]);
-
-    expect(result.current).toBe(2);
-  });
-
-  test('follows later cache updates', () => {
-    const { result, setInbox } = renderUnreadCount();
-
-    setInbox([page(1, [conversation('conversation-1', 1)])]);
-
-    expect(result.current).toBe(1);
-
-    setInbox([page(1, [conversation('conversation-1', 0)])]);
-
-    expect(result.current).toBe(0);
-  });
-
-  test('reads the most recently updated inbox sort', () => {
-    const { result, setInbox } = renderUnreadCount();
-
-    setInbox(
-      [
-        page(1, [
-          conversation('conversation-1', 1),
-          conversation('conversation-2', 1),
-        ]),
-      ],
-      { sort: 'newest', updatedAt: 1000 },
-    );
-
-    expect(result.current).toBe(2);
-
-    setInbox(
-      [
-        page(1, [
-          conversation('conversation-1', 1),
-          conversation('conversation-2', 1),
-          conversation('conversation-3', 1),
-        ]),
-      ],
-      { sort: 'unread', updatedAt: 2000 },
-    );
-
-    expect(result.current).toBe(3);
-  });
-
-  test('ignores the archived folder', () => {
-    const { result, setInbox } = renderUnreadCount();
-
-    setInbox([page(1, [conversation('conversation-1', 1)])], {
-      updatedAt: 1000,
+  test('refetches when invalidated', async () => {
+    let count = 2;
+    const { result, queryClient } = setup({
+      [UNREAD_COUNT]: () => ({ unread_count: count }),
     });
-    setInbox(
-      [
-        page(1, [
-          conversation('conversation-2', 1),
-          conversation('conversation-3', 1),
-        ]),
-      ],
-      { status: 'archived', updatedAt: 2000 },
+
+    await waitFor(() => expect(result.current).toBe(2));
+
+    count = 0;
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: messageKeys.unreadCount() }),
     );
 
-    expect(result.current).toBe(1);
+    await waitFor(() => expect(result.current).toBe(0));
+  });
+
+  test('does not fetch without a signed-in session', () => {
+    const { result, authenticatedApiFetch } = setup(
+      { [UNREAD_COUNT]: { unread_count: 3 } },
+      'signing-out',
+    );
+
+    expect(authenticatedApiFetch).not.toHaveBeenCalled();
+    expect(result.current).toBe(0);
   });
 });

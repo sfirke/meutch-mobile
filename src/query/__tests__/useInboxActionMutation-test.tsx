@@ -258,12 +258,16 @@ test('markRead zeroes the unread count on the affected rows only', async () => {
       return OK;
     },
   });
+  const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries');
 
   await run({ action: 'markRead', conversationIds: [THIRD_ID] });
 
   expect(
     rowsOf(queryClient, INBOX_KEY)?.map((row) => row.unread_count),
   ).toEqual([2, 2, 0]);
+  expect(invalidateSpy).toHaveBeenCalledWith({
+    queryKey: messageKeys.unreadCount(),
+  });
 });
 
 test('markAllRead sends the folder status and zeroes every row', async () => {

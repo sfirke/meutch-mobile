@@ -107,6 +107,9 @@ test('clears the thread unread flag and invalidates the inbox', async () => {
   expect(invalidateSpy).toHaveBeenCalledWith({
     queryKey: [...messageKeys.all, 'inbox'],
   });
+  expect(invalidateSpy).toHaveBeenCalledWith({
+    queryKey: messageKeys.unreadCount(),
+  });
 });
 
 test('a failed mark-read keeps the unread flag and exposes the error', async () => {

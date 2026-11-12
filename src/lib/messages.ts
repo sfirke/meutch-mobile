@@ -130,6 +130,7 @@ const INVALID_CONVERSATIONS = 'Invalid conversations payload.';
 const INVALID_THREAD = 'Invalid conversation thread payload.';
 const INVALID_REPLY = 'Invalid reply payload.';
 const INVALID_MARK_READ = 'Invalid mark-read payload.';
+const INVALID_UNREAD_COUNT = 'Invalid unread-count payload.';
 const INVALID_CONVERSATION_ACTION = 'Invalid conversation action payload.';
 const INVALID_MARK_UNREAD = 'Invalid mark-unread payload.';
 
@@ -445,6 +446,22 @@ export async function markThreadRead(
   );
 
   return parseMarkThreadReadResponse(await readJsonOrThrow<unknown>(response));
+}
+
+export async function fetchUnreadCount(
+  fetchImpl: ApiFetch,
+  options?: { signal?: AbortSignal },
+): Promise<number> {
+  const response = await fetchImpl('/messages/unread-count', {
+    signal: options?.signal,
+  });
+  const value = await readJsonOrThrow<unknown>(response);
+
+  if (!isObject(value) || typeof value.unread_count !== 'number') {
+    throw new Error(INVALID_UNREAD_COUNT);
+  }
+
+  return value.unread_count;
 }
 
 /** A conversation hangs off exactly one subject; the backend 422s on both or neither. */

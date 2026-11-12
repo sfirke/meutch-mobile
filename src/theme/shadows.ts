@@ -1,12 +1,16 @@
 import { colors } from './colors';
 
-// Card shadow lifted from the AppShell card style.
+// iOS only. Android can't draw hard shadows; Lifted handles that.
+export function hardShadow(offset: number) {
+  return {
+    shadowColor: colors.ink,
+    shadowOffset: { width: offset, height: offset },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+  } as const;
+}
+
 export const shadows = {
-  card: {
-    shadowColor: colors.text,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 2,
-  },
+  /** @deprecated Content cards have no shadow. Use Lifted for a hard offset. */
+  card: {},
 } as const;

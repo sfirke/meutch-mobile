@@ -12,7 +12,7 @@ export type LinkedTextProps = TextProps & {
 // Text whose http(s) and www. urls are tappable and open outside the app.
 export function LinkedText({
   text,
-  linkColor = colors.primaryDark,
+  linkColor = colors.tealDeep,
   ...textProps
 }: LinkedTextProps) {
   const segments = splitLinks(text);

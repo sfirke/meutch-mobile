@@ -58,7 +58,7 @@ describe('<LinkedText />', () => {
 
   test('applies the default and custom link colors', () => {
     const { rerender } = render(<LinkedText text="https://example.com" />);
-    expect(screen.getByRole('link').props.style.color).toBe(colors.primaryDark);
+    expect(screen.getByRole('link').props.style.color).toBe(colors.tealDeep);
 
     rerender(<LinkedText linkColor="#ff0000" text="https://example.com" />);
     expect(screen.getByRole('link').props.style.color).toBe('#ff0000');
